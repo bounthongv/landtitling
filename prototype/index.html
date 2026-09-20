@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ລະບົບຄຸ້ມຄອງໃບຕາດິນ — Land Title Management System</title>
+<style>
+  :root{
+    --gov:#0b3d2e; --gov2:#14644a; --gold:#c9a227; --bg:#f4f6f4; --card:#ffffff;
+    --ink:#17231d; --muted:#5c6b62; --line:#e2e8e2; --danger:#b3261e; --ok:#1d7a4f;
+    --shadow:0 1px 3px rgba(11,61,46,.08),0 8px 24px rgba(11,61,46,.10);
+    --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Phetsarath OT","Phetsarath",Tahoma,"Segoe UI",system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.55; font-size:15px;
+  }
+  .app{display:flex;flex-direction:column;min-height:100vh}
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    background:linear-gradient(90deg,var(--gov) 0%,var(--gov2) 100%);
+    color:#fff; display:flex; align-items:center; gap:14px; padding:10px 22px;
+    box-shadow:0 2px 10px rgba(0,0,0,.18); position:sticky; top:0; z-index:50;
+  }
+  .topbar .logo{
+    width:40px;height:40px;border-radius:10px;background:var(--gold);
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--gov);
+    font-size:18px;flex:none;
+  }
+  .topbar .brand b{display:block;font-size:16px;letter-spacing:.2px}
+  .topbar .brand span{font-size:12px;opacity:.85}
+  .topbar .spacer{flex:1}
+  .topbar .userchip{
+    display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.12);
+    padding:6px 14px 6px 8px;border-radius:999px;font-size:13px;
+  }
+  .topbar .userchip .avatar{
+    width:30px;height:30px;border-radius:50%;background:var(--gold);color:var(--gov);
+    display:flex;align-items:center;justify-content:center;font-weight:800;
+  }
+  .logout{
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;
+    padding:7px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;
+  }
+  .logout:hover{background:rgba(255,255,255,.28)}
+  /* ---------- NAV ---------- */
+  .nav{
+    display:flex;gap:4px;background:#eef3ee;border-bottom:1px solid var(--line);
+    padding:0 18px;overflow-x:auto;
+  }
+  .nav button{
+    font-family:inherit;font-size:14px;color:var(--muted);background:none;border:none;
+    padding:13px 16px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;
+    display:flex;align-items:center;gap:7px;
+  }
+  .nav button.active{color:var(--gov);border-bottom-color:var(--gov);font-weight:700}
+  .nav button:hover{color:var(--gov2)}
+  /* ---------- MAIN ---------- */
+  main{flex:1;padding:24px;max-width:1280px;width:100%;margin:0 auto}
+  .view{display:none}
+  .view.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  h1{font-size:22px;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:13.5px;margin-bottom:18px}
+  .grid{display:grid;gap:16px}
+  .grid.cards{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card.pad{padding:18px}
+  .stat .ico{
+    width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-size:20px;background:#e8f2ec;margin-bottom:10px;
+  }
+  .stat .num{font-size:26px;font-weight:800;color:var(--gov)}
+  .stat .lbl{font-size:12.5px;color:var(--muted)}
+  .card h3{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .muted{color:var(--muted)}
+  /* ---------- BUTTONS ---------- */
+  .btn{
+    font-family:inherit;font-size:14px;font-weight:600;border:none;border-radius:9px;
+    padding:10px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+    transition:filter .15s,transform .05s;background:var(--gov);color:#fff;
+  }
+  .btn:hover{filter:brightness(1.1)} .btn:active{transform:scale(.98)}
+  .btn.ghost{background:#fff;color:var(--gov);border:1.5px solid var(--gov)}
+  .btn.gold{background:var(--gold);color:#3a2d05}
+  .btn.danger{background:#fff;color:var(--danger);border:1.5px solid var(--danger)}
+  .btn.sm{padding:6px 12px;font-size:13px;border-radius:7px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  /* ---------- FORMS ---------- */
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12.5px;font-weight:600;color:var(--muted)}
+  .input,.select{
+    font-family:inherit;font-size:14px;padding:9px 12px;border:1.5px solid var(--line);
+    border-radius:9px;background:#fff;color:var(--ink);width:100%;
+  }
+  .input:focus,.select:focus{outline:none;border-color:var(--gov2);box-shadow:0 0 0 3px rgba(20,100,74,.12)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .searchbar{display:flex;gap:10px;max-width:640px}
+  .searchbar .input{flex:1}
+  /* ---------- TABLE ---------- */
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:760px}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{background:#f2f6f3;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  tr:hover td{background:#f7faf8}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .b-ok{background:#e2f3ea;color:var(--ok)}
+  .b-warn{background:#fdf1dc;color:#8a6110}
+  .b-act{background:#e3eefa;color:#1f5ea8}
+  .b-mort{background:#fdeaea;color:#a13c3c}
+  .b-done{background:#eceef0;color:#55606a}
+  .rowlink{cursor:pointer;font-weight:600;color:var(--gov2)}
+  .rowlink:hover{text-decoration:underline}
+  /* ---------- DETAIL LAYOUT ---------- */
+  .det{display:grid;grid-template-columns:1fr 420px;gap:18px}
+  @media(max-width:1100px){.det{grid-template-columns:1fr}}
+  .pane{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .pane h3{font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:var(--gov)}
+  .kv{display:grid;grid-template-columns:minmax(150px,1fr) 2fr;row-gap:8px;column-gap:14px;font-size:13.5px}
+  .kv .k{color:var(--muted)} .kv .v{font-weight:600}
+  .det .title-piece{display:none}
+  /* ---------- title card ---------- */
+  .titlecard{
+    background:linear-gradient(135deg,#fdfcf6,#f7f3e4);
+    border:2px solid var(--gold);border-radius:14px;padding:16px;margin:14px 0;
+  }
+  .titlecard .tc-head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--gold);padding-bottom:8px;margin-bottom:10px}
+  .titlecard .tc-head .t{font-weight:800;font-size:15px;color:var(--gov)}
+  .titlecard .tc-head .no{font-weight:800;font-size:15px}
+  .titlecard .tc-row{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin:4px 0}
+  .titlecard .tc-row b{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .titlecard .tc-qr{display:flex;align-items:center;gap:12px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--gold)}
+  .titlecard .tc-qr img{width:104px;height:104px;border:1px solid #d8cfae;border-radius:6px;background:#fff}
+  .titlecard .tc-qr .note{font-size:12px;color:var(--muted)}
+  .qr-big img{width:190px;height:190px}
+  /* ---------- timeline ---------- */
+  .tl{list-style:none;border-left:2px solid var(--line);margin-left:6px;padding-left:18px}
+  .tl li{position:relative;padding:0 0 16px 8px}
+  .tl li::before{content:'';position:absolute;left:-24px;top:3px;width:11px;height:11px;border-radius:50%;background:#fff;border:2.5px solid var(--gov2)}
+  .tl li .d{font-size:12px;color:var(--muted)} .tl li .t{font-weight:700;font-size:13.5px}
+  .tl li .s{font-size:12.5px;color:var(--muted)}
+  /* ---------- stepper ---------- */
+  .steps{display:flex;gap:6px;margin:14px 0 18px;flex-wrap:wrap}
+  .st{flex:1;min-width:120px;text-align:center;padding:10px 8px;border-radius:10px;background:#eef2ee;color:var(--muted);font-size:12.5px;font-weight:700;position:relative}
+  .st .no{display:block;font-size:16px;margin-bottom:2px}
+  .st.done{background:#dcefe4;color:var(--ok)}
+  .st.cur{background:var(--gov);color:#fff;box-shadow:0 4px 12px rgba(11,61,46,.3)}
+  .steps .arr{align-self:center;color:var(--muted)}
+  /* ---------- map ---------- */
+  .map{
+    position:relative;height:430px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);
+    background:#eaf0e6;
+  }
+  .map svg{position:absolute;inset:0;width:100%;height:100%}
+  .map .mp-tip{
+    position:absolute;left:14px;bottom:14px;background:rgba(255,255,255,.95);border-radius:10px;
+    padding:10px 14px;font-size:12.5px;box-shadow:var(--shadow);max-width:300px;display:none;z-index:5;
+  }
+  .map .mp-tip.show{display:block}
+  .map .mp-tip b{color:var(--gov);display:block}
+  .mp-pin{fill:#fff;stroke:var(--gov);stroke-width:2.5}
+  .mp-hover{fill:#fff;stroke:var(--gold);stroke-width:4}
+  /* ---------- chip / qr modal ---------- */
+  .chipwrap{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .chipimg{width:86px;height:56px;border-radius:8px;background:linear-gradient(135deg,#0e4a37,#14644a);border:2px solid var(--gold);position:relative;flex:none}
+  .chipimg::after{content:'';position:absolute;inset:14px;border:1.5px dashed rgba(255,255,255,.6);border-radius:5px}
+  /* ---------- modal ---------- */
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(11,30,20,.55);display:none;align-items:center;justify-content:center;
+    z-index:100;padding:20px;
+  }
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;border-radius:16px;max-width:560px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.35);max-height:90vh;overflow:auto}
+  .modal h3{font-size:17px;margin-bottom:4px}
+  .modal .close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1}
+  /* ---------- login ---------- */
+  #login{
+    position:fixed;inset:0;background:linear-gradient(135deg,var(--gov),var(--gov2));
+    display:flex;align-items:center;justify-content:center;z-index:200;
+  }
+  #login.hidden{display:none}
+  .login-card{background:#fff;border-radius:18px;padding:36px 34px;width:400px;max-width:92vw;box-shadow:0 30px 70px rgba(0,0,0,.35)}
+  .login-card .lg-logo{width:64px;height:64px;border-radius:16px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:var(--gov);margin-bottom:14px}
+  .login-card h2{font-size:20px;margin-bottom:2px}
+  .login-card .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .login-card .demo-note{margin-top:14px;background:#eef4ef;border:1px dashed #b9d4c4;border-radius:9px;padding:10px 12px;font-size:12.5px;color:#3c5c4c}
+  /* ---------- misc ---------- */
+  .pillrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);
+    background:var(--gov);color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;transition:.3s;z-index:300;pointer-events:none;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:var(--danger)}
+  .hidden{display:none !important}
+  .footer{text-align:center;color:var(--muted);font-size:12px;padding:20px;border-top:1px solid var(--line);margin-top:10px}
+  .tabrow{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .tabrow button{font-family:inherit;background:none;border:none;padding:9px 14px;font-size:13.5px;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;font-weight:600}
+  .tabrow button.active{color:var(--gov);border-color:var(--gov)}
+  .banner{background:#fff8e8;border:1px solid #e8d9a8;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px}
+  .dropzone:hover{border-color:var(--gov2) !important;background:#f2f8f4 !important}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- ================= TOP BAR ================= -->
+  <header class="topbar">
+    <div class="logo">ຕດ</div>
+    <div class="brand"><b>ລະບົບຄຸ້ມຄອງໃບຕາດິນ</b><span>Land Title Management System · ແຂວງສະຫວັນນະເຂດ · Savannakhet Province</span></div>
+    <div class="spacer"></div>
+    <div class="userchip" id="userchip"><div class="avatar">ອ</div><span id="usernamelbl">Officer</span></div>
+    <button class="logout" onclick="logout()">ອອກຈາກລະບົບ Logout</button>
+  </header>
+  <!-- ================= NAV ================= -->
+  <nav class="nav" id="nav">
+      <button data-view="dashboard" class="active">📊 ຫນ້າຫຼັກ Dashboard</button>
+      <button data-view="add">➕ ນໍາເຂົ້າຂໍ້ມູນ Add / Import</button>
+      <button data-view="search">🔎 ຄົ້ນຫາຕອນດິນ Find Parcel</button>
+      <button data-view="transfer">🔄 ການໂອນສິດ Transfer</button>
+      <button data-view="mortgage">🏦 ການຄ້ໍາປະກັນ Mortgage</button>
+      <button data-view="map">🗺️ ແຜນທີ່ GIS Map</button>
+      <button data-view="reports">📈 ລາຍງານ Reports</button>
+    </nav>
+  <!-- ================= MAIN ================= -->
+  <main>
+      <!-- ADD / IMPORT (mock only) -->
+      <section class="view" id="view-add">
+        <h1>ນໍາເຂົ້າຂໍ້ມູນ — Add / Import Land Data</h1>
+        <div class="sub">ເພີ່ມຂໍ້ມູນຕອນດິນໃຫມ່ ຫຼື ນໍາເຂົ້າຈາກລະບົບເກົ່າ — New parcel entry or legacy data import. (Mock screen for demo)</div>
+        <div class="banner demo"><span class="muted">🔬 <b>Demo only</b> — ຫນ້ານີ້ແມ່ນສະແດງໃຫ້ເຫັນເທົ່ານັ້ນ, ບໍ່ມີການບັນທຶກຕົວຈິງ · This page is a mockup, nothing is saved</span></div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:18px">
+          <div class="card pad">
+            <h3>➕ ເພີ່ມຕອນດິນໃຫມ່ — Add New Parcel (manual)</h3>
+            <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+              <div class="field"><label>ລະຫັດຕອນດິນ Parcel Code</label><input class="input" placeholder="0130.001.02.011.0033"></div>
+              <div class="field"><label>ໃບຕາດິນ ເລກທີ Title No.</label><input class="input" placeholder="833"></div>
+              <div class="field"><label>ເມືອງ District</label><select class="select"><option>ເມືອງ ໄກສອນ ພົມວິຫານ</option><option>ເມືອງ ອຸທຸມພອນ</option><option>ເມືອງ ພະລານໄຊ</option><option>ເມືອງ ຊົນນະບູລີ</option><option>ເມືອງ ສົງຄອນ</option><option>ເມືອງ ຈໍາພອນ</option></select></div>
+              <div class="field"><label>ບ້ານ Village</label><input class="input" placeholder="ດົງເທບ"></div>
+              <div class="field"><label>ຊື່ ແລະ ນາມສະກຸນ Name</label><input class="input" placeholder="ທ້າວ ສົມສະຫວາດ ພົມມະວົງ"></div>
+              <div class="field"><label>ເລກບັດປະຈໍາຕົວ ID No.</label><input class="input" placeholder="0101-1990-000123"></div>
+              <div class="field"><label>ເນື້ອທີ່ Area (ຕາແມັດ m²)</label><input class="input" type="number" placeholder="8500"></div>
+              <div class="field"><label>ປະເພດທີ່ດິນ Land Type</label><select class="select"><option>ທີ່ຢູ່ອາໄສ Residential</option><option>ທີ່ດິນກະສິກໍາ Agricultural</option><option>ທີ່ດິນການຄ້າ Commercial</option><option>ອຸດສາຫະກໍາ / ສໍາປະທານ Industrial / Concession</option></select></div>
+              <div class="field"><label>ການໄດ້ມາຂອງສິດ Acquisition</label><select class="select"><option>ຊື້ມາ Purchase</option><option>ສືບທອດມໍລະດົກ Inheritance</option><option>ການໂອນ Transfer</option><option>ສໍາປະທານ Concession</option></select></div>
+              <div class="field"><label>ຕອນທີ່ / ແຜນທີ່ Plot / Map</label><input class="input" placeholder="ຕອນທີ່ 17 · A250-014"></div>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <button class="btn" onclick="mockOnly()">✔ ບັນທຶກ Save Parcel</button>
+              <span class="muted">Mock — no save</span>
+            </div>
+          </div>
+          <div class="card pad">
+            <h3>📥 ນໍາເຂົ້າຈາກລະບົບເກົ່າ — Import from Legacy System</h3>
+            <div class="muted" style="font-size:13px;margin-bottom:12px">ເລືອກແຫຼ່ງຂໍ້ມູນ ແລະ ອັບໂຫລດໄຟລ໌ · Choose source and upload file</div>
+            <div class="field" style="margin-bottom:12px"><label>ແຫຼ່ງຂໍ້ມູນ Data Source</label>
+              <select class="select">
+                <option>Excel / CSV ຈາກລະບົບເກົ່າ (Legacy Excel/CSV)</option>
+                <option>ຖານຂໍ້ມູນ Access (ເກົ່າ MDB)</option>
+                <option>ໄຟລ໌ PDF / ສະແກນໃບຕາດິນ (Scanned titles)</option>
+                <option>GIS Shapefile (.shp)</option>
+              </select>
+            </div>
+            <div class="dropzone" id="dz" onclick="mockFile()" style="border:2px dashed var(--line);border-radius:10px;padding:26px;text-align:center;cursor:pointer;background:#fafcfa">
+                          <div style="font-size:32px" id="dz-ico">📂</div>
+                          <div style="font-weight:600;margin-top:6px" id="dz-txt">ວາງໄຟລ໌ຢູ່ນີ້ ຫຼື ກົດເພື່ອເລືອກ<br>Drop file here or click to browse</div>
+                          <div class="muted" style="font-size:12px;margin-top:4px">Excel (.xlsx) · CSV · ສູງສຸດ 50MB</div>
+                        </div>
+                        <div class="row" style="margin-top:14px;justify-content:space-between;align-items:center">
+                          <div class="muted" style="font-size:12.5px">✅ ກວດພົບ 2,845 ລາຍການຢູ່ໃນໄຟລ໌ · Detected 2,845 records in file</div>
+                          <button class="btn gold" onclick="runMockImport()">🔄 ກວດສອບ ແລະ ນໍາເຂົ້າ Validate & Import</button>
+                                                  </div>
+                                    </div>
+                                  </div>
+                                </section>
+
+                                <!-- IMPORT RESULT / PROGRESS (mock, shown after Validate & Import) -->
+                                <section class="view" id="view-import" style="display:none">
+                                  <div class="row" style="align-items:center;justify-content:space-between;gap:10px">
+                                    <h1>ຜົນການກວດສອບ — Import Validation Result</h1>
+                                    <button class="btn ghost sm" onclick="resetImport()">↩ ກັບຄືນ Back</button>
+                                  </div>
+                                  <div class="sub">ລາຍງານການກວດສອບຂໍ້ມູນຈາກໄຟລ໌ — Validation report for the uploaded file (mock)</div>
+
+                                  <!-- summary cards -->
+                                  <div class="grid cards">
+                                    <div class="card pad stat"><div class="ico">📄</div><div class="num" id="imp-total">—</div><div class="lbl">ລາຍການທັງຫມົດ Total Records</div></div>
+                                    <div class="card pad stat"><div class="ico">✅</div><div class="num" id="imp-ok">—</div><div class="lbl">ຜ່ານການກວດສອບ Valid</div></div>
+                                    <div class="card pad stat"><div class="ico">⚠️</div><div class="num" id="imp-warn">—</div><div class="lbl">ມີຄໍາເຕືອນ Warnings</div></div>
+                                    <div class="card pad stat"><div class="ico">❌</div><div class="num" id="imp-err">—</div><div class="lbl">ຜິດພາດ Errors</div></div>
+                                    <div class="card pad stat"><div class="ico">🔁</div><div class="num" id="imp-dup">—</div><div class="lbl">ຊໍ້າກັນ Duplicates</div></div>
+                                  </div>
+
+                                  <!-- progress bar -->
+                                  <div class="card pad" style="margin-bottom:16px">
+                                    <h3>📊 ຄວາມຄືບຫນ້າ — Progress</h3>
+                                    <div class="barrow" style="background:#eef2ee;border-radius:8px;height:14px;overflow:hidden">
+                                      <div id="imp-bar" style="height:14px;width:0%;background:var(--gov2);border-radius:8px;transition:width .3s"></div>
+                                    </div>
+                                    <div class="row" style="justify-content:space-between;margin-top:8px">
+                                      <span class="muted" id="imp-pct" style="font-size:13px">0%</span>
+                                      <span class="muted" id="imp-msg" style="font-size:13px">ກໍາລັງກວດສອບ… Validating…</span>
+                                    </div>
+                                  </div>
+
+                                  <!-- preview table -->
+                                  <div class="card pad" style="margin-bottom:16px">
+                                    <h3>👁️ ຕົວຢ່າງຂໍ້ມູນກ່ອນນໍາເຂົ້າ — Preview (first 8 rows)</h3>
+                                    <div class="tblwrap">
+                                      <table>
+                                        <thead><tr><th>#</th><th>ລະຫັດຕອນດິນ Parcel Code</th><th>ໃບຕາດິນ Title</th><th>ເຈົ້າຂອງ Owner</th><th>ເມືອງ District</th><th>ບ້ານ Village</th><th>ເນື້ອທີ່ Area (m²)</th><th>ສະຖານະ Status</th></tr></thead>
+                                        <tbody id="imp-rows"></tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+
+                                  <div class="row" style="justify-content:flex-end;gap:10px;margin-top:6px">
+                                    <button class="btn ghost" onclick="resetImport()">↩ ກັບຄືນ Back</button>
+                                    <button class="btn gold" onclick="mockOnly()">⬇ ດາວໂຫລດລາຍງານ Download Report</button>
+                                    <button class="btn" onclick="mockOnly()">✔ ຍືນຢັນນໍາເຂົ້າ Confirm Import</button>
+                                  </div>
+                                </section>
+
+      <!-- DASHBOARD -->
+      <section class="view active" id="view-dashboard">
+      <h1>ສະຫຼຸບສະຖານະ — Overview</h1>
+      <div class="sub">ພາບລວມຂໍ້ມູນຕອນດິນ ແຂວງສະຫວັນນະເຂດ · Savannakhet Land Data Overview</div>
+      <div class="grid cards">
+        <div class="card pad stat"><div class="ico">🗺️</div><div class="num" id="st-parcels">—</div><div class="lbl">ຕອນດິນທັງໝົດ Total Parcels</div></div>
+        <div class="card pad stat"><div class="ico">📜</div><div class="num" id="st-titles">—</div><div class="lbl">ໃບຕາດິນອອກແລ້ວ Titles Issued</div></div>
+        <div class="card pad stat"><div class="ico">👥</div><div class="num" id="st-holders">—</div><div class="lbl">ຜູ້ຖືສິດ Right Holders</div></div>
+        <div class="card pad stat"><div class="ico">🏦</div><div class="num" id="st-mort">—</div><div class="lbl">ຢູ່ລະຫວ່າງຄ້ຳປະກັນ Mortgaged</div></div>
+        <div class="card pad stat"><div class="ico">🔄</div><div class="num" id="st-trans">—</div><div class="lbl">ການໂອນປີນີ້ Transfers (Year)</div></div>
+      </div>
+      <div class="grid" style="grid-template-columns:1.4fr 1fr">
+        <div class="card pad">
+          <h3>📌 ກິດຈະກຳລ່າສຸດ — Recent Activity</h3>
+          <div class="tblwrap"><table><thead><tr><th>ວັນທີ Date</th><th>ປະເພດ Type</th><th>ຕອນດິນ Parcel</th><th>ລາຍລະອຽດ Detail</th><th>ສະຖານະ Status</th></tr></thead><tbody id="dash-activity"></tbody></table></div>
+        </div>
+        <div class="card pad">
+          <h3>🗺️ ຕອນດິນຕາມເມືອງ — By District</h3>
+          <div id="dash-district"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEARCH -->
+    <section class="view" id="view-search">
+      <h1>ຄົ້ນຫາຕອນດິນ — Find Land Parcel</h1>
+      <div class="sub">ຄົ້ນຫາດ້ວຍເລກຕອນດິນ, ຊື່ເຈົ້າຂອງ ຫຼື ບ້ານ · Search by parcel no., owner name or village</div>
+      <div class="searchbar">
+        <input class="input" id="q" placeholder="ຄົ້ນຫາ… 0130.001.02.011.0033, ທ້າວ ສົມສະຫວາດ, ບ້ານດົງເທບ…" oninput="doSearch()">
+        <button class="btn gold" onclick="doSearch()">ຄົ້ນຫາ Search</button>
+      </div>
+      <div class="tblwrap" style="margin-top:14px">
+        <table><thead><tr><th>ຕອນດິນ Parcel</th><th>ເຈົ້າຂອງ Owner</th><th>ເມືອງ District</th><th>ບ້ານ Village</th><th>ເນື້ອທີ່ Area (ha)</th><th>ປະເພດດິນ Land Use</th><th>ສະຖານະ Status</th></tr></thead><tbody id="search-results"></tbody></table>
+      </div>
+    </section>
+
+    <!-- TRANSFER -->
+    <section class="view" id="view-transfer">
+      <h1>ການໂອນສິດ — Transfer of Rights</h1>
+      <div class="sub">ຂະບວນການ: ຄຳຮ້ອງ → ກວດສອບ → ອະນຸມັດ → ປັບປຸງສິດ → ບັນທຶກປະຫວັດ · Request → Verify → Approve → Update Rights → History</div>
+      <div class="card pad">
+        <h3>1️⃣ ເລືອກຕອນດິນ — Select Parcel</h3>
+        <div class="row">
+          <select class="select" id="tr-parcel" style="max-width:340px"></select>
+        </div>
+      </div>
+      <div class="card pad" style="margin-top:14px">
+        <h3>2️⃣ ຂໍ້ມູນການໂອນ — Transfer Details</h3>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:14px">
+          <div class="field"><label>ຜູ້ໂອນ (ຜູ້ຖືສິດປັດຈຸບັນ) Transferor</label><input class="input" id="tr-from" readonly></div>
+          <div class="field"><label>ຜູ້ຮັບໂອນ (ຜູ້ໄດ້ຮັບສິດໃໝ່) Transferee</label><input class="input" id="tr-to" placeholder="ຊື່ ແລະ ນາມສະກຸນ…"></div>
+          <div class="field"><label>ປະເພດການໂອນ Type of Transfer</label><select class="select" id="tr-type"><option>ການຂາຍ Sale</option><option>ການຍົກໃຫ້ Gift</option><option>ການສືບທອດມໍລະດົກ Inheritance</option><option>ການແລກປ່ຽນ Exchange</option></select></div>
+          <div class="field"><label>ວັນທີຄຳຂໍ Date of Request</label><input class="input" type="date" id="tr-date"></div>
+        </div>
+        <div class="row" style="margin-top:16px">
+          <button class="btn" onclick="startTransfer()">ສົ່ງຄຳຂໍ ການໂອນ Submit Request</button>
+        </div>
+      </div>
+      <div class="card pad" id="tr-progress" style="margin-top:14px;display:none">
+        <h3>🔄 ຄວາມຄືບໜ້າ — Workflow Progress</h3>
+        <div class="steps" id="tr-steps"></div>
+        <div class="row" style="gap:10px">
+          <button class="btn" id="tr-next" onclick="advanceTransfer()">ກ້າວຕໍ່ໄປ → Next Step</button>
+          <span class="muted" id="tr-curinfo"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- MORTGAGE -->
+    <section class="view" id="view-mortgage">
+      <h1>ການຄ້ຳປະກັນ — Mortgage / Security Registration</h1>
+      <div class="sub">ລົງທະບຽນຕອນດິນເປັນຫຼັກຊັບຄ້ຳປະກັນ · Register parcels as collateral</div>
+      <div class="tblwrap">
+        <table><thead><tr><th>ຕອນດິນ Parcel</th><th>ເຈົ້າຂອງ Owner</th><th>ຜູ້ຮັບຄ້ຳປະກັນ Mortgagee</th><th>ຈຳນວນເງິນ Amount (₭)</th><th>ສະຖານະ Status</th><th>ການກະທຳ Action</th></tr></thead><tbody id="mort-table"></tbody></table>
+      </div>
+      <div class="card pad" style="margin-top:16px">
+        <h3>➕ ລົງທະບຽນຄ້ຳປະກັນໃໝ່ — New Mortgage</h3>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+          <div class="field"><label>ຕອນດິນ Parcel</label><select class="select" id="mo-parcel"></select></div>
+          <div class="field"><label>ຜູ້ຮັບຄ້ຳປະກັນ Mortgagee (ທະນາຄານ Bank)</label><input class="input" id="mo-bank" placeholder="ທະນາຄານການຄ້າຕ່າງປະເທດລາວ…"></div>
+          <div class="field"><label>ຈຳນວນເງິນ Amount (ກີບ Kip)</label><input class="input" id="mo-amount" type="number" placeholder="500000000"></div>
+        </div>
+        <div class="row" style="margin-top:14px"><button class="btn" onclick="registerMortgage()">ລົງທະບຽນ Register Mortgage</button></div>
+      </div>
+    </section>
+
+    <!-- MAP -->
+    <section class="view" id="view-map">
+      <h1>ແຜນທີ່ GIS — Map View</h1>
+      <div class="sub">ເບິ່ງ, ຄົ້ນຫາ ແລະ ເລືອກຕອນດິນໃນແຜນທີ່ · View, search and select parcels on the map — click a pin to open its record</div>
+      <div class="map" id="mapbox">
+        <svg id="mapsvg" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M40 0H0V40" fill="none" stroke="#cfe0d4" stroke-width="1"/>
+            </pattern>
+            <filter id="pinShadow" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#0b3d2e" flood-opacity=".35"/>
+            </filter>
+          </defs>
+          <rect width="900" height="500" fill="#eaf0e6"/>
+          <rect width="900" height="500" fill="url(#grid)"/>
+          <!-- stylized Mekong river -->
+          <path d="M -10 470 C 120 420, 180 380, 300 350 C 420 320, 560 330, 660 300 C 760 270, 850 250, 910 210"
+                fill="#bcd8e8" stroke="#9fc4da" stroke-width="2"/>
+          <text x="640" y="305" font-size="13" fill="#5b87a3" font-style="italic" transform="rotate(-12 640 305)">ແມ່ນ້ຳຂອງ Mekong River</text>
+          <!-- district zones -->
+          <path d="M60 60 L350 50 L330 190 L70 200 Z" fill="#d9e8dd" stroke="#a9c4b4" stroke-width="1.5" opacity=".8"/>
+          <path d="M350 50 L600 40 L610 200 L330 190 Z" fill="#e4ede2" stroke="#a9c4b4" stroke-width="1.5" opacity=".8"/>
+          <path d="M600 40 L880 50 L860 210 L610 200 Z" fill="#d9e8dd" stroke="#a9c4b4" stroke-width="1.5" opacity=".8"/>
+          <text x="180" y="120" font-size="12" fill="#3c5c4c">ເມືອງ ໄກສອນ ພົມວິຫານ (Kaysone)</text>
+          <text x="430" y="120" font-size="12" fill="#3c5c4c">ເມືອງ ອຸທຸມພອນ (Outhoumphone)</text>
+          <text x="700" y="120" font-size="12" fill="#3c5c4c">ເມືອງ ພະລານໄຊ (Phalanxay)</text>
+          <text x="170" y="330" font-size="12" fill="#3c5c4c">ເມືອງ ຊົນນະບູລີ (Chonnabouli)</text>
+          <text x="430" y="330" font-size="12" fill="#3c5c4c">ເມືອງ ສົງຄອນ (Songkhone)</text>
+          <text x="700" y="330" font-size="12" fill="#3c5c4c">ເມືອງ ຈຳພອນ (Champhone)</text>
+        </svg>
+        <div class="mp-tip" id="mptip"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <span class="muted">ຕົວຢ່າງຕັ້ງຢູ່ 6 ເມືອງ · Demo parcels in 6 districts — pin = ຕອນດິນ (parcel)</span>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="view" id="view-reports">
+      <h1>ລາຍງານ ແລະ ສະຖິຕິ — Reports & Statistics</h1>
+      <div class="sub">ສະໜັບສະໜູນການບໍລິຫານ — Management information</div>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="card pad"><h3>📊 ຕອນດິນຕາມປະເພດການນຳໃຊ້ — By Land Use</h3><div id="rep-use"></div></div>
+        <div class="card pad"><h3>📅 ການໂອນສິດຕໍ່ປີ — Transfers per Year</h3><div id="rep-trans"></div></div>
+        <div class="card pad"><h3>🏦 ສະຖານະຄ້ຳປະກັນ — Mortgage Status</h3><div id="rep-mort"></div></div>
+        <div class="card pad"><h3>👥 ປະເພດຜູ້ຖືສິດ — Holder Types</h3><div id="rep-holder"></div></div>
+      </div>
+    </section>
+  </main>
+  <div class="footer">Demo Prototype · Land Title Management System · Savannakhet Province · ຂໍ້ມູນສຳລັບການສາທິດເທົ່ານັ້ນ (Demo data only)</div>
+</div>
+
+<!-- ================= LOGIN ================= -->
+<div id="login" class="">
+  <div class="login-card">
+    <div class="lg-logo">ຕດ</div>
+    <h2>ລະບົບຄຸ້ມຄອງໃບຕາດິນ</h2>
+    <div class="sub">Land Title Management System · Savannakhet · ເຂົ້າສູ່ລະບົບ Sign in</div>
+    <div class="field" style="margin-bottom:12px"><label>ຊື່ຜູ້ໃຊ້ Username</label><input class="input" id="lg-user" value="officer" placeholder="officer"></div>
+    <div class="field" style="margin-bottom:16px"><label>ລະຫັດຜ່ານ Password</label><input class="input" id="lg-pass" type="password" value="demo1234" placeholder="demo1234"></div>
+    <button class="btn" style="width:100%" onclick="doLogin()">ເຂົ້າສູ່ລະບົບ Sign In</button>
+    <div class="demo-note">🔑 <b>Demo login:</b> officer / demo1234 (any input works — just for the concept demo)</div>
+  </div>
+</div>
+
+<!-- ================= TOAST ================= -->
+<div class="toast" id="toast"></div>
+
+<!-- ================= DETAIL MODAL ================= -->
+<div class="modal-bg" id="detail-bg" onclick="if(event.target===this)closeDetail()">
+  <div class="modal" style="max-width:980px">
+    <button class="close" onclick="closeDetail()">✕</button>
+    <div id="detail-body"></div>
+  </div>
+</div>
+<script>
+/* ================= DEMO DATA ================= */
+const QR = {
+  P1:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQ1JREFUeNrlmcsSwlAIQzP9/3/GWiBwV7rVc3XaKY4LSHilEv1EHs33ttl6ffj3r//+9jWvGYPIiNhK8D/9bRo8Fls5/qvQVzgeLPyV+d9FgON/XU3/igYl/534xwdT/3ciqHpg/I1/X/G/sDYXnoeMA4H/Opt+NQIM/2fey2i0AcJ/dbWv7q89BCDwd//3JKhOAAb+scrgxAGCf+09w/5yPh84+DfykxIk/8MD0JqFGPNPrEHAy4A4+kd4A16lr7sCA38ngInfWwCq/sdogd0JOftfbz06qiFr/18SkCj4j/6rpf80DUj6r3SoAKLp34pzGILp300ArwJCvf+RJgp9Y9V/Le2/WQDSf5HnBeXcv+avaynOAAAAAElFTkSuQmCC",
+  P2:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARgAAAEYAQMAAAC9QHvPAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAU1JREFUeNrtWtEOwkAMIv7/P6POUnpbYva842bmZTMmkhYoE8j6v/hbqIPHBWjz3b9ufMtTP/MBos8HOnqn7+yOj6sHtYOuHefgI1TUbmDwOeNTyKD4Z9wJ/4h7hFKxUfjnql/ziH6d+kytVgL28N/+ug2MWNk6L6zCP78ew8TldHX3+uliKY4WP9fN9Fef1VGcFjH1Qyyd1Q66Gm53fW+5oguqhtTjtb1/HsVic8iurd31i64jYPC0air8PByzgGLPY/E/xEI83V6Mf140rFWMai7GH9LBak+kTg/jf0bRjFQVI2NNf2EdLjjQiv8hZ6g6gjEJ2fb9hRGItXIx+gWnGq4gOiqL/7mUkX2z9tF3h4d0KN+Unf46TamdA2V+b/6RlLd3HpoWfGyh/eDUYWLwWf+OICLqp8zhHyxPBcdsEX7GDA3BlYeSj2X9X28E1CTI81yBOQAAAABJRU5ErkJggg==",
+  P3:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQxJREFUeNrlmUsOw0AIQ1Hvf2eqDNgwq3bbvslmRJSF+RhDIugn6zy38xyTra8PX//6+yjEkbrJBW0l4H/inJUJjrusIPwCf1lZ8S83NBNg8E/ZGz6p/qfi94Ph/8sVqwP8B76v8j+r459rc798QIh/dvNLCR+nAgJ/RowA7Oi7GxD471J/KoImAkT/V/x3KiQFv2WPhE/zAQh/ib2G7vhT+n+uqc8FICmM4L+GnGH5Z89A9F+unYdrgKL/pP9j5j+Nw5z4xxDgHogh/d8TvySAViGc+e9Cj9K/G/HsgSnxn32fk2CurP2fc2AWoRz844FZhgRt/+sVgOiQ9P9nKDCTx/+uAS+DAtX/mecN8N+eCG9cmKIAAAAASUVORK5CYII=",
+  P4:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQlJREFUeNrlmMEOwzAIQ9H+/59ZFzCmp6nH7aVtlHbaATBgE0FfWes61DF8vF5eX/79679/bK29XXAufyXYX0FPe6Hezw6yP+UBpv2nFPQTKPt7L/D3B1D+5yB+X5j6bz90/BX8v7DvQf8LV4FUGyDEv9lPGgEyPyH5r0fNb7gQIv7mPuE2KEAw4i+07zso9d+QvzGBcgKi/434yd37kpH/5ryRUn6TBoj8n4Z3cwgm/jn0L1QDpQODFf8R/3rj6D9Tnj0PYdS/Zr+x5n6jCVn6L3y3HuLofw8+aPi32Xv6WzAAzf/MgBYiYPZ3J3QykOxPJf8wYFT+xwzC1wQENf9Nq2EBgdP/mesN1N+hBUwQXaYAAAAASUVORK5CYII=",
+  P5:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQNJREFUeNrlmUkSgzAQA6fy/z8LgmeRfUmuSRsosCkOsmYVEfShNd4Pa3pfs/r68PWvv3/ARkKOxG6rBPx6kKvOnguGf5m+3Vn4LRKw8OcuzHb0DIE/WT8OTPw/7EBtCX+B70v/7/yvsv+1xuDfI7/FPwb/ib4T/1RBEP673DuKYDHifzTxklWBuSsQ/GXu7v+BiX9W8Vf/k06AwC8PA5q0yLD/NPwse6r75/CvET3Cmt8QBn/zL3P+fEDwn76uPRMGxv8NcHd+ovT/mx+Y+ofhX0f/13oQxv9jUwGNf5z+F9UEk/R/Z/5Miij9f4TfkkFR/39GCCP1v7v+G/MHgKP/gccF0uufB3jr1joAAAAASUVORK5CYII=",
+  P6:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQxJREFUeNrlmcEOAkEIQ4n//8/oDrSgl41HfaPZkDF7KNNCGSPoK2s5jleY3n3cvP3rv19Y65nne6K1S8Bfh14UyGKBd0n4WwXJxH+Qn9gVIEj6PwJo9Cj9d6X/+GDq/86DNPA/+L7rf9JBVYHrgah/ffwdD3wK/219+vTDuaD0P5EglgM8aSDUf/u+scESAAO/UpBbALUN0P8afTJtgJoYjPM39e1/xAFE/68COMP/dAOQ/mf8mxsQDH5loAVgTlD8n4YeQZcrhPifNxOQXsGa/yLXbUBTgjP/x1hgGP+nCzoBcsOk+7/dB2wEYfef/g9AYiDhH9c7AUj/yw+HZwHQ/a+HgFzlkNP/mesJV2Km/6S/X2gAAAAASUVORK5CYII="
+};
+const PERSONS = {
+  H1:{name:"ທ້າວ ສົມສະຫວາດ ພົມມະວົງ", en:"Thao Somxay Phommavong", id:"0101-1990-000123", dob:"17/10/1980", gender:"ຊາຍ Male", nat:"ລາວ Lao", job:"ພະນັກງານ Employee", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 123 456"},
+  H2:{name:"ນາງ ຈັນທາ ວົງສະຫວັດ", en:"Nang Chantha Vongsavath", id:"0102-1985-000456", dob:"05/06/1985", gender:"ຍິງ Female", nat:"ລາວ Lao", job:"ຄ້າຂາຍ Business owner", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 234 567"},
+  H3:{name:"ທ້າວ ບຸນທັນ ສີສຸລາດ", en:"Thao Bounthan Sisoulath", id:"0103-1978-000789", dob:"12/03/1978", gender:"ຊາຍ Male", nat:"ລາວ Lao", job:"ຊາວນາ Farmer", addr:"ບ້ານທ່າແຫ້, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 345 678"},
+  H4:{name:"ນາງ ຄໍາລາວັນ ອິນທະວົງ", en:"Nang Khamlavan Inthavong", id:"0104-1992-000321", dob:"23/11/1992", gender:"ຍິງ Female", nat:"ລາວ Lao", job:"ພະນັກງານລັດ Civil servant", addr:"ບ້ານໂນນສະຫວ່າງ, ເມືອງພະລານໄຊ", phone:"020 55 456 789"},
+  H5:{name:"ທ່ານ ພູວັນ ຈັນທະລາ (ບໍລິສັດ ສະຫວັນນະເຂດ ກະສິກໍາ ຈໍາກັດ)", en:"Phouvanh Chanthala — Savannakhet Agriculture Co., Ltd.", id:"0105-1980-000654", dob:"08/09/1980", gender:"ຊາຍ Male", nat:"ລາວ Lao", job:"ຜູ້ຈັດການບໍລິສັດ Company manager", addr:"ບ້ານຫາດຊາຍຄໍາ, ເມືອງສົງຄອນ", phone:"020 55 567 890"},
+  H6:{name:"ນາງ ສຸລິພອນ ແກ້ວມະນີ", en:"Nang Souliphone Keomani", id:"0106-1995-000987", dob:"30/01/1995", gender:"ຍິງ Female", nat:"ລາວ Lao", job:"ພະນັກງານທະນາຄານ Bank officer", addr:"ບ້ານຈັນສະຫວ່າງ, ເມືອງຈໍາພອນ", phone:"020 55 678 901"},
+  H7:{name:"ທ້າວ ວົງສະຫວັນ ພົມມະຈັນ", en:"Thao Vongsavanh Phommachanh", id:"0107-1988-000135", dob:"19/07/1988", gender:"ຊາຍ Male", nat:"ລາວ Lao", job:"ພະນັກງານບໍລິສັດ Company staff", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 789 012"}
+};
+const {H1,H2,H3,H4,H5,H6,H7} = PERSONS;
+const DISTRICTS = {
+  KS:{lo:"ເມືອງ ໄກສອນ ພົມວິຫານ", en:"Kaysone Phomvihane"},
+  OT:{lo:"ເມືອງ ອຸທຸມພອນ", en:"Outhoumphone"},
+  PL:{lo:"ເມືອງ ພະລານໄຊ", en:"Phalanxay"},
+  CB:{lo:"ເມືອງ ຊົນນະບູລີ", en:"Chonnabouli"},
+  SK:{lo:"ເມືອງ ສົງຄອນ", en:"Songkhone"},
+  CP:{lo:"ເມືອງ ຈຳພອນ", en:"Champhone"}
+};
+// parcel key -> 'x,y' position on the 900x500 SVG map
+const MAPPOS = { P1:[180,150], P2:[420,120], P3:[700,150], P4:[300,320], P5:[560,330], P6:[760,320] };
+
+const PARCELS = [
+  {key:"P1",no:"0130.001.02.011.0033",tno:"833",dist:"KS",vill:"ດົງເທບ Dongthep",area:0.85,use:"ທີ່ຢູ່ອາໄສ Residential",useEn:"Residential",acquired:"ຊື້ມາ Purchase",ton:"17",mapsh:"A250-014",scale:"1/4000",
+   holder:H1,co:[H2],st:"ACTIVE",issued:"2012-03-15",right:"ສິດນຳໃຊ້ Use Right",mort:null,
+   hist:[
+     {d:"2012-03-15",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ທ້າວ ສົມສະຫວາດ ພົມມະວົງ ແລະ ນາງ ຈັນທາ ວົງສະຫວັດ (ຮ່ວມ) · Issued to Somxay Phommavong & Chantha Vongsavath"},
+     {d:"2016-08-22",t:"ປັບປຸງຂໍ້ມູນ Data Updated",s:"ອັບເດດເນື້ອທີ່ 0.80 → 0.85 ha ຫຼັງການວັດແທກໃໝ່ · Area updated after re-survey"},
+     {d:"2021-01-10",t:"ຈົດທະບຽນຄ້ຳປະກັນ Mortgage Registered",s:"ຄ້ຳປະກັນກັບ ທະນາຄານການຄ້າຕ່າງປະເທດລາວ · BCEL, ₭400,000,000"},
+     {d:"2024-05-30",t:"ປົດຄ້ຳປະກັນ Mortgage Released",s:"ຊຳລະໜີ້ຄົບຖ້ວນ · Loan fully repaid"}
+   ]},
+  {key:"P2",no:"0130.002.03.021.0344",tno:"512",dist:"OT",vill:"ຊຽງຫົວທ່ອນ Xiengthonton",area:2.4,use:"ທີ່ດິນກະສິກໍາ Agricultural",useEn:"Agricultural",acquired:"ຊື້ມາ Purchase",ton:"23",mapsh:"A250-031",scale:"1/4000",
+   holder:H3,co:[],st:"ACTIVE",issued:"2015-06-02",right:"ສິດນຳໃຊ້ Use Right",mort:{bank:"ທະນາຄານ ພັດທະນາລາວ (LDB)",amt:120000000},
+   hist:[
+     {d:"2015-06-02",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ທ້າວ ບຸນທັນ ສີສຸລາດ · Issued to Bounthan Sisoulath"},
+     {d:"2019-11-18",t:"ຈົດທະບຽນຄ້ຳປະກັນ Mortgage Registered",s:"LDB ₭120,000,000 · ໄລຍະ 5 ປີ 5-year term"}
+   ]},
+  {key:"P3",no:"0130.003.05.013.0009",tno:"1468",dist:"PL",vill:"ໂນນສະຫວ່າງ Nonsavang",area:15.0,use:"ທີ່ດິນອຸດສາຫະກໍາ Industrial / Concession",useEn:"Industrial / Concession",acquired:"ສໍາປະທານ Concession",ton:"9",mapsh:"A250-045",scale:"1/10000",
+   holder:H5,co:[],st:"ACTIVE",issued:"2018-02-11",right:"ສິດສຳປະທານ Concession Right",mort:null,
+   hist:[
+     {d:"2018-02-11",t:"ອອກໃບຕາດິນ Title Issued",s:"ສຳປະທານ 50 ປີ · 50-year concession to Savannakhet Agriculture Co., Ltd."},
+     {d:"2020-07-01",t:"ປັບປຸງຂໍ້ມູນ Data Updated",s:"ປ່ຽນປະເພດການນຳໃຊ້ → ອຸດສາຫະກຳ · Land use changed to industrial"}
+   ]},
+  {key:"P4",no:"0130.004.01.032.0765",tno:"977",dist:"CB",vill:"ທ່າແຫ້ Thahae",area:1.2,use:"ທີ່ດິນການຄ້າ Commercial",useEn:"Commercial",acquired:"ຊື້ມາ Purchase",ton:"31",mapsh:"B112-008",scale:"1/4000",
+   holder:H6,co:[],st:"ACTIVE",issued:"2010-09-25",right:"ສິດນຳໃຊ້ Use Right",mort:null,
+   hist:[
+     {d:"2010-09-25",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ນາງ ສຸລິພອນ ແກ້ວມະນີ · Issued to Souliphone Keomani"}
+   ]},
+  {key:"P5",no:"0130.005.04.041.0211",tno:"1204",dist:"SK",vill:"ຫາດຊາຍຄໍາ Hadsaykham",area:3.8,use:"ທີ່ດິນກະສິກໍາ Agricultural",useEn:"Agricultural",acquired:"ສືບທອດມໍລະດົກ Inheritance",ton:"41",mapsh:"B112-022",scale:"1/4000",
+   holder:H7,co:[],st:"PENDING",issued:"2014-04-08",right:"ສິດນຳໃຊ້ Use Right",mort:null,
+   hist:[
+     {d:"2014-04-08",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ທ້າວ ວົງສະຫວັນ ພົມມະຈັນ · Issued to Vongsavanh Phommachanh"}
+   ]},
+  {key:"P6",no:"0130.006.02.052.0688",tno:"611",dist:"CP",vill:"ຈັນສະຫວ່າງ Chansavang",area:2.1,use:"ທີ່ຢູ່ອາໄສ Residential",useEn:"Residential",acquired:"ຊື້ມາ Purchase",ton:"52",mapsh:"A250-056",scale:"1/4000",
+   holder:H1,co:[H4],st:"ACTIVE",issued:"2008-12-19",right:"ສິດນຳໃຊ້ Use Right",mort:{bank:"ທະນາຄານການຄ້າຕ່າງປະເທດລາວ (BCEL)",amt:250000000},
+   hist:[
+     {d:"2008-12-19",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ທ້າວ ສົມສະຫວາດ ພົມມະວົງ · Issued to Somxay Phommavong"},
+     {d:"2018-10-05",t:"ການໂອນສິດ Transfer",s:"ໂອນສິດ 50% ໃຫ້ ນາງ ຄຳລາວັນ ອິນທະວົງ (ຮ່ວມຖືສິດ) · 50% share transferred to Khamlavan Inthavong"},
+     {d:"2023-03-14",t:"ຈົດທະບຽນຄ້ຳປະກັນ Mortgage Registered",s:"BCEL ₭250,000,000 · ໄລຍະ 3 ປີ"}
+   ]}
+];
+
+/* ================= STATE ================= */
+let currentUser = null;
+let activeView = 'dashboard';
+const transferSteps = [
+  {lo:"ຄຳຮ້ອງ Request", en:"Request"},
+  {lo:"ກວດສອບ Verify", en:"Verify"},
+  {lo:"ອະນຸມັດ Approve", en:"Approve"},
+  {lo:"ປັບປຸງສິດ Update Rights", en:"Update Rights"},
+  {lo:"ບັນທຶກປະຫວັດ History", en:"History"}
+];
+let transferState = null; // {parcelKey, to, type, date, step}
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+function fmtKip(n){ return (n/1e6).toFixed(n>=1e9?1:0).replace(/\.0$/,'') + ' ລ້ານ M' ; }
+function stBadge(s){
+  const map={ACTIVE:['✔ ສະຖານະປົກກະຕິ Active','b-ok'],PENDING:['⏳ ກຳລັງດຳເນີນການ Pending','b-warn'],MORTGAGED:['🏦 ຢູ່ໃນຄ້ຳປະກັນ Mortgaged','b-mort'],TRANSFERRED:['🔄 ໂອນສິດແລ້ວ Transferred','b-done']};
+  const m=map[s]||map.ACTIVE;
+  return `<span class="badge ${m[1]}">${m[0]}</span>`;
+}
+
+/* ================= TOAST / MODAL ================= */
+let toastTimer=null;
+function toast(msg,err){ const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.className='toast',3200); }
+function openDetail(html){ $('detail-body').innerHTML=html; $('detail-bg').classList.add('show'); }
+function closeDetail(){ $('detail-bg').classList.remove('show'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')closeDetail(); });
+
+/* ================= LOGIN ================= */
+function doLogin(){
+  const u=$('lg-user').value.trim()||'officer';
+  currentUser=u;
+  $('usernamelbl').textContent=u;
+  $('login').classList.add('hidden');
+  toast('✔ ເຂົ້າສູ່ລະບົບສຳເລັດ — Signed in');
+}
+function logout(){ currentUser=null; $('login').classList.remove('hidden'); }
+
+/* ================= NAV ================= */
+document.querySelectorAll('.nav button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    showView(b.dataset.view);
+  });
+});
+function showView(v){
+  activeView=v;
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  $('view-'+v).classList.add('active');
+  if(v==='search') $('q').focus();
+  if(v==='map') renderMap();
+}
+
+/* ================= PARCEL DETAIL ================= */
+function parcelById(k){ return PARCELS.find(p=>p.key===k); }
+function detailHTML(p){
+  const dist=DISTRICTS[p.dist];
+  const co=p.co.map(c=>`<div class="kv"><div class="k">ຜູ້ຖືສິດຮ່ວມ Co-holder</div><div class="v">${c.name} <span class="muted">(${c.en})</span></div></div>`).join('')||'<div class="muted">— ບໍ່ມີ — None</div>';
+  const mortHTML = p.mort
+    ? `<div class="kv"><div class="k">ຜູ້ຮັບຄ້ຳປະກັນ Mortgagee</div><div class="v">${p.mort.bank}</div></div><div class="kv"><div class="k">ຈຳນວນເງິນ Amount</div><div class="v">₭ ${p.mort.amt.toLocaleString()} (${fmtKip(p.mort.amt)})</div></div>`
+    : '<div class="muted">— ບໍ່ມີການຄ້ຳປະກັນ — No mortgage</div>';
+  const hist = p.hist.slice().reverse().map(h=>`<li><div class="d">${h.d}</div><div class="t">${h.t}</div><div class="s">${h.s}</div></li>`).join('');
+  const qr = QR[p.key];
+  return `
+  <div class="det">
+    <div style="min-width:0">
+      <div class="pane">
+        <h3>🗺️ ຂໍ້ມູນຕອນດິນ — Parcel Information</h3>
+                <div class="kv">
+                  <div class="k">ລະຫັດຕອນດິນ Parcel Code</div><div class="v">${p.no}</div>
+                  <div class="k">ໃບຕາດິນ ເລກທີ Title No.</div><div class="v">${p.tno}</div>
+                  <div class="k">ເມືອງ District</div><div class="v">${dist.lo} (${dist.en})</div>
+                  <div class="k">ບ້ານ Village</div><div class="v">${p.vill}</div>
+                  <div class="k">ຕອນທີ່ Plot No.</div><div class="v">${p.ton}</div>
+                  <div class="k">ເລກທີ່ແຜນທີ່ Map Sheet</div><div class="v">${p.mapsh} · ມາດຕະສ່ວນ ${p.scale}</div>
+                  <div class="k">ເນື້ອທີ່ Area</div><div class="v">${(p.area*10000).toLocaleString()} ຕາແມັດ (${p.area.toLocaleString()} ha)</div>
+                  <div class="k">ປະເພດທີ່ດິນ Land Type</div><div class="v">${p.use}</div>
+                  <div class="k">ການໄດ້ມາຂອງສິດ Acquisition</div><div class="v">${p.acquired}</div>
+                  <div class="k">ສິດ Right</div><div class="v">${p.right}</div>
+                  <div class="k">ສະຖານະ Status</div><div class="v">${stBadge(p.st)}</div>
+                </div>
+              </div>
+              <div class="pane">
+                <h3>👤 ເຈົ້າຂອງ ແລະ ຜູ້ຖືສິດ — Owner & Right Holders</h3>
+                <div class="kv">
+                  <div class="k">ຜູ້ຖືສິດຫຼັກ Primary Holder</div><div class="v">${p.holder.name} <span class="muted">(${p.holder.en})</span></div>
+                  <div class="k">ວັນເດືອນປີເກີດ DOB</div><div class="v">${p.holder.dob}</div>
+                  <div class="k">ເພດ / ສັນຊາດ Gender / Nationality</div><div class="v">${p.holder.gender} · ${p.holder.nat}</div>
+                  <div class="k">ອາຊີບ Occupation</div><div class="v">${p.holder.job}</div>
+                  <div class="k">ເລກບັດປະຈໍາຕົວ ID</div><div class="v">${p.holder.id}</div>
+                  <div class="k">ທີ່ຢູ່ Address</div><div class="v">${p.holder.addr}</div>
+                  <div class="k">ໂທລະສັບ Phone</div><div class="v">${p.holder.phone}</div>
+                </div>
+                <div style="margin-top:8px">${co}</div>
+              </div>
+      <div class="pane">
+        <h3>🏦 ການຄ້ຳປະກັນ — Mortgage / Security</h3>
+        ${mortHTML}
+        <div class="pillrow">
+          ${p.mort
+            ? `<button class="btn danger sm" onclick="releaseMortgage('${p.key}')">🔓 ປົດການຄ້ຳປະກັນ Release Mortgage</button>`
+            : `<button class="btn sm" onclick="quickMortgage('${p.key}')">🏦 ຈົດທະບຽນຄ້ຳປະກັນ Register</button>`}
+        </div>
+      </div>
+      <div class="pane">
+        <h3>🕰️ ປະຫວັດຕອນດິນ — Land History</h3>
+        <ul class="tl">${hist}</ul>
+      </div>
+    </div>
+    <div style="min-width:0">
+      <div class="pane">
+              <h3>📜 ໃບຕາດິນ — Land Title (real format)</h3>
+              <div class="titlecard">
+                <div class="tc-head"><span class="t">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</span></div>
+                <div style="text-align:center;font-size:13px;margin-bottom:8px">ກະຊວງຄຸ້ມຄອງທີ່ດິນ ແລະ ຜັງເມືອງ<br>ພະແນກຄຸ້ມຄອງທີ່ດິນ ແຂວງສະຫວັນນະເຂດ</div>
+                <div class="tc-row"><div><b>ລະຫັດຕອນດິນ Parcel Code</b>${p.no}</div><div><b>ໃບຕາດິນ ເລກທີ Title No.</b>${p.tno}</div></div>
+                <div class="tc-row"><div><b>ເມືອງ District</b>${dist.lo}</div><div><b>ບ້ານ Village</b>${p.vill}</div></div>
+                <div class="tc-row"><div><b>ຊື່ ແລະ ນາມສະກຸນ Name</b>${p.holder.name}</div><div><b>ວັນເດືອນປີເກີດ DOB</b>${p.holder.dob}</div></div>
+                <div class="tc-row"><div><b>ເພດ Gender</b>${p.holder.gender}</div><div><b>ສັນຊາດ Nationality</b>${p.holder.nat}</div><div><b>ອາຊີບ Occupation</b>${p.holder.job}</div></div>
+                <div class="tc-row"><div><b>ທີ່ຢູ່ Address</b>${p.holder.addr}</div></div>
+                <div class="tc-row"><div><b>ການໄດ້ມາຂອງສິດ Acquisition</b>${p.acquired}</div><div><b>ປະເພດທີ່ດິນ Land Type</b>${p.use}</div></div>
+                <div class="tc-row"><div><b>ຕອນທີ່ Plot No.</b>${p.ton}</div><div><b>ເລກທີ່ແຜນທີ່ Map Sheet</b>${p.mapsh}</div><div><b>ມາດຕະສ່ວນ Scale</b>${p.scale}</div></div>
+                <div class="tc-row"><div><b>ເນື້ອທີ່ Area</b>${(p.area*10000).toLocaleString()} ຕາແມັດ (m²) · ${p.area.toLocaleString()} ha</div><div><b>ອອກໃຫ້ Issued</b>${p.issued}</div><div><b>ສິດ Right</b>${p.right}</div></div>
+                <div class="tc-qr"><img src="${qr}" alt="QR"><div class="note"><b>QR / Smart Identifier</b><br>ສະແກນເພື່ອກວດສອບຄວາມຖືກຕ້ອງຂອງໃບຕາດິນ<br>Scan to verify the authentic title</div></div>
+              </div>
+        <div class="qrcopy" style="text-align:center">
+          <div class="qr-big" id="qrb-${p.key}" style="display:none"><img src="${qr}" alt="QR large"></div>
+          <div class="row" style="justify-content:center"><button class="btn ghost sm" onclick="toggleQR('${p.key}')">🔳 ຂະຫຍາຍ QR Zoom QR</button></div>
+        </div>
+      </div>
+      <div class="pane">
+        <h3>📎 ເອກະສານປະກອບ — Attached Documents</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px">
+          <div class="row" style="justify-content:space-between"><span>📄 ສຳເນົາໃບຕາດິນ Title Copy (PDF)</span><a class="btn ghost sm" style="text-decoration:none" href="#" onclick="return fakeDoc(event)">ເບິ່ງ View</a></div>
+          <div class="row" style="justify-content:space-between"><span>🗺️ ແຜນທີ່ຕອນດິນ Parcel Map (PDF)</span><a class="btn ghost sm" style="text-decoration:none" href="#" onclick="return fakeDoc(event)">ເບິ່ງ View</a></div>
+          <div class="row" style="justify-content:space-between"><span>🪪 ສຳເນົາບັດປະຈຳຕົວ ID Copy (JPG)</span><a class="btn ghost sm" style="text-decoration:none" href="#" onclick="return fakeDoc(event)">ເບິ່ງ View</a></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function toggleQR(k){ const e=$('qrb-'+k); e.style.display = e.style.display==='none'?'block':'none'; }
+function fakeDoc(e){ toast('ຕົວຢ່າງເທົ່ານັ້ນ — Demo attachment placeholder'); return false; }
+function mockOnly(){ toast('🔬 ຫນ້ານີ້ເປັນພຽງຕົວຢ່າງສາທິດ — Mock only, no data saved'); }
+function mockFile(){
+  $('dz-ico').textContent='✅'; $('dz-txt').innerHTML='<b>legacy_titles_2026.xlsx</b> (2.4 MB) · ເລືອກໄຟລ໌ສໍາເລັດ File selected';
+  $('dz').style.borderColor='var(--ok)'; $('dz').style.background='#f0faf3';
+  toast('📂 ເລືອກໄຟລ໌ແລ້ວ — legacy_titles_2026.xlsx (mock)');
+}
+function runMockImport(){
+  // switch to result view
+  showView('import');
+  // summary numbers (mock)
+  const total=2845, ok=2714, warn=86, err=31, dup=14;
+  $('imp-total').textContent=total.toLocaleString();
+  $('imp-dup').textContent=dup;
+  // Animate progress, then reveal numbers progressively
+  const bar=$('imp-bar'), pct=$('imp-pct'), msg=$('imp-msg');
+  let p=0;
+  const iv=setInterval(()=>{
+    p+=4;
+    if(p>=100){
+      clearInterval(iv);
+      p=100;
+      bar.style.width='100%'; pct.textContent='100%'; msg.textContent='✔ ກວດສອບສໍາເລັດ Validation complete';
+      $('imp-ok').textContent=ok.toLocaleString();
+      $('imp-warn').textContent=warn;
+      $('imp-err').textContent=err;
+      // preview rows (first 8 with mixed statuses)
+      const rows=[
+        ['0130.001.02.011.0033','833','ທ້າວ ສົມສະຫວາດ ພົມມະວົງ','ໄກສອນ ພົມວິຫານ','ດົງເທບ','8,500','✅ ຜ່ານ Valid'],
+        ['0130.002.03.021.0344','512','ທ້າວ ບຸນທັນ ສີສຸລາດ','ອຸທຸມພອນ','ຊຽງຫົວທ່ອນ','24,000','✅ ຜ່ານ Valid'],
+        ['0130.003.05.013.0009','1468','ບໍລິສັດ ສະຫວັນນະເຂດ ກະສິກໍາ','ພະລານໄຊ','ໂນນສະຫວ່າງ','150,000','✅ ຜ່ານ Valid'],
+        ['0130.004.01.032.0765','977','ນາງ ສຸລິພອນ ແກ້ວມະນີ','ຊົນນະບູລີ','ທ່າແຫ້','12,000','✅ ຜ່ານ Valid'],
+        ['0130.005.04.041.0211','1204','ທ້າວ ວົງສະຫວັນ','ສົງຄອນ','ຫາດຊາຍຄໍາ','38,000','⚠️ ຊໍ້າກັນ Duplicate'],
+        ['0130.006.02.052.0688','611','ທ້າວ ວົງສະຫວັນ','ຈໍາພອນ','ຈັນສະຫວ່າງ','21,000','⚠️ ຊໍ້າກັນ Duplicate'],
+        ['0130.007.03.011.0001','—','','ໄກສອນ ພົມວິຫານ','ບ້ານກາງ','—','❌ ຂາດຊື່ Missing Name'],
+        ['0130.007.03.012.0009','—','ທ້າວ ສົມຊາຍ','ໄກສອນ ພົມວິຫານ','—','200','❌ ບໍ່ມີຕອນດິນ No Parcel']
+      ];
+      $('imp-rows').innerHTML = rows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
+        <td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td>
+        <td><span class="${r[7].startsWith('✅')?'b-ok':r[7].startsWith('⚠️')?'b-warn':'b-mort'}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600">${r[7]}</span></td>
+      </tr>`).join('');
+    } else {
+      bar.style.width=p+'%'; pct.textContent=p+'%';
+      msg.textContent = p<40?'ກໍາລັງອ່ານໄຟລ໌… Reading file…':(p<80?'ກໍາລັງກວດສອບຂໍ້ມູນ… Validating rows…':'ກົງກັນກັບລະບົບ… Matching against system…');
+    }
+  }, 60);
+}
+function resetImport(){
+  showView('add');
+  $('dz-ico').textContent='📂'; $('dz-txt').innerHTML='ວາງໄຟລ໌ຢູ່ນີ້ ຫຼື ກົດເພື່ອເລືອກ<br>Drop file here or click to browse';
+  $('dz').style.borderColor='var(--line)'; $('dz').style.background='#fafcfa';
+  $('imp-total').textContent='—'; $('imp-ok').textContent='—'; $('imp-warn').textContent='—'; $('imp-err').textContent='—'; $('imp-dup').textContent='—';
+  $('imp-bar').style.width='0%'; $('imp-pct').textContent='0%'; $('imp-msg').textContent='ກໍາລັງກວດສອບ… Validating…';
+  $('imp-rows').innerHTML='';
+}
+function mockFile(){
+  $('dz-ico').textContent='✅'; $('dz-txt').innerHTML='<b>legacy_titles_2026.xlsx</b> (2.4 MB) · ເລືອກໄຟລ໌ສໍາເລັດ File selected';
+  $('dz').style.borderColor='var(--ok)'; $('dz').style.background='#f0faf3';
+  toast('📂 ເລືອກໄຟລ໌ແລ້ວ — legacy_titles_2026.xlsx (mock)');
+}
+function runMockImport(){
+  // switch to result view
+  showView('import');
+  // summary numbers (mock)
+  const total=2845, ok=2714, warn=86, err=31, dup=14;
+  $('imp-total').textContent=total.toLocaleString();
+  $('imp-dup').textContent=dup;
+  // Animate progress, then reveal numbers progressively
+  const bar=$('imp-bar'), pct=$('imp-pct'), msg=$('imp-msg');
+  let p=0;
+  const iv=setInterval(()=>{
+    p+=4;
+    if(p>=100){
+      clearInterval(iv);
+      p=100;
+      bar.style.width='100%'; pct.textContent='100%'; msg.textContent='✔ ກວດສອບສໍາເລັດ Validation complete';
+      $('imp-ok').textContent=ok.toLocaleString();
+      $('imp-warn').textContent=warn;
+      $('imp-err').textContent=err;
+      // preview rows (first 8 with mixed statuses)
+      const rows=[
+        ['0130.001.02.011.0033','833','ທ້າວ ສົມສະຫວາດ ພົມມະວົງ','ໄກສອນ ພົມວິຫານ','ດົງເທບ','8,500','✅ ຜ່ານ Valid'],
+        ['0130.002.03.021.0344','512','ທ້າວ ບຸນທັນ ສີສຸລາດ','ອຸທຸມພອນ','ຊຽງຫົວທ່ອນ','24,000','✅ ຜ່ານ Valid'],
+        ['0130.003.05.013.0009','1468','ບໍລິສັດ ສະຫວັນນະເຂດ ກະສິກໍາ','ພະລານໄຊ','ໂນນສະຫວ່າງ','150,000','✅ ຜ່ານ Valid'],
+        ['0130.004.01.032.0765','977','ນາງ ສຸລິພອນ ແກ້ວມະນີ','ຊົນນະບູລີ','ທ່າແຫ້','12,000','✅ ຜ່ານ Valid'],
+        ['0130.005.04.041.0211','1204','ທ້າວ ວົງສະຫວັນ','ສົງຄອນ','ຫາດຊາຍຄໍາ','38,000','⚠️ ຊໍ້າກັນ Duplicate'],
+        ['0130.006.02.052.0688','611','ທ້າວ ວົງສະຫວັນ','ຈໍາພອນ','ຈັນສະຫວ່າງ','21,000','⚠️ ຊໍ້າກັນ Duplicate'],
+        ['0130.007.03.011.0001','—','','ໄກສອນ ພົມວິຫານ','ບ້ານກາງ','—','❌ ຂາດຊື່ Missing Name'],
+        ['0130.007.03.012.0009','—','ທ້າວ ສົມຊາຍ','ໄກສອນ ພົມວິຫານ','—','200','❌ ບໍ່ມີຕອນດິນ No Parcel']
+      ];
+      $('imp-rows').innerHTML = rows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
+        <td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td>
+        <td><span class="${r[7].startsWith('✅')?'b-ok':r[7].startsWith('⚠️')?'b-warn':'b-mort'}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600">${r[7]}</span></td>
+      </tr>`).join('');
+    } else {
+      bar.style.width=p+'%'; pct.textContent=p+'%';
+      msg.textContent = p<40?'ກໍາລັງອ່ານໄຟລ໌… Reading file…':(p<80?'ກໍາລັງກວດສອບຂໍ້ມູນ… Validating rows…':'ກົງກັນກັບລະບົບ… Matching against system…');
+    }
+  }, 60);
+}
+function quickMortgage(k){ closeDetail(); $('mo-parcel').value=k; showView('mortgage'); }
+function releaseMortgage(k){
+  const p=parcelById(k); p.mort=null;
+  p.hist.push({d:'2026-09-20',t:'ປົດຄ້ຳປະກັນ Mortgage Released',s:'ປົດຄ້ຳປະກັນໂດຍ ເຈົ້າໜ້າທີ່ · Released by officer '+currentUser});
+  toast('✔ ປົດການຄ້ຳປະກັນສຳເລັດ — Mortgage released');
+  refreshAll(); closeDetail();
+}
+
+/* ================= SEARCH ================= */
+function doSearch(){
+  const q=$('q').value.trim().toLowerCase(); const tb=$('search-results');
+  if(!q){ tb.innerHTML=`<tr><td colspan="7" class="muted" style="text-align:center;padding:26px">ພິມເພື່ອຄົ້ນຫາ — Type to search</td></tr>`; return; }
+  const res = PARCELS.filter(p=>{
+    const d=DISTRICTS[p.dist];
+    return [p.no,p.vill,p.holder.name,p.holder.en,d.lo,d.en].join(' ').toLowerCase().includes(q);
+  });
+  if(!res.length){ tb.innerHTML=`<tr><td colspan="7" class="muted" style="text-align:center;padding:26px">ບໍ່ພົບຜົນການຄົ້ນຫາ — No results for “${$('q').value}”</td></tr>`; return; }
+  tb.innerHTML = res.map(p=>`<tr>
+    <td><span class="rowlink" onclick="showParcel('${p.key}')">${p.no}</span></td>
+    <td>${p.holder.name}</td>
+    <td>${DISTRICTS[p.dist].lo}</td>
+    <td>${p.vill}</td>
+    <td>${p.area.toLocaleString()}</td>
+    <td>${p.useEn}</td>
+    <td>${stBadge(p.st)}</td>
+  </tr>`).join('');
+}
+function showParcel(k){ openDetail(detailHTML(parcelById(k))); }
+
+/* ================= TRANSFER ================= */
+function fillTransferSel(){
+  const sel=$('tr-parcel'); sel.innerHTML = PARCELS.filter(p=>p.st!=='PENDING').map(p=>`<option value="${p.key}">${p.no} — ${p.holder.name} — ${DISTRICTS[p.dist].lo}</option>`).join('');
+  sel.onchange=()=>{ const p=parcelById(sel.value); $('tr-from').value = p.holder.name; $('tr-date').value = $('tr-date').value||new Date().toISOString().slice(0,10); };
+  sel.dispatchEvent(new Event('change'));
+}
+function startTransfer(){
+  if(!$('tr-to').value.trim()){ toast('ກະລຸນາປ້ອນຊື່ຜູ້ຮັບໂອນ — Enter transferee name','err'); return; }
+  const p=parcelById($('tr-parcel').value);
+  transferState={parcelKey:p.key,to:$('tr-to').value.trim(),type:$('tr-type').value,date:$('tr-date').value||new Date().toISOString().slice(0,10),step:0};
+  $('tr-progress').style.display='block'; renderSteps();
+  toast('📨 ສົ່ງຄຳຂໍການໂອນແລ້ວ — Transfer request submitted');
+}
+function renderSteps(){
+  const ws=$('tr-steps'); ws.innerHTML='';
+  const st=transferState; const p=parcelById(st.parcelKey);
+  transferSteps.forEach((s,i)=>{
+    const cls = i<st.step?'done':(i===st.step?'cur':'');
+    ws.insertAdjacentHTML('beforeend',`<div class="st ${cls}"><span class="no">${i+1}</span>${s.lo}<br><span class="muted" style="font-size:11px">${s.en}</span></div>`);
+    if(i<transferSteps.length-1) ws.insertAdjacentHTML('beforeend',`<div class="arr">→</div>`);
+  });
+  $('tr-curinfo').innerHTML = `ຂັ້ນຕອນ ${st.step+1}/5: <b>${transferSteps[st.step].lo}</b> — ${transferSteps[st.step].en} · ${p.no} → ${st.to}`;
+  $('tr-next').textContent = st.step===4?'✔ ສຳເລັດ Complete':'ກ້າວຕໍ່ໄປ → Next Step';
+}
+function advanceTransfer(){
+  if(!transferState) return;
+  const st=transferState; const p=parcelById(st.parcelKey);
+  if(st.step<4){
+    st.step++;
+    if(st.step===4){ // completed — apply the change
+      p.hist.push({d:'2026-09-20',t:'ການໂອນສິດ Transfer of Rights',s:`${st.type} · ຈາກ ${p.holder.name} → ${st.to} · ອະນຸມັດ ແລະ ບັນທຶກແລ້ວ · Approved & recorded`});
+      p.holder={name:st.to,en:st.to,id:'-',dob:p.holder.dob||'-',gender:p.holder.gender||'-',nat:p.holder.nat||'-',job:p.holder.job||'-',addr:p.holder.addr,phone:'-'};
+      p.co=[]; p.st='TRANSFERRED';
+      toast('✔ ການໂອນສິດສຳເລັດ — Rights transferred & history recorded');
+      refreshAll();
+    }
+    renderSteps();
+  } else {
+    toast('✔ ສຳເລັດ — Done. ເບິ່ງປະຫວັດໄດ້ໃນໜ້າຕອນດິນ');
+    transferState=null; $('tr-progress').style.display='none';
+  }
+}
+
+/* ================= MORTGAGE ================= */
+function fillMortSel(){
+  const sel=$('mo-parcel'); sel.innerHTML = PARCELS.filter(p=>!p.mort).map(p=>`<option value="${p.key}">${p.no} — ${p.holder.name}</option>`).join('');
+}
+function registerMortgage(){
+  const k=$('mo-parcel').value; if(!k){ toast('ບໍ່ມີຕອນດິນວ່າງ — No parcel available','err'); return; }
+  const bank=$('mo-bank').value.trim(); const amt=parseFloat($('mo-amount').value);
+  if(!bank){ toast('ປ້ອນຊື່ທະນາຄານ — Enter bank name','err'); return; }
+  if(!amt||amt<=0){ toast('ປ້ອນຈຳນວນເງິນ — Enter amount','err'); return; }
+  const p=parcelById(k);
+  p.mort={bank,amt};
+  p.hist.push({d:'2026-09-20',t:'ຈົດທະບຽນຄ້ຳປະກັນ Mortgage Registered',s:`${bank} · ₭${amt.toLocaleString()} · ໂດຍ ${currentUser}`});
+  toast('✔ ຈົດທະບຽນຄ້ຳປະກັນສຳເລັດ — Mortgage registered');
+  $('mo-bank').value=''; $('mo-amount').value='';
+  refreshAll();
+}
+function renderMortgageTable(){
+  const tb=$('mort-table');
+  const rows = PARCELS.map(p=>{
+    const m=p.mort;
+    return `<tr>
+      <td><span class="rowlink" onclick="showParcel('${p.key}')">${p.no}</span></td>
+      <td>${p.holder.name}</td>
+      <td>${m?m.bank:'—'}</td>
+      <td>${m?'₭ '+m.amt.toLocaleString():'—'}</td>
+      <td>${m?'<span class="badge b-mort">🏦 ຄ້ຳປະກັນ Mortgaged</span>':'<span class="badge b-ok">✔ ບໍ່ມີຄ້ຳປະກັນ No Mortgage</span>'}</td>
+      <td>${m?`<button class="btn danger sm" onclick="releaseMortgage('${p.key}')">🔓 ປົດ Release</button>`:'<span class="muted">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  tb.innerHTML = rows;
+}
+
+/* ================= MAP ================= */
+function renderMap(){
+  const svg=$('mapsvg'); const old=document.querySelectorAll('#mapbox .mp-pin, #mapbox g[filter]');
+  old.forEach(n=>n.remove());
+  PARCELS.forEach(p=>{
+    const [x,y]=MAPPOS[p.key];
+    const pin = document.createElementNS('http://www.w3.org/2000/svg','g');
+    pin.setAttribute('class','mp-pin'); pin.setAttribute('style','cursor:pointer'); pin.setAttribute('filter','url(#pinShadow)');
+    pin.innerHTML = `<circle cx="${x}" cy="${y}" r="13"/><circle cx="${x}" cy="${y}" r="9" fill="#0b3d2e"/><text x="${x}" y="${y+4}" font-size="8.5" text-anchor="middle" fill="#fff" font-weight="800">${p.no.split('.').pop()}</text>`;
+    pin.addEventListener('mouseenter',()=>showTip(p,x,y));
+    pin.addEventListener('mouseleave',()=>$('mptip').classList.remove('show'));
+    pin.addEventListener('click',()=>showParcel(p.key));
+    svg.appendChild(pin);
+  });
+}
+function showTip(p,x,y){
+  const t=$('mptip');
+  t.innerHTML = `<b>${p.no} — ${p.vill}</b><br>${p.holder.name}<br><span class="muted">${p.area} ha · ${p.useEn} · ${DISTRICTS[p.dist].lo}</span><br><button class="btn sm" style="margin-top:6px" onclick="showParcel('${p.key}')">ເບິ່ງລາຍລະອຽດ View Details</button>`;
+  t.classList.add('show');
+  const rect=$('mapbox').getBoundingClientRect(); const pw=rect.width, ph=rect.height;
+  const px=x/900*pw, py=y/500*ph;
+  t.style.left=Math.min(px+18,pw-330)+'px'; t.style.top=Math.max(py-70,8)+'px';
+}
+
+/* ================= REPORTS (CSS bars) ================= */
+function barRow(label,val,max){
+  const pct = max?Math.round(val/max*100):0;
+  return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span>${label}</span><b>${val}</b></div><div style="background:#eef2ee;border-radius:6px;height:10px;margin-top:3px"><div style="background:var(--gov2);height:10px;border-radius:6px;width:${pct}%"></div></div></div>`;
+}
+function renderReports(){
+  const use={}; PARCELS.forEach(p=>use[p.use]=(use[p.use]||0)+1);
+  const useMax=Math.max(...Object.values(use));
+  $('rep-use').innerHTML=Object.entries(use).map(([k,v])=>barRow(k,v,useMax)).join('')||'<span class="muted">—</span>';
+  const yr={2022:0,2023:0,2024:0,2025:0,2026:0};
+  PARCELS.forEach(p=>p.hist.forEach(h=>{ if(h.t.includes('Transfer')||h.t.includes('ໂອນ')){ const y=+h.d.slice(0,4); if(yr[y]!=null)yr[y]++; } }));
+  const yrMax=Math.max(1,...Object.values(yr));
+  $('rep-trans').innerHTML=Object.entries(yr).map(([k,v])=>barRow(k,v,yrMax)).join('');
+  const mor = PARCELS.filter(p=>p.mort).length, free=PARCELS.length-mor;
+  $('rep-mort').innerHTML = barRow('🏦 ຄ້ຳປະກັນ Mortgaged',mor,PARCELS.length)+barRow('✔ ບໍ່ມີຄ້ຳປະກັນ Free',free,PARCELS.length);
+  $('rep-holder').innerHTML = barRow('👤 ບຸກຄົນ Individuals',5,6)+barRow('🏢 ນິຕິບຸກຄົນ Legal Entities',1,6);
+}
+
+/* ================= DASHBOARD ================= */
+function renderDashboard(){
+  $('st-parcels').textContent = PARCELS.length;
+  $('st-titles').textContent = PARCELS.filter(p=>p.issued).length;
+  $('st-holders').textContent = Object.keys(PERSONS).length;
+  $('st-mort').textContent = PARCELS.filter(p=>p.mort).length;
+  $('st-trans').textContent = PARCELS.flatMap(p=>p.hist).filter(h=>h.t.includes('Transfer')||h.t.includes('ໂອນ')).length;
+  const acts=[];
+  PARCELS.forEach(p=>p.hist.forEach(h=>acts.push({d:h.d,t:h.t,no:p.no,detail:h.s,st:p.st})));
+  acts.sort((a,b)=>b.d.localeCompare(a.d));
+  $('dash-activity').innerHTML = acts.slice(0,8).map(a=>{
+    const pp=PARCELS.find(p=>p.no===a.no);
+    return `<tr><td>${a.d}</td><td>${a.t}</td><td><span class="rowlink" onclick="showParcel('${pp.key}')">${a.no}</span></td><td style="max-width:280px;white-space:normal">${a.detail}</td><td>${stBadge(a.st)}</td></tr>`;
+  }).join('');
+  const d={}; PARCELS.forEach(p=>d[p.dist]=(d[p.dist]||0)+1);
+  const dMax=Math.max(...Object.values(d));
+  $('dash-district').innerHTML = Object.entries(d).map(([k,v])=>barRow(DISTRICTS[k].lo,v,dMax)).join('');
+}
+
+/* ================= REFRESH ALL ================= */
+function refreshAll(){
+  renderDashboard(); renderMortgageTable(); fillTransferSel(); fillMortSel();
+}
+
+/* ================= INIT ================= */
+document.addEventListener('DOMContentLoaded',()=>{
+  refreshAll();
+  doSearch();
+  renderMap();
+  renderReports();
+  $('q').addEventListener('keydown',e=>{ if(e.key==='Enter')doSearch(); });
+  $('lg-pass').addEventListener('keydown',e=>{ if(e.key==='Enter')doLogin(); });
+  $('tr-date').value = new Date().toISOString().slice(0,10);
+  // Demo shortcut: index.html?demo=1&view=parcel -> auto-login & jump
+  const qs = new URLSearchParams(location.search);
+  if(qs.get('demo')==='1'){
+    doLogin();
+    const v = qs.get('view');
+    if(v && document.getElementById('view-'+v)){
+      showView(v);
+      document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+    }
+    if(qs.get('parcel')) showParcel(qs.get('parcel'));
+  }
+});
+</script>
+</body>
+</html>
