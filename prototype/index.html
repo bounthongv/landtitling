@@ -202,6 +202,14 @@
   .tabrow button.active{color:var(--gov);border-color:var(--gov)}
   .banner{background:#fff8e8;border:1px solid #e8d9a8;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px}
   .dropzone:hover{border-color:var(--gov2) !important;background:#f2f8f4 !important}
+  
+  /* ================= PRINT TITLE STYLES ================= */
+  @media print {
+    .no-print { display: none !important; }
+    body { background: none; padding: 0; margin: 0; }
+    .title-page { border: none; box-shadow: none; border-radius: 0; margin: 0; }
+    @page { size: A4; margin: 10mm; }
+  }
 </style>
 </head>
 <body>
@@ -487,71 +495,72 @@
 <script>
 /* ================= DEMO DATA ================= */
 const QR = {
-  P1:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQ1JREFUeNrlmcsSwlAIQzP9/3/GWiBwV7rVc3XaKY4LSHilEv1EHs33ttl6ffj3r//+9jWvGYPIiNhK8D/9bRo8Fls5/qvQVzgeLPyV+d9FgON/XU3/igYl/534xwdT/3ciqHpg/I1/X/G/sDYXnoeMA4H/Opt+NQIM/2fey2i0AcJ/dbWv7q89BCDwd//3JKhOAAb+scrgxAGCf+09w/5yPh84+DfykxIk/8MD0JqFGPNPrEHAy4A4+kd4A16lr7sCA38ngInfWwCq/sdogd0JOftfbz06qiFr/18SkCj4j/6rpf80DUj6r3SoAKLp34pzGILp300ArwJCvf+RJgp9Y9V/Le2/WQDSf5HnBeXcv+avaynOAAAAAElFTkSuQmCC",
-  P2:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARgAAAEYAQMAAAC9QHvPAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAU1JREFUeNrtWtEOwkAMIv7/P6POUnpbYva842bmZTMmkhYoE8j6v/hbqIPHBWjz3b9ufMtTP/MBos8HOnqn7+yOj6sHtYOuHefgI1TUbmDwOeNTyKD4Z9wJ/4h7hFKxUfjnql/ziH6d+kytVgL28N/+ug2MWNk6L6zCP78ew8TldHX3+uliKY4WP9fN9Fef1VGcFjH1Qyyd1Q66Gm53fW+5oguqhtTjtb1/HsVic8iurd31i64jYPC0air8PByzgGLPY/E/xEI83V6Mf140rFWMai7GH9LBak+kTg/jf0bRjFQVI2NNf2EdLjjQiv8hZ6g6gjEJ2fb9hRGItXIx+gWnGq4gOiqL/7mUkX2z9tF3h4d0KN+Unf46TamdA2V+b/6RlLd3HpoWfGyh/eDUYWLwWf+OICLqp8zhHyxPBcdsEX7GDA3BlYeSj2X9X28E1CTI81yBOQAAAABJRU5ErkJggg==",
-  P3:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQxJREFUeNrlmUsOw0AIQ1Hvf2eqDNgwq3bbvslmRJSF+RhDIugn6zy38xyTra8PX//6+yjEkbrJBW0l4H/inJUJjrusIPwCf1lZ8S83NBNg8E/ZGz6p/qfi94Ph/8sVqwP8B76v8j+r459rc798QIh/dvNLCR+nAgJ/RowA7Oi7GxD471J/KoImAkT/V/x3KiQFv2WPhE/zAQh/ib2G7vhT+n+uqc8FICmM4L+GnGH5Z89A9F+unYdrgKL/pP9j5j+Nw5z4xxDgHogh/d8TvySAViGc+e9Cj9K/G/HsgSnxn32fk2CurP2fc2AWoRz844FZhgRt/+sVgOiQ9P9nKDCTx/+uAS+DAtX/mecN8N+eCG9cmKIAAAAASUVORK5CYII=",
-  P4:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQlJREFUeNrlmMEOwzAIQ9H+/59ZFzCmp6nH7aVtlHbaATBgE0FfWes61DF8vF5eX/79679/bK29XXAufyXYX0FPe6Hezw6yP+UBpv2nFPQTKPt7L/D3B1D+5yB+X5j6bz90/BX8v7DvQf8LV4FUGyDEv9lPGgEyPyH5r0fNb7gQIv7mPuE2KEAw4i+07zso9d+QvzGBcgKi/434yd37kpH/5ryRUn6TBoj8n4Z3cwgm/jn0L1QDpQODFf8R/3rj6D9Tnj0PYdS/Zr+x5n6jCVn6L3y3HuLofw8+aPi32Xv6WzAAzf/MgBYiYPZ3J3QykOxPJf8wYFT+xwzC1wQENf9Nq2EBgdP/mesN1N+hBUwQXaYAAAAASUVORK5CYII=",
-  P5:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQNJREFUeNrlmUkSgzAQA6fy/z8LgmeRfUmuSRsosCkOsmYVEfShNd4Pa3pfs/r68PWvv3/ARkKOxG6rBPx6kKvOnguGf5m+3Vn4LRKw8OcuzHb0DIE/WT8OTPw/7EBtCX+B70v/7/yvsv+1xuDfI7/FPwb/ib4T/1RBEP673DuKYDHifzTxklWBuSsQ/GXu7v+BiX9W8Vf/k06AwC8PA5q0yLD/NPwse6r75/CvET3Cmt8QBn/zL3P+fEDwn76uPRMGxv8NcHd+ovT/mx+Y+ofhX0f/13oQxv9jUwGNf5z+F9UEk/R/Z/5Miij9f4TfkkFR/39GCCP1v7v+G/MHgKP/gccF0uufB3jr1joAAAAASUVORK5CYII=",
-  P6:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQMAAAD7H7lIAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAQxJREFUeNrlmcEOAkEIQ4n//8/oDrSgl41HfaPZkDF7KNNCGSPoK2s5jleY3n3cvP3rv19Y65nne6K1S8Bfh14UyGKBd0n4WwXJxH+Qn9gVIEj6PwJo9Cj9d6X/+GDq/86DNPA/+L7rf9JBVYHrgah/ffwdD3wK/219+vTDuaD0P5EglgM8aSDUf/u+scESAAO/UpBbALUN0P8afTJtgJoYjPM39e1/xAFE/68COMP/dAOQ/mf8mxsQDH5loAVgTlD8n4YeQZcrhPifNxOQXsGa/yLXbUBTgjP/x1hgGP+nCzoBcsOk+7/dB2wEYfef/g9AYiDhH9c7AUj/yw+HZwHQ/a+HgFzlkNP/mesJV2Km/6S/X2gAAAAASUVORK5CYII="
+  P1:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATgAAAE4AQMAAAD1sX0pAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAbxJREFUeNrtmttuwzAMQ4n9/z9rq6wLg6GKgmFPpVPk4gR9OJAlmjag9rdmp/3cwC9+40d0+duv5b992ndwTn52hi9W5xcd8Vb83vNzZnQgw/Ec/lb8bvkZXzP6xO9J/NHPKAOK3yL/RdKLnsqFyn/L+vvmUP19MI4Rua96PpbLw/x3tEuP5UKZ1UT8hgEc51LSkQJTBir+Fvho+mEEMwW1+K0qcc44eEInfvcBmGWjld8JwsyE4jcLmBR91kO5q+/rtfhNBbggtvFSgXk+EL9ZQKO0SoLMUqL6u5nAWea7yH2ZEqP8it9UPhoVYO0ZJFrF34Zg2VewtmJqGIvfzI+ENNjOT4riN6nmtk57GtJZUPrvrnwYrR31Qoj1o/jN2a+8Uxivg8h/XgsYXraEcViq/u78F1416kXhiEfxG6YfoKluq0Driqz4uxu9Rl4MLrEo/bfRL2T9UeUonuI32i+p8oxUM3nQ4re1YWjjRllZmn/suKFMZ1z2v0Djd1M/jARza5dkKX5D/kvjBbx+Sctv4rfi92vXFY1i8dvwMxIt5f9p/8tSPxtvQkXv4FD+29Rfo4frlgTFn9p/tW95zLdtDBujwAAAAABJRU5ErkJggg==",
+  P2:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATgAAAE4AQMAAAD1sX0pAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAbhJREFUeNrtmtGuwkAIRIn//8/YKgyzMS40xqfOeqO1NffhBGaAXTOt35a/13l1vI6v+HzdiaeP4X+72+9ORvHuQcvy73UdT8XvO783J1AzS3Bx38Vvxs8QhMFQ/C7wCwX0SGYvBRS/gf55mslCUPo39d8vL/nvtTjMD697d+RyUf/CMZDL+Jo6KH6buHMu/9zISDyDUPx2ChilHtXREMYIR/Hb0POECM2L3M1IFL8GILI26z3j6ln8eufNss9QtsB9T7jit/FfywhML4mMznZY9fOsiQM2DkT576wJWbUvS+h4IH4Nu9I9WIc5GbL4tclr5bc5QkADLH6dgRiP8DELRBiKX9N/YNps1QaTCYtfa71ejZuVk0Rgit/WPzCDRhWDa82fh6XLR0JjM0T6182v4LbZ+nq9qf+YuAdvlldTp/pvVL7UwBl7R6SFml8Npi+UzMtEOu6J345f7v9SO+eY56v/mOfxMtCiQxzit6tfaP/NSw4pLhV/jf5Vvby4cG2MiN++f6vzQ7UNxycTxG/ED/N6HueL34wfRqc8wA9dFL9O//ggqtMcUPo389/1vDNvyyn+tP61nsQ3sXMrdn/qAAAAAElFTkSuQmCC",
+  P3:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATgAAAE4AQMAAAD1sX0pAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAbxJREFUeNrtmsFuAzEIRFH+/59JVsAMrhrjVdXTjtNEqV318ATMgNdM62/LY1n+fF7X1nUQW3H6OvxvT/u7C1N9JscLWyLkqfh95xfUWjgaIhGn4jfxQxLHXoae+B3zYwKDpvid17+oe5Y6gj3Vv1P9/f0l/b3DkaFnTVMeyOVe/qLehWyk/QNU5e9cAcsrx1friqz4GxIXb19MX+Wyi9/ev2TCui9ykijF78gBFkTLglc5nR2J+O10d7GBCMLWFIvfXn+9NGOpek624jcFYE2sWAy9Jbf47fUDhhm64QY3qPibLQysHyOQ0Sh++/irKkhonALGmfhtyl8fI0BQmMqaX80SXH1bjVwqjeX/Ttq3psJ1i4SRlit/T/TX6f7Qj7QiKH7j+GDp2DACzLgUv23xo4M2TmNqQ/VvjD9OXyr6eKck/3dE0OGinb/4U7ncvP/oeUvxxYWc+E3+pYXeD/GIPBa/Ux/Y+mHnQEH8duMr5qv3zg13wOK3LX3GmdVym+6crYrfpv9gq2b9/rLHpvhN/KgkxscAcakpfiM/3B2tk6vYFb+5/i2PoiKfVf+O9bc/AwhHreevtP5vvQHpOal7YZ0O1gAAAABJRU5ErkJggg==",
+  P4:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARgAAAEYAQMAAAC9QHvPAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAU9JREFUeNrtWe0Kg0AMK3v/d87wek1Thc3fmnMgnmOw0OajF+H1eyHXcT+e1k4gcme9+dz4lad+JxGJKHxyg5/1+HZ8VvUMkFDXemN8qqGqveYb4wO20yogFBcZn2aZLJyNDvTNy/Ep/bpe1q9ZR5CCqtuD//t9/gnpKBqfRMz+B7E5efOytpb7K+V8A7P5OTEquTc/g+oFMUBF066fNjxFR3wwPzNcoIgn2i/C+EAESwuoO+3l/gfkm4ali8j61TXDGuq4anxK0lvowWpyPq2YDhH48zTI+hVnBqqqgv0hKbm7KsjPzhcBSC5ViBg0PN/QFM+MAeuX5KwYJzwST+1/9HAnavIjntr9RWB6+iOs7fkG58+IES9yx/mCLYZ5eppV5PkzZNrTjFSn8sYHOhYbImb/THwYxOgad5eZfyTEDwPt/HXRL7RRhPnZ68/6Aks+ENyWgDA0AAAAAElFTkSuQmCC",
+  P5:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATgAAAE4AQMAAAD1sX0pAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAbpJREFUeNrtmlFvw0AIg639///MtAQbbloD07Sn+iJVaVL14ZMBwx3g9bcV90Jc9/eTry9x3+Tbj+W/vdvvLk75GTcv5HXB5Fvze80v1UcdUnK3BPOt+U38Eh0D+Bah+e35gRhLiua3z3/BEOZnXs5/2/r74+X6u+fYcmAElfmeXH4Xv4EmQkayxOn4HYSnOKZ1LqZ8a35j8Mq2oDygCJrfLD8VYUCGmj8wv6EC4+g90rgURvN70F/I+3XX3ELZ+ht8i9wzooWuGJrf0H/ItbSmTiHs+B3TH6I1wfSEmgJaf+MIgVVXvQedSxpp85sKyNGDhAxhAjS/x/lV9OnpcZ8Uze85eEOzPhxtnP3fqnXTXlG5v0ANVR2/q+4D7NxQG0oJ0Pwe/F+UDMvBaJ5v/7IqIa1lO3A6/y301/oP+r722PlvU4FB9QXi3M40vzF8z5DVREb9nflN85c2/lMhrobE/LZjhDo7hDrEYX7P/o8Jr3re0iDsX4b6i2MXk9mPJ7Ds/zbmD/3QVXOB4fMvO3515KDvW3KYYH4jPxyHhvQAnp8u85+m9UqDmg6a36b+1jzr+wlo8/P6l/UJpvntN150X5MAAAAASUVORK5CYII=",
+  P6:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATgAAAE4AQMAAAD1sX0pAAAABlBMVEXw+P8LPS6s3xcrAAAAAXRSTlMAQObYZgAAAblJREFUeNrtmlFPAzEMgyP+/382bE1iH4M2J8TT3NMG3CYePjm1k2uE198W1oqv6/H2vJF35dOP4X97t+/FE9njfREEf89rfWp+v/Nr9a1XSpCqhPkN+C3dFTbRovnN9Ldqueg9tWh+8/2vAGYRJ0Dvfzf896fL/ntPiKzhTDDvyeVW/RarfOUf+tP8tv5BkME0mKaynMX8tjtgS6+9BA0R9o8TP9ovuuVgpnF+OQdAkmIXEsHSNr9d9VbrQS0CnCY87pvfdverjU+bYdqJ9TeIfmDD9j0K2n8n7pGocnTQ478wv7P2tI8DZwkUpvntA7TGlnIPCEbzO/ZwlyFMaPdh/Q38FyHNb0AztPvf8+CFjlHVK+5h/R0MGIILfAJSFK2/vX+Ii+Aye24pmt9Of2WzPTYF6YX3v1n+6+zCAQJHgua3nx+AiQV6AqGK2vy22a+bjdCHbzJbML9d+9GnDS6diCzzm9QxtA/R0zDW34EbGPvwMpG2/o7dR/e5nWd4nC08Px3sfwE9BgM9e2B+I346SUBIoDG/CT92wvI8uDOM+Z32vw6Alym0z2/M/bc7j4geX8H+4fWP6xOghLVvRVQffQAAAABJRU5ErkJggg=="
 };
 const PERSONS = {
-  H1:{name:"ທ້າວ ສົມສະຫວາດ ພົມມະວົງ", en:"Thao Somxay Phommavong", id:"0101-1990-000123", dob:"17/10/1980", gender:"ຊາຍ Male", nat:"ລາວ Lao", job:"ພະນັກງານ Employee", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 123 456"},
-  H2:{name:"ນາງ ຈັນທາ ວົງສະຫວັດ", en:"Nang Chantha Vongsavath", id:"0102-1985-000456", dob:"05/06/1985", gender:"ຍິງ Female", nat:"ລາວ Lao", job:"ຄ້າຂາຍ Business owner", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 234 567"},
-  H3:{name:"ທ້າວ ບຸນທັນ ສີສຸລາດ", en:"Thao Bounthan Sisoulath", id:"0103-1978-000789", dob:"12/03/1978", gender:"ຊາຍ Male", nat:"ລາວ Lao", job:"ຊາວນາ Farmer", addr:"ບ້ານທ່າແຫ້, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 345 678"},
-  H4:{name:"ນາງ ຄໍາລາວັນ ອິນທະວົງ", en:"Nang Khamlavan Inthavong", id:"0104-1992-000321", dob:"23/11/1992", gender:"ຍິງ Female", nat:"ລາວ Lao", job:"ພະນັກງານລັດ Civil servant", addr:"ບ້ານໂນນສະຫວ່າງ, ເມືອງພະລານໄຊ", phone:"020 55 456 789"},
-  H5:{name:"ທ່ານ ພູວັນ ຈັນທະລາ (ບໍລິສັດ ສະຫວັນນະເຂດ ກະສິກໍາ ຈໍາກັດ)", en:"Phouvanh Chanthala — Savannakhet Agriculture Co., Ltd.", id:"0105-1980-000654", dob:"08/09/1980", gender:"ຊາຍ Male", nat:"ລາວ Lao", job:"ຜູ້ຈັດການບໍລິສັດ Company manager", addr:"ບ້ານຫາດຊາຍຄໍາ, ເມືອງສົງຄອນ", phone:"020 55 567 890"},
-  H6:{name:"ນາງ ສຸລິພອນ ແກ້ວມະນີ", en:"Nang Souliphone Keomani", id:"0106-1995-000987", dob:"30/01/1995", gender:"ຍິງ Female", nat:"ລາວ Lao", job:"ພະນັກງານທະນາຄານ Bank officer", addr:"ບ້ານຈັນສະຫວ່າງ, ເມືອງຈໍາພອນ", phone:"020 55 678 901"},
-  H7:{name:"ທ້າວ ວົງສະຫວັນ ພົມມະຈັນ", en:"Thao Vongsavanh Phommachanh", id:"0107-1988-000135", dob:"19/07/1988", gender:"ຊາຍ Male", nat:"ລາວ Lao", job:"ພະນັກງານບໍລິສັດ Company staff", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 789 012"}
+  H1:{name:"ທ້າວ ສົມສະຫວາດ ພົມມະວົງ", en:"Thao Somxay Phommavong", id:"0101-1990-000123", dob:"17/10/1980", gender:"ຊາຍ", nat:"ລາວ", job:"ພະນັກງານ", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 123 456"},
+  H2:{name:"ນາງ ຈັນທາ ວົງສະຫວັດ", en:"Nang Chantha Vongsavath", id:"0102-1985-000456", dob:"05/06/1985", gender:"ຍິງ", nat:"ລາວ", job:"ຄ້າຂາຍ", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 234 567"},
+  H3:{name:"ທ້າວ ບຸນທັນ ສີສຸລາດ", en:"Thao Bounthan Sisoulath", id:"0103-1978-000789", dob:"12/03/1978", gender:"ຊາຍ", nat:"ລາວ", job:"ຊາວນາ", addr:"ບ້ານທ່າແຫ້, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 345 678"},
+  H4:{name:"ນາງ ຄໍາລາວັນ ອິນທະວົງ", en:"Nang Khamlavan Inthavong", id:"0104-1992-000321", dob:"23/11/1992", gender:"ຍິງ", nat:"ລາວ", job:"ພະນັກງານລັດ", addr:"ບ້ານໂນນສະຫວ່າງ, ເມືອງພະລານໄຊ", phone:"020 55 456 789"},
+  H5:{name:"ທ່ານ ພູວັນ ຈັນທະລາ (ບໍລິສັດ ສະຫວັນນະເຂດ ກະສິກໍາ ຈໍາກັດ)", en:"Phouvanh Chanthala — Savannakhet Agriculture Co., Ltd.", id:"0105-1980-000654", dob:"08/09/1980", gender:"ຊາຍ", nat:"ລາວ", job:"ຜູ້ຈັດການບໍລິສັດ", addr:"ບ້ານຫາດຊາຍຄໍາ, ເມືອງສົງຄອນ", phone:"020 55 567 890"},
+  H6:{name:"ນາງ ສຸລິພອນ ແກ້ວມະນີ", en:"Nang Souliphone Keomani", id:"0106-1995-000987", dob:"30/01/1995", gender:"ຍິງ", nat:"ລາວ", job:"ພະນັກງານທະນາຄານ", addr:"ບ້ານຈັນສະຫວ່າງ, ເມືອງຈໍາພອນ", phone:"020 55 678 901"},
+  H7:{name:"ທ້າວ ວົງສະຫວັນ ພົມມະຈັນ", en:"Thao Vongsavanh Phommachanh", id:"0107-1988-000135", dob:"19/07/1988", gender:"ຊາຍ", nat:"ລາວ", job:"ພະນັກງານບໍລິສັດ", addr:"ບ້ານດົງເທບ, ເມືອງໄກສອນພົມວິຫານ", phone:"020 55 789 012"}
 };
 const {H1,H2,H3,H4,H5,H6,H7} = PERSONS;
+const PROVINCE = "ສະຫວັນນະເຂດ";
 const DISTRICTS = {
-  KS:{lo:"ເມືອງ ໄກສອນ ພົມວິຫານ", en:"Kaysone Phomvihane"},
-  OT:{lo:"ເມືອງ ອຸທຸມພອນ", en:"Outhoumphone"},
-  PL:{lo:"ເມືອງ ພະລານໄຊ", en:"Phalanxay"},
-  CB:{lo:"ເມືອງ ຊົນນະບູລີ", en:"Chonnabouli"},
-  SK:{lo:"ເມືອງ ສົງຄອນ", en:"Songkhone"},
-  CP:{lo:"ເມືອງ ຈຳພອນ", en:"Champhone"}
+  KS:{lo:"ໄກສອນ ພົມວິຫານ", en:"Kaysone Phomvihane"},
+  OT:{lo:"ອຸທຸມພອນ", en:"Outhoumphone"},
+  PL:{lo:"ພະລານໄຊ", en:"Phalanxay"},
+  CB:{lo:"ຊົນນະບູລີ", en:"Chonnabouli"},
+  SK:{lo:"ສົງຄອນ", en:"Songkhone"},
+  CP:{lo:"ຈຳພອນ", en:"Champhone"}
 };
 // parcel key -> 'x,y' position on the 900x500 SVG map
 const MAPPOS = { P1:[180,150], P2:[420,120], P3:[700,150], P4:[300,320], P5:[560,330], P6:[760,320] };
 
 const PARCELS = [
-  {key:"P1",no:"0130.001.02.011.0033",tno:"833",dist:"KS",vill:"ດົງເທບ Dongthep",area:0.85,use:"ທີ່ຢູ່ອາໄສ Residential",useEn:"Residential",acquired:"ຊື້ມາ Purchase",ton:"17",mapsh:"A250-014",scale:"1/4000",
-   holder:H1,co:[H2],st:"ACTIVE",issued:"2012-03-15",right:"ສິດນຳໃຊ້ Use Right",mort:null,
+  {key:"P1",no:"0130.001.02.011.0033",tno:"833",dist:"KS",vill:"ດົງເທບ",area:0.85,use:"ທີ່ຢູ່ອາໄສ",useEn:"Residential",acquired:"ຊື້ມາ",ton:"17",mapsh:"A250-014",scale:"1/4000",
+   holder:H1,co:[H2],st:"ACTIVE",issued:"2012-03-15",right:"ສິດນຳໃຊ້",mort:null,
    hist:[
-     {d:"2012-03-15",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ທ້າວ ສົມສະຫວາດ ພົມມະວົງ ແລະ ນາງ ຈັນທາ ວົງສະຫວັດ (ຮ່ວມ) · Issued to Somxay Phommavong & Chantha Vongsavath"},
-     {d:"2016-08-22",t:"ປັບປຸງຂໍ້ມູນ Data Updated",s:"ອັບເດດເນື້ອທີ່ 0.80 → 0.85 ha ຫຼັງການວັດແທກໃໝ່ · Area updated after re-survey"},
-     {d:"2021-01-10",t:"ຈົດທະບຽນຄ້ຳປະກັນ Mortgage Registered",s:"ຄ້ຳປະກັນກັບ ທະນາຄານການຄ້າຕ່າງປະເທດລາວ · BCEL, ₭400,000,000"},
-     {d:"2024-05-30",t:"ປົດຄ້ຳປະກັນ Mortgage Released",s:"ຊຳລະໜີ້ຄົບຖ້ວນ · Loan fully repaid"}
+     {d:"2012-03-15",t:"ອອກໃບຕາດິນ",s:"ອອກໃຫ້ ທ້າວ ສົມສະຫວາດ ພົມມະວົງ ແລະ ນາງ ຈັນທາ ວົງສະຫວັດ (ຮ່ວມ)"},
+     {d:"2016-08-22",t:"ປັບປຸງຂໍ້ມູນ",s:"ອັບເດດເນື້ອທີ່ 0.80 → 0.85 ha ຫຼັງການວັດແທກໃໝ່"},
+     {d:"2021-01-10",t:"ຈົດທະບຽນຄ້ຳປະກັນ",s:"ຄ້ຳປະກັນກັບ ທະນາຄານການຄ້າຕ່າງປະເທດລາວ · ₭400,000,000"},
+     {d:"2024-05-30",t:"ປົດຄ້ຳປະກັນ",s:"ຊຳລະໜີ້ຄົບຖ້ວນ"}
    ]},
-  {key:"P2",no:"0130.002.03.021.0344",tno:"512",dist:"OT",vill:"ຊຽງຫົວທ່ອນ Xiengthonton",area:2.4,use:"ທີ່ດິນກະສິກໍາ Agricultural",useEn:"Agricultural",acquired:"ຊື້ມາ Purchase",ton:"23",mapsh:"A250-031",scale:"1/4000",
-   holder:H3,co:[],st:"ACTIVE",issued:"2015-06-02",right:"ສິດນຳໃຊ້ Use Right",mort:{bank:"ທະນາຄານ ພັດທະນາລາວ (LDB)",amt:120000000},
+  {key:"P2",no:"0130.002.03.021.0344",tno:"512",dist:"OT",vill:"ຊຽງຫົວທ່ອນ",area:2.4,use:"ທີ່ດິນກະສິກໍາ",useEn:"Agricultural",acquired:"ຊື້ມາ",ton:"23",mapsh:"A250-031",scale:"1/4000",
+   holder:H3,co:[],st:"ACTIVE",issued:"2015-06-02",right:"ສິດນຳໃຊ້",mort:{bank:"ທະນາຄານ ພັດທະນາລາວ (LDB)",amt:120000000},
    hist:[
-     {d:"2015-06-02",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ທ້າວ ບຸນທັນ ສີສຸລາດ · Issued to Bounthan Sisoulath"},
-     {d:"2019-11-18",t:"ຈົດທະບຽນຄ້ຳປະກັນ Mortgage Registered",s:"LDB ₭120,000,000 · ໄລຍະ 5 ປີ 5-year term"}
+     {d:"2015-06-02",t:"ອອກໃບຕາດິນ",s:"ອອກໃຫ້ ທ້າວ ບຸນທັນ ສີສຸລາດ"},
+     {d:"2019-11-18",t:"ຈົດທະບຽນຄ້ຳປະກັນ",s:"LDB ₭120,000,000 · ໄລຍະ 5 ປີ"}
    ]},
-  {key:"P3",no:"0130.003.05.013.0009",tno:"1468",dist:"PL",vill:"ໂນນສະຫວ່າງ Nonsavang",area:15.0,use:"ທີ່ດິນອຸດສາຫະກໍາ Industrial / Concession",useEn:"Industrial / Concession",acquired:"ສໍາປະທານ Concession",ton:"9",mapsh:"A250-045",scale:"1/10000",
-   holder:H5,co:[],st:"ACTIVE",issued:"2018-02-11",right:"ສິດສຳປະທານ Concession Right",mort:null,
+  {key:"P3",no:"0130.003.05.013.0009",tno:"1468",dist:"PL",vill:"ໂນນສະຫວ່າງ",area:15.0,use:"ທີ່ດິນອຸດສາຫະກໍາ",useEn:"Industrial / Concession",acquired:"ສໍາປະທານ",ton:"9",mapsh:"A250-045",scale:"1/10000",
+   holder:H5,co:[],st:"ACTIVE",issued:"2018-02-11",right:"ສິດສຳປະທານ",mort:null,
    hist:[
-     {d:"2018-02-11",t:"ອອກໃບຕາດິນ Title Issued",s:"ສຳປະທານ 50 ປີ · 50-year concession to Savannakhet Agriculture Co., Ltd."},
-     {d:"2020-07-01",t:"ປັບປຸງຂໍ້ມູນ Data Updated",s:"ປ່ຽນປະເພດການນຳໃຊ້ → ອຸດສາຫະກຳ · Land use changed to industrial"}
+     {d:"2018-02-11",t:"ອອກໃບຕາດິນ",s:"ສຳປະທານ 50 ປີ"},
+     {d:"2020-07-01",t:"ປັບປຸງຂໍ້ມູນ",s:"ປ່ຽນປະເພດການນຳໃຊ້ → ອຸດສາຫະກຳ"}
    ]},
-  {key:"P4",no:"0130.004.01.032.0765",tno:"977",dist:"CB",vill:"ທ່າແຫ້ Thahae",area:1.2,use:"ທີ່ດິນການຄ້າ Commercial",useEn:"Commercial",acquired:"ຊື້ມາ Purchase",ton:"31",mapsh:"B112-008",scale:"1/4000",
-   holder:H6,co:[],st:"ACTIVE",issued:"2010-09-25",right:"ສິດນຳໃຊ້ Use Right",mort:null,
+  {key:"P4",no:"0130.004.01.032.0765",tno:"977",dist:"CB",vill:"ທ່າແຫ້",area:1.2,use:"ທີ່ດິນການຄ້າ",useEn:"Commercial",acquired:"ຊື້ມາ",ton:"31",mapsh:"B112-008",scale:"1/4000",
+   holder:H6,co:[],st:"ACTIVE",issued:"2010-09-25",right:"ສິດນຳໃຊ້",mort:null,
    hist:[
-     {d:"2010-09-25",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ນາງ ສຸລິພອນ ແກ້ວມະນີ · Issued to Souliphone Keomani"}
+     {d:"2010-09-25",t:"ອອກໃບຕາດິນ",s:"ອອກໃຫ້ ນາງ ສຸລິພອນ ແກ້ວມະນີ"}
    ]},
-  {key:"P5",no:"0130.005.04.041.0211",tno:"1204",dist:"SK",vill:"ຫາດຊາຍຄໍາ Hadsaykham",area:3.8,use:"ທີ່ດິນກະສິກໍາ Agricultural",useEn:"Agricultural",acquired:"ສືບທອດມໍລະດົກ Inheritance",ton:"41",mapsh:"B112-022",scale:"1/4000",
-   holder:H7,co:[],st:"PENDING",issued:"2014-04-08",right:"ສິດນຳໃຊ້ Use Right",mort:null,
+  {key:"P5",no:"0130.005.04.041.0211",tno:"1204",dist:"SK",vill:"ຫາດຊາຍຄໍາ",area:3.8,use:"ທີ່ດິນກະສິກໍາ",useEn:"Agricultural",acquired:"ສືບທອດມໍລະດົກ",ton:"41",mapsh:"B112-022",scale:"1/4000",
+   holder:H7,co:[],st:"PENDING",issued:"2014-04-08",right:"ສິດນຳໃຊ້",mort:null,
    hist:[
-     {d:"2014-04-08",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ທ້າວ ວົງສະຫວັນ ພົມມະຈັນ · Issued to Vongsavanh Phommachanh"}
+     {d:"2014-04-08",t:"ອອກໃບຕາດິນ",s:"ອອກໃຫ້ ທ້າວ ວົງສະຫວັນ ພົມມະຈັນ"}
    ]},
-  {key:"P6",no:"0130.006.02.052.0688",tno:"611",dist:"CP",vill:"ຈັນສະຫວ່າງ Chansavang",area:2.1,use:"ທີ່ຢູ່ອາໄສ Residential",useEn:"Residential",acquired:"ຊື້ມາ Purchase",ton:"52",mapsh:"A250-056",scale:"1/4000",
-   holder:H1,co:[H4],st:"ACTIVE",issued:"2008-12-19",right:"ສິດນຳໃຊ້ Use Right",mort:{bank:"ທະນາຄານການຄ້າຕ່າງປະເທດລາວ (BCEL)",amt:250000000},
+  {key:"P6",no:"0130.006.02.052.0688",tno:"611",dist:"CP",vill:"ຈັນສະຫວ່າງ",area:2.1,use:"ທີ່ຢູ່ອາໄສ",useEn:"Residential",acquired:"ຊື້ມາ",ton:"52",mapsh:"A250-056",scale:"1/4000",
+   holder:H1,co:[H4],st:"ACTIVE",issued:"2008-12-19",right:"ສິດນຳໃຊ້",mort:{bank:"ທະນາຄານການຄ້າຕ່າງປະເທດລາວ (BCEL)",amt:250000000},
    hist:[
-     {d:"2008-12-19",t:"ອອກໃບຕາດິນ Title Issued",s:"ອອກໃຫ້ ທ້າວ ສົມສະຫວາດ ພົມມະວົງ · Issued to Somxay Phommavong"},
-     {d:"2018-10-05",t:"ການໂອນສິດ Transfer",s:"ໂອນສິດ 50% ໃຫ້ ນາງ ຄຳລາວັນ ອິນທະວົງ (ຮ່ວມຖືສິດ) · 50% share transferred to Khamlavan Inthavong"},
-     {d:"2023-03-14",t:"ຈົດທະບຽນຄ້ຳປະກັນ Mortgage Registered",s:"BCEL ₭250,000,000 · ໄລຍະ 3 ປີ"}
+     {d:"2008-12-19",t:"ອອກໃບຕາດິນ",s:"ອອກໃຫ້ ທ້າວ ສົມສະຫວາດ ພົມມະວົງ"},
+     {d:"2018-10-05",t:"ການໂອນສິດ",s:"ໂອນສິດ 50% ໃຫ້ ນາງ ຄຳລາວັນ ອິນທະວົງ (ຮ່ວມຖືສິດ)"},
+     {d:"2023-03-14",t:"ຈົດທະບຽນຄ້ຳປະກັນ",s:"BCEL ₭250,000,000 · ໄລຍະ 3 ປີ"}
    ]}
 ];
 
@@ -682,9 +691,12 @@ function detailHTML(p){
                 <div class="tc-qr"><img src="${qr}" alt="QR"><div class="note"><b>QR / Smart Identifier</b><br>ສະແກນເພື່ອກວດສອບຄວາມຖືກຕ້ອງຂອງໃບຕາດິນ<br>Scan to verify the authentic title</div></div>
               </div>
         <div class="qrcopy" style="text-align:center">
-          <div class="qr-big" id="qrb-${p.key}" style="display:none"><img src="${qr}" alt="QR large"></div>
-          <div class="row" style="justify-content:center"><button class="btn ghost sm" onclick="toggleQR('${p.key}')">🔳 ຂະຫຍາຍ QR Zoom QR</button></div>
-        </div>
+                  <div class="qr-big" id="qrb-${p.key}" style="display:none"><img src="${qr}" alt="QR large"></div>
+                  <div class="row" style="justify-content:center;gap:8px;margin-top:8px">
+                    <button class="btn ghost sm" onclick="toggleQR('${p.key}')">🔳 ຂະຫຍາຍ QR Zoom QR</button>
+                    <button class="btn sm" onclick="printTitle('${p.key}')">🖨️ ພິມ ພິມໃບຕາດິນ Print Title</button>
+                  </div>
+                </div>
       </div>
       <div class="pane">
         <h3>📎 ເອກະສານປະກອບ — Attached Documents</h3>
@@ -754,51 +766,267 @@ function resetImport(){
   $('imp-bar').style.width='0%'; $('imp-pct').textContent='0%'; $('imp-msg').textContent='ກໍາລັງກວດສອບ… Validating…';
   $('imp-rows').innerHTML='';
 }
-function mockFile(){
-  $('dz-ico').textContent='✅'; $('dz-txt').innerHTML='<b>legacy_titles_2026.xlsx</b> (2.4 MB) · ເລືອກໄຟລ໌ສໍາເລັດ File selected';
-  $('dz').style.borderColor='var(--ok)'; $('dz').style.background='#f0faf3';
-  toast('📂 ເລືອກໄຟລ໌ແລ້ວ — legacy_titles_2026.xlsx (mock)');
+function generateCadastralMap(parcel) {
+  const seed = parcel.key.charCodeAt(1) * 17;
+  const rng = (i) => ((seed * (i + 1) * 9301 + 49297) % 233280) / 233280;
+  const cx = 110, cy = 75;
+  const w = 60 + rng(0) * 20, h = 45 + rng(1) * 15;
+  const pts = [[cx - w/2, cy - h/2], [cx + w/2, cy - h/2], [cx + w/2 + rng(2)*8, cy + h/2], [cx - w/2 - rng(3)*8, cy + h/2]];
+  const polyStr = pts.map(p => p.join(',')).join(' ');
+  const dimTop = (w * 12.5).toFixed(0);
+  const dimRight = (h * 12.5).toFixed(0);
+  const dimBottom = ((w + 5) * 12.5).toFixed(0);
+  const dimLeft = ((h + 3) * 12.5).toFixed(0);
+  return `<svg viewBox="0 0 220 160" style="width:100%;height:100%">
+    <defs><pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0L0 0 0 20" fill="none" stroke="#e8e4d8" stroke-width="0.5"/></pattern></defs>
+    <rect width="220" height="160" fill="url(#g)"/>
+    <text x="${cx}" y="16" text-anchor="middle" font-size="11" font-weight="bold" fill="#2d5a3d">${parcel.ton}</text>
+    <polygon points="${polyStr}" fill="rgba(200,162,39,0.12)" stroke="#2d5a3d" stroke-width="1.8"/>
+    <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="13" font-weight="bold" fill="#2d5a3d">${parcel.ton}</text>
+    <text x="${cx}" y="${cy - h/2 - 16}" text-anchor="middle" font-size="8" fill="#555">${dimTop} ມ</text>
+    <text x="${cx + w/2 + 20}" y="${cy + 3}" text-anchor="middle" font-size="8" fill="#555">${dimRight} ມ</text>
+    <text x="${cx}" y="${cy + h/2 + 16}" text-anchor="middle" font-size="8" fill="#555">${dimBottom} ມ</text>
+    <text x="${cx - w/2 - 20}" y="${cy + 3}" text-anchor="middle" font-size="8" fill="#555">${dimLeft} ມ</text>
+    <text x="12" y="140" font-size="7" fill="#888">${parcel.mapsh}</text>
+    <text x="208" y="140" text-anchor="end" font-size="7" fill="#888">${parcel.scale}</text>
+    <line x1="10" y1="150" x2="50" y2="150" stroke="#888" stroke-width="0.8"/>
+    <line x1="10" y1="147" x2="10" y2="153" stroke="#888" stroke-width="0.8"/>
+    <line x1="50" y1="147" x2="50" y2="153" stroke="#888" stroke-width="0.8"/>
+    <text x="30" y="146" text-anchor="middle" font-size="6" fill="#888">50 ມ</text>
+  </svg>`;
 }
-function runMockImport(){
-  // switch to result view
-  showView('import');
-  // summary numbers (mock)
-  const total=2845, ok=2714, warn=86, err=31, dup=14;
-  $('imp-total').textContent=total.toLocaleString();
-  $('imp-dup').textContent=dup;
-  // Animate progress, then reveal numbers progressively
-  const bar=$('imp-bar'), pct=$('imp-pct'), msg=$('imp-msg');
-  let p=0;
-  const iv=setInterval(()=>{
-    p+=4;
-    if(p>=100){
-      clearInterval(iv);
-      p=100;
-      bar.style.width='100%'; pct.textContent='100%'; msg.textContent='✔ ກວດສອບສໍາເລັດ Validation complete';
-      $('imp-ok').textContent=ok.toLocaleString();
-      $('imp-warn').textContent=warn;
-      $('imp-err').textContent=err;
-      // preview rows (first 8 with mixed statuses)
-      const rows=[
-        ['0130.001.02.011.0033','833','ທ້າວ ສົມສະຫວາດ ພົມມະວົງ','ໄກສອນ ພົມວິຫານ','ດົງເທບ','8,500','✅ ຜ່ານ Valid'],
-        ['0130.002.03.021.0344','512','ທ້າວ ບຸນທັນ ສີສຸລາດ','ອຸທຸມພອນ','ຊຽງຫົວທ່ອນ','24,000','✅ ຜ່ານ Valid'],
-        ['0130.003.05.013.0009','1468','ບໍລິສັດ ສະຫວັນນະເຂດ ກະສິກໍາ','ພະລານໄຊ','ໂນນສະຫວ່າງ','150,000','✅ ຜ່ານ Valid'],
-        ['0130.004.01.032.0765','977','ນາງ ສຸລິພອນ ແກ້ວມະນີ','ຊົນນະບູລີ','ທ່າແຫ້','12,000','✅ ຜ່ານ Valid'],
-        ['0130.005.04.041.0211','1204','ທ້າວ ວົງສະຫວັນ','ສົງຄອນ','ຫາດຊາຍຄໍາ','38,000','⚠️ ຊໍ້າກັນ Duplicate'],
-        ['0130.006.02.052.0688','611','ທ້າວ ວົງສະຫວັນ','ຈໍາພອນ','ຈັນສະຫວ່າງ','21,000','⚠️ ຊໍ້າກັນ Duplicate'],
-        ['0130.007.03.011.0001','—','','ໄກສອນ ພົມວິຫານ','ບ້ານກາງ','—','❌ ຂາດຊື່ Missing Name'],
-        ['0130.007.03.012.0009','—','ທ້າວ ສົມຊາຍ','ໄກສອນ ພົມວິຫານ','—','200','❌ ບໍ່ມີຕອນດິນ No Parcel']
-      ];
-      $('imp-rows').innerHTML = rows.map((r,i)=>`<tr>
-        <td>${i+1}</td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
-        <td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td>
-        <td><span class="${r[7].startsWith('✅')?'b-ok':r[7].startsWith('⚠️')?'b-warn':'b-mort'}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600">${r[7]}</span></td>
-      </tr>`).join('');
-    } else {
-      bar.style.width=p+'%'; pct.textContent=p+'%';
-      msg.textContent = p<40?'ກໍາລັງອ່ານໄຟລ໌… Reading file…':(p<80?'ກໍາລັງກວດສອບຂໍ້ມູນ… Validating rows…':'ກົງກັນກັບລະບົບ… Matching against system…');
-    }
-  }, 60);
+
+function printTitle(k){
+  const p=parcelById(k);
+  const dist=DISTRICTS[p.dist];
+  const h=p.holder;
+  const area_m2=(p.area*10000).toLocaleString();
+  const win=window.open('','_blank');
+  win.document.write(`
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+<meta charset="UTF-8">
+<title>ໃບຕາດິນ - ${p.no}</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { 
+    font-family: "Phetsarath OT", "Phetsarath", "Saysettha OT", Tahoma, sans-serif; 
+    font-size: 11px; line-height: 1.45; color: #1a1a1a; 
+    background: #c4b896; margin: 0; padding: 15px; 
+  }
+  .title-page { 
+    width: 190mm; margin: 0 auto; background: #faf5e8; 
+    border: 3px solid #c9a227;
+    outline: 1.5px solid #d4b44a; outline-offset: 2px;
+    box-shadow: 0 0 0 4px #faf5e8, 0 0 0 6px #c9a227, 0 6px 20px rgba(0,0,0,0.25);
+    padding: 0; position: relative; overflow: hidden;
+  }
+  .outer-border { 
+    border: 1px solid #b8960f; margin: 6px; padding: 12px 16px 16px; 
+    background: linear-gradient(180deg, #faf5e8 0%, #f5edd8 100%); 
+    min-height: 265mm; position: relative;
+  }
+  .header { text-align: center; padding: 8px 0 6px; }
+  .emblem { width: 72px; height: 72px; margin: 0 auto 4px; display: block; }
+  .header h1 { font-size: 13px; font-weight: 800; margin: 2px 0; color: #1a1a1a; }
+  .header h2 { font-size: 11px; font-weight: 600; margin: 1px 0; color: #2d4a3a; }
+  .header .slogan { font-size: 10.5px; font-weight: 600; margin: 1px 0; color: #2d4a3a; letter-spacing: 0.3px; }
+  .header h3 { font-size: 10px; margin: 1px 0; font-weight: 400; color: #3d5a4a; }
+  
+  .doc-title { text-align: center; margin: 8px 0 6px; }
+  .doc-title h2 { font-size: 20px; font-weight: 800; color: #1a1a1a; margin: 0; letter-spacing: 3px; text-decoration: underline; text-underline-offset: 4px; }
+
+  .top-row { display: flex; justify-content: space-between; font-size: 10.5px; margin: 6px 0 4px; }
+  .top-row .left { text-align: left; }
+  .top-row .right { text-align: right; font-weight: 600; }
+  .top-row div span { display: block; margin: 1px 0; }
+
+  .form-grid { margin: 6px 0; }
+  .fg-row { display: flex; gap: 8px; margin-bottom: 4px; font-size: 10.5px; align-items: baseline; }
+  .fg-cell { display: flex; align-items: baseline; gap: 4px; }
+  .fg-cell.label { font-weight: 700; color: #2d4a3a; white-space: nowrap; }
+  .fg-cell.value { border-bottom: 1px dotted #8b7355; flex: 1; min-width: 40px; padding-bottom: 1px; color: #1a1a1a; }
+  .fg-cell.value.wide { min-width: 180px; }
+  .fg-cell.value.narrow { min-width: 30px; flex: 0 0 auto; }
+  .fg-sep { width: 12px; flex-shrink: 0; }
+  .fg-full { margin-bottom: 4px; }
+
+  .section-title { 
+    font-weight: 700; margin: 10px 0 6px; text-align: center; 
+    font-size: 11px; color: #2d4a3a; 
+    border-top: 1.5px solid #c9a227; padding-top: 6px; 
+  }
+  .map-area { 
+    border: 1.5px solid #8b7355; border-radius: 3px; 
+    height: 130px; margin: 6px 0 8px; background: #fffef8; padding: 6px;
+  }
+
+  .sig-section { margin-top: 20px; display: flex; justify-content: space-between; padding: 0 10px; }
+  .sig-block { text-align: center; width: 150px; }
+  .sig-label { font-size: 9px; color: #5a4a3a; margin-bottom: 4px; }
+  .sig-line { border-bottom: 1px solid #1a1a1a; height: 35px; }
+  .sig-title { font-size: 8px; color: #888; margin-top: 3px; }
+
+  .date-stamp-area { 
+    position: absolute; bottom: 50px; right: 30px; 
+    border: 1.5px dashed #c9a227; padding: 6px 10px; 
+    color: #c9a227; font-size: 8px; border-radius: 3px; text-align: center;
+  }
+  .watermark {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 70px; color: rgba(201,162,39,0.05); font-weight: 800;
+    white-space: nowrap; pointer-events: none; z-index: 0;
+  }
+  .qr-print { position: absolute; top: 10mm; right: 10mm; width: 30mm; height: 30mm; }
+  @media print { 
+    .no-print { display: none !important; } 
+    body { background: none; padding: 0; margin: 0; }
+    .title-page { border: 2.5px solid #c9a227; box-shadow: none; margin: 0; }
+    @page { margin: 10mm; }
+  }
+</style>
+</head>
+<body>
+<div class="no-print" style="text-align:right;padding:10px 16px;background:#f5f5f0;border-bottom:1px solid #ddd">
+  <button onclick="window.print()" style="padding:8px 18px;background:#1b3a2f;color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600">🖨️ Print</button> 
+  <button onclick="window.close()" style="padding:8px 18px;background:#666;color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;margin-left:8px">Close</button>
+</div>
+<div class="title-page">
+  <div class="watermark">ຕົວຢ່າງ DEMO</div>
+  <div class="qr-print"><img src="${QR[p.key]}" style="width:100%;height:auto;border:1px solid #c9a227;border-radius:2px"></div>
+  <div class="outer-border">
+    <div class="header">
+      <img src="build/emblem.png" class="emblem" alt="">
+      <h1>ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</h1>
+      <h2 class="slogan">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</h2>
+    </div>
+
+    <div class="doc-title"><h2>ໃບຕາດິນ</h2></div>
+
+    <div class="top-row">
+      <div class="left">
+        <span>ກະຊວງການເງິນ</span>
+        <span>ກົມຄຸ້ມຄອງທີ່ດິນ ແລະ ເຮືອນ</span>
+        <span>ຫ້ອງການຄຸ້ມຄອງທີ່ດິນ ແລະ ເຮືອນ</span>
+        <span>ສະຫມຸດປື້ມເຫລັ້ມທີ່: ${p.tno}</span>
+        <span>ໃບທີ: ${p.tno} · ເລກທີ: ${p.no}</span>
+      </div>
+      <div class="right">
+        <span>ລະຫັດ: ${p.no}</span>
+        <span>ແຂວງ: ${PROVINCE}</span>
+        <span>ເມືອງ: ${dist.lo}</span>
+        <span>ບ້ານ: ${p.vill}</span>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="fg-row fg-full" style="margin-left: 20px;">
+        <div class="fg-cell label">ອອກໃຫ້ແກ່:</div>
+        <div class="fg-cell value wide">${h.name}</div>
+      </div>
+
+      <div class="fg-row">
+        <div class="fg-cell label">ວັນເດືອນປີເກີດ:</div>
+        <div class="fg-cell value">${h.dob}</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ສັນຊາດ:</div>
+        <div class="fg-cell value narrow">${h.nat.split(' ')[0]}</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ອາຊີບ:</div>
+        <div class="fg-cell value">${h.job}</div>
+      </div>
+
+      <div class="fg-row">
+        <div class="fg-cell label">ບ້ານຢູ່ປະຈຸບັນ:</div>
+        <div class="fg-cell value">${p.vill}</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ໜ່ວຍ:</div>
+        <div class="fg-cell value narrow">1</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ເມືອງ:</div>
+        <div class="fg-cell value">${dist.lo}</div>
+      </div>
+
+      <div class="fg-row">
+        <div class="fg-cell label">ແຂວງ:</div>
+        <div class="fg-cell value">${PROVINCE}</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ຊື່ພໍ່:</div>
+        <div class="fg-cell value">—</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ຊື່ແມ່:</div>
+        <div class="fg-cell value">—</div>
+      </div>
+
+      <div class="fg-row fg-full">
+        <div class="fg-cell label">ສາມີ ຫລື ພັນລະຍາ:</div>
+        <div class="fg-cell value wide">—</div>
+      </div>
+
+      <div class="fg-row fg-full">
+        <div class="fg-cell label" style="text-decoration: underline;">ທີ່ຕັ້ງຂອງດິນ:</div>
+      </div>
+      <div class="fg-row">
+        <div class="fg-cell label" style="margin-left: 20px;">ຖະໜົນ:</div>
+        <div class="fg-cell value">—</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ໜ່ວຍ:</div>
+        <div class="fg-cell value narrow">1</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ບ້ານ:</div>
+        <div class="fg-cell value">${p.vill}</div>
+      </div>
+
+      <div class="fg-row">
+        <div class="fg-cell label">ເນື້ອທີ່ຂອງດິນ:</div>
+        <div class="fg-cell value">${p.area.toLocaleString()} ຮຕ</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ຕາແມັດ:</div>
+        <div class="fg-cell value">${area_m2}</div>
+      </div>
+
+      <div class="fg-row">
+        <div class="fg-cell label" style="font-size: 12px; font-weight: 800;">ມາດຕາສ່ວນ:</div>
+        <div class="fg-cell value" style="font-size: 12px; font-weight: 800;">${p.scale}</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ແຜນທີ່ດິນໃບທີ:</div>
+        <div class="fg-cell value">${p.mapsh}</div>
+        <div class="fg-sep"></div>
+        <div class="fg-cell label">ເລກທີ:</div>
+        <div class="fg-cell value narrow">${p.tno}</div>
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size: 13px; font-weight: 800;">ແຜນທີດິນ</div>
+    <div class="map-area">${generateCadastralMap(p)}</div>
+
+    <div class="sig-section">
+      <div class="sig-block">
+        <div class="sig-label">ລາຍເຊັນ ເຈົ້າໜ້າທີ່:</div>
+        <div class="sig-line"></div>
+        <div class="sig-title">( ຊື່ ແລະ ຕຳແຫນ່ງ )</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-label">ລາຍເຊັນ:</div>
+        <div class="sig-line"></div>
+        <div class="sig-title">( ຊື່ )</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-label">ວັນທີ:</div>
+        <div class="sig-line"></div>
+        <div class="sig-title">( ວັນ ເດືອນ ປີ )</div>
+      </div>
+    </div>
+
+    <div class="date-stamp-area">ວັນທີ ກຳນົດ</div>
+  </div>
+</div>
+</body></html>
+  `);
+  win.document.close();
 }
 function quickMortgage(k){ closeDetail(); $('mo-parcel').value=k; showView('mortgage'); }
 function releaseMortgage(k){

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#fff" stroke="#c9a227" stroke-width="3"/>
+  
+  <!-- Rice stalks (left) -->
+  <g fill="#d4a017" stroke="#b8860b" stroke-width="0.5">
+    <ellipse cx="35" cy="60" rx="8" ry="4" transform="rotate(-30 35 60)"/>
+    <ellipse cx="30" cy="75" rx="8" ry="4" transform="rotate(-25 30 75)"/>
+    <ellipse cx="28" cy="90" rx="8" ry="4" transform="rotate(-20 28 90)"/>
+    <ellipse cx="30" cy="105" rx="8" ry="4" transform="rotate(-15 30 105)"/>
+    <ellipse cx="35" cy="120" rx="8" ry="4" transform="rotate(-10 35 120)"/>
+  </g>
+  
+  <!-- Rice stalks (right) -->
+  <g fill="#d4a017" stroke="#b8860b" stroke-width="0.5">
+    <ellipse cx="165" cy="60" rx="8" ry="4" transform="rotate(30 165 60)"/>
+    <ellipse cx="170" cy="75" rx="8" ry="4" transform="rotate(25 170 75)"/>
+    <ellipse cx="172" cy="90" rx="8" ry="4" transform="rotate(20 172 90)"/>
+    <ellipse cx="170" cy="105" rx="8" ry="4" transform="rotate(15 170 105)"/>
+    <ellipse cx="165" cy="120" rx="8" ry="4" transform="rotate(10 165 120)"/>
+  </g>
+  
+  <!-- Stupa/Pagoda (central) -->
+  <g fill="#d4a017" stroke="#8b4513" stroke-width="1">
+    <!-- Base -->
+    <rect x="75" y="110" width="50" height="15" rx="2"/>
+    <!-- Middle -->
+    <polygon points="80,110 120,110 115,85 85,85"/>
+    <!-- Top -->
+    <polygon points="90,85 110,85 105,60 95,60"/>
+    <!-- Spire -->
+    <polygon points="97,60 103,60 100,40"/>
+    <!-- Finial -->
+    <circle cx="100" cy="38" r="4" fill="#c9a227"/>
+  </g>
+  
+  <!-- Star -->
+  <polygon points="100,25 103,35 113,35 105,41 108,51 100,45 92,51 95,41 87,35 97,35" fill="#c9a227" stroke="#8b4513" stroke-width="0.5"/>
+  
+  <!-- Gear/Wheel -->
+  <circle cx="100" cy="140" r="18" fill="#4a90a4" stroke="#2d5a3d" stroke-width="2"/>
+  <circle cx="100" cy="140" r="12" fill="none" stroke="#fff" stroke-width="1.5"/>
+  <circle cx="100" cy="140" r="6" fill="#fff"/>
+  
+  <!-- Ribbon (bottom) -->
+  <path d="M40,160 Q100,180 160,160" fill="none" stroke="#c9a227" stroke-width="3"/>
+  <text x="100" y="170" text-anchor="middle" font-size="7" fill="#8b4513" font-family="serif">ປະຊາທິປະໄຕ</text>
+</svg>
