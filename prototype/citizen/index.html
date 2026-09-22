@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ປະຊາຊົນ ພ໋ອຕໍລະບົບ — Citizen Portal</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --gov:#0b3d2e;--gov2:#14644a;--gold:#c9a227;--bg:#f0f3f0;--card:#fff;
+  --ink:#17231d;--muted:#5c6b62;--line:#dce4dc;--danger:#b3261e;--ok:#1d7a4f;
+  --blue:#1a5fb4;--shadow:0 1px 3px rgba(11,61,46,.06),0 4px 16px rgba(11,61,46,.08);
+  --r:12px;--max:480px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;-webkit-text-size-adjust:100%}
+body{
+  font-family:"Phetsarath OT","Phetsarath",Tahoma,"Segoe UI",system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);line-height:1.55;font-size:15px;
+  display:flex;justify-content:center;
+}
+.app{width:100%;max-width:var(--max);min-height:100vh;background:var(--bg);position:relative;
+  box-shadow:0 0 40px rgba(0,0,0,.08);
+}
+/* ---------- HEADER ---------- */
+.hdr{background:linear-gradient(135deg,var(--gov),var(--gov2));color:#fff;padding:14px 18px 12px;
+  position:sticky;top:0;z-index:50;
+}
+.hdr .gov-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.hdr .emblem{width:36px;height:36px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--gov);flex:none}
+.hdr .gov-text{font-size:11.5px;opacity:.9;line-height:1.3}
+.hdr .title-row{display:flex;align-items:center;justify-content:space-between}
+.hdr h1{font-size:17px;font-weight:800}
+.hdr .back{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;
+  padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;display:none}
+.hdr .back.show{display:inline-flex;align-items:center;gap:4px}
+/* ---------- BOTTOM NAV ---------- */
+.bnav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:var(--max);
+  background:#fff;border-top:1px solid var(--line);display:flex;z-index:50;
+  box-shadow:0 -2px 12px rgba(0,0,0,.06);
+}
+.bnav button{
+  flex:1;border:none;background:none;padding:8px 4px 6px;font-size:10px;color:var(--muted);
+  font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.bnav button .ico{font-size:20px;line-height:1}
+.bnav button.active{color:var(--gov);font-weight:700}
+/* ---------- SCREENS ---------- */
+.scr{display:none;padding:16px 16px 80px;animation:fadeIn .2s ease}
+.scr.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+h2{font-size:19px;font-weight:800;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+/* ---------- CARDS ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+.card h3{font-size:14.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+/* ---------- BUTTONS ---------- */
+.btn{
+  font-family:inherit;font-size:14px;font-weight:700;border:none;border-radius:10px;
+  padding:12px 20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;transition:all .15s;background:var(--gov);color:#fff;
+}
+.btn:hover{filter:brightness(1.08)}.btn:active{transform:scale(.98)}
+.btn.gold{background:var(--gold);color:#3a2d05}
+.btn.outline{background:#fff;color:var(--gov);border:1.5px solid var(--gov)}
+.btn.danger{background:var(--danger)}
+.btn.sm{padding:8px 14px;font-size:13px;border-radius:8px;width:auto}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-row{display:flex;gap:10px;margin-top:14px}
+.btn-row .btn{flex:1}
+/* ---------- FORMS ---------- */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:12.5px;font-weight:600;color:var(--muted)}
+.input,.select{
+  font-family:inherit;font-size:15px;padding:11px 14px;border:1.5px solid var(--line);
+  border-radius:10px;background:#fff;color:var(--ink);width:100%;
+  -webkit-appearance:none;
+}
+.input:focus,.select:focus{outline:none;border-color:var(--gov2);box-shadow:0 0 0 3px rgba(20,100,74,.1)}
+textarea.input{min-height:80px;resize:vertical}
+/* ---------- BADGES ---------- */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.b-ok{background:#e2f3ea;color:var(--ok)}
+.b-warn{background:#fdf1dc;color:#8a6110}
+.b-act{background:#e3eefa;color:#1a5fb4}
+.b-done{background:#eceef0;color:#55606a}
+.b-err{background:#fdeaea;color:var(--danger)}
+/* ---------- HERO CARDS (Home) ---------- */
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.hero{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 12px;
+  text-align:center;cursor:pointer;transition:all .15s;box-shadow:var(--shadow);
+}
+.hero:active{transform:scale(.97);filter:brightness(.97)}
+.hero .ico{font-size:32px;margin-bottom:6px;display:block}
+.hero .hlbl{font-size:13px;font-weight:700;color:var(--ink);line-height:1.3}
+.hero .hsub{font-size:11px;color:var(--muted);margin-top:2px}
+.hero.primary{background:linear-gradient(135deg,var(--gov),var(--gov2));color:#fff;border-color:var(--gov)}
+.hero.primary .hlbl{color:#fff}.hero.primary .hsub{color:rgba(255,255,255,.8)}
+/* ---------- QUICK STATUS ---------- */
+.qstatus{display:flex;gap:10px;overflow-x:auto;padding:2px 0 6px;margin-bottom:16px;scroll-snap-type:x mandatory}
+.qstatus::-webkit-scrollbar{display:none}
+.qs-card{
+  min-width:260px;flex:none;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);padding:14px;scroll-snap-align:start;box-shadow:var(--shadow);cursor:pointer;
+}
+.qs-card .qs-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.qs-card .qs-type{font-size:12px;font-weight:700;color:var(--gov)}
+.qs-card .qs-title{font-size:14px;font-weight:600;margin-bottom:4px}
+.qs-card .qs-date{font-size:11.5px;color:var(--muted)}
+/* ---------- STEPPER ---------- */
+.steps{display:flex;gap:4px;margin:14px 0}
+.st{flex:1;text-align:center;padding:8px 4px;border-radius:8px;background:#eef2ee;color:var(--muted);font-size:11px;font-weight:700;position:relative}
+.st .no{display:block;font-size:14px;margin-bottom:1px}
+.st.done{background:#dcefe4;color:var(--ok)}
+.st.cur{background:var(--gov);color:#fff;box-shadow:0 2px 8px rgba(11,61,46,.25)}
+/* ---------- TIMELINE ---------- */
+.tl{list-style:none;border-left:2.5px solid var(--line);margin-left:6px;padding-left:18px}
+.tl li{position:relative;padding:0 0 18px 8px}
+.tl li::before{content:'';position:absolute;left:-24px;top:3px;width:11px;height:11px;border-radius:50%;background:#fff;border:2.5px solid var(--gov2)}
+.tl li.done::before{background:var(--ok);border-color:var(--ok)}
+.tl li .d{font-size:11.5px;color:var(--muted)}.tl li .t{font-weight:700;font-size:13.5px}
+.tl li .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+/* ---------- PARCEL RESULT ---------- */
+.pr{display:flex;align-items:center;gap:12px;padding:12px;background:#f7faf8;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .12s}
+.pr:active{background:#eef4ef;border-color:var(--gov2)}
+.pr .pr-ico{width:40px;height:40px;border-radius:10px;background:var(--gov);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.pr .pr-info{flex:1;min-width:0}
+.pr .pr-code{font-size:13px;font-weight:700;color:var(--gov)}
+.pr .pr-name{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr .pr-arrow{color:var(--muted);font-size:16px}
+/* ---------- FEE BOX ---------- */
+.fee-box{background:#f7f9f7;border:1.5px dashed var(--gov2);border-radius:10px;padding:14px;margin:14px 0;text-align:center}
+.fee-box .fee-amt{font-size:24px;font-weight:800;color:var(--gov)}
+.fee-box .fee-lbl{font-size:12px;color:var(--muted);margin-top:2px}
+/* ---------- NOTIFICATION TOAST ---------- */
+.toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);
+  background:var(--gov);color:#fff;padding:12px 20px;border-radius:10px;font-size:13.5px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transition:.35s;z-index:200;
+  max-width:440px;width:calc(100% - 32px);text-align:center;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.warn{background:#8a6110}.toast.err{background:var(--danger)}
+/* ---------- MODAL ---------- */
+.modal-bg{position:fixed;inset:0;background:rgba(11,30,20,.5);display:none;align-items:flex-end;justify-content:center;z-index:100}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:var(--max);max-height:85vh;overflow:auto;padding:20px 18px 30px;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal h3{font-size:16px;margin-bottom:12px}
+.modal .close{position:absolute;right:16px;top:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)}
+/* ---------- PHOTO UPLOAD ---------- */
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.photo-slot{aspect-ratio:1;border:2px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;color:var(--muted);background:#fafcfa;transition:all .12s}
+.photo-slot:active{border-color:var(--gov2);background:#f0f7f2}
+.photo-slot.filled{border-style:solid;border-color:var(--ok);background:#e8f5ec}
+/* ---------- MAP MINI ---------- */
+.map-mini{height:200px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:#eaf0e6;position:relative;margin:10px 0}
+.map-mini svg{position:absolute;inset:0;width:100%;height:100%}
+/* ---------- UTILS ---------- */
+.muted{color:var(--muted)}.ok{color:var(--ok)}.danger{color:var(--danger)}
+.row{display:flex;gap:8px;align-items:center}
+.mt{margin-top:12px}.mb{margin-bottom:12px}
+.fw{font-weight:700}
+.hidden{display:none !important}
+.divider{height:1px;background:var(--line);margin:14px 0}
+/* ---------- SERVICE WORKER ---------- */
+.offline-badge{display:none;background:#8a6110;color:#fff;font-size:11px;text-align:center;padding:4px}
+.offline-badge.show{display:block}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+<!-- ================= TOAST ================= -->
+<div class="toast" id="toast"></div>
+<div class="offline-badge" id="offline">📱 ໂຮດອອຟລາຍ — Offline Mode</div>
+
+<!-- ================= HEADER ================= -->
+<header class="hdr" id="hdr">
+  <div class="gov-row">
+    <div class="emblem">ລາວ</div>
+    <div class="gov-text">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ<br>ກະຊວງຊັບພະຍາກອນທໍາມະຊາດ ແລະ ສິ່ງແວດລ້ອມ</div>
+  </div>
+  <div class="title-row">
+    <h1 id="hdr-title">ປ່ອງບໍລິການສາທາລະນະ</h1>
+    <button class="back" id="hdr-back" onclick="goBack()">← ກັບ</button>
+  </div>
+</header>
+
+<!-- ================= HOME ================= -->
+<div class="scr active" id="scr-home">
+  <div class="hero-grid">
+    <div class="hero primary" onclick="showScr('labang')">
+      <span class="ico">📋</span>
+      <div class="hlbl">ໃບແຈ້ງມີ</div>
+      <div class="hsub">Land Availability Certificate</div>
+    </div>
+    <div class="hero" onclick="showScr('doc-request')">
+      <span class="ico">📄</span>
+      <div class="hlbl">ຂໍເອກະສານ</div>
+      <div class="hsub">Document Requests</div>
+    </div>
+    <div class="hero" onclick="showScr('report')">
+      <span class="ico">⚠️</span>
+      <div class="hlbl">ລາຍງານບັນຫາ</div>
+      <div class="hsub">Report Issue</div>
+    </div>
+    <div class="hero" onclick="showScr('track')">
+      <span class="ico">📍</span>
+      <div class="hlbl">ຕິດຕາມການດຳເນີນງານ</div>
+      <div class="hsub">Track Requests</div>
+    </div>
+  </div>
+
+  <!-- My Requests -->
+  <div class="card">
+    <h3>📋 ຄຳຮ້ອງຂອງຂ້ອຍ — My Requests</h3>
+    <div class="qstatus" id="my-requests"></div>
+  </div>
+
+  <!-- News / Info -->
+  <div class="card">
+    <h3>📢 ຂ່າວສານ — Announcements</h3>
+    <div style="font-size:13px;line-height:1.6">
+      <div style="padding:8px 0;border-bottom:1px solid var(--line)">
+        <div class="fw" style="font-size:13px">ອັບເດດລະບົບ 21/09/2026</div>
+        <div class="muted" style="font-size:12px">ລະບົບໃໝ່ເລີ່ມໃຊ້ງານແລ້ວ — ປະຊາຊົນສາມາດຍື່ນຄຳຮ້ອງອອນລາຍໄດ້ແລ້ວ</div>
+      </div>
+      <div style="padding:8px 0">
+        <div class="fw" style="font-size:13px">ຄ່າບໍລິການໃບແຈ້ງມີ</div>
+        <div class="muted" style="font-size:12px">ຄ່າບໍລິການ: 50,000 ກີບ / ລາຍການ · ຊຳລະຜ່ານການອັບໂຫລດສະລິບເງິນ</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= LABANG (ໃບແຈ້ງມີ) ================= -->
+<div class="scr" id="scr-labang">
+  <h2>📋 ໃບແຈ້ງມີ — Land Availability Certificate</h2>
+  <div class="sub">ຢັ້ງຢືນວ່າທີ່ດິນບໍ່ມີການຈົດທະບຽນຄ້ຳປະກັນ ຫຼື ການດຳເນີນການທາງກົດໝາຍອື່ນໆ — Needed for mortgage, finance, or legal transactions</div>
+
+  <!-- Step 1: Lookup -->
+  <div id="labang-s1">
+    <div class="card">
+      <h3>1️⃣ ຄົ້ນຫາທີ່ດິນ — Find Your Parcel</h3>
+      <div class="field">
+        <label>ລະຫັດຕອນດິນ ຫຼື ເລກໃບຕາດິນ Parcel Code / Title No.</label>
+        <input class="input" id="labang-code" placeholder="ຕົວຢ່າງ: 0130.001.02.011.0033">
+      </div>
+      <button class="btn gold" onclick="lookupParcel()">🔍 ຄົ້ນຫາ Lookup</button>
+    </div>
+    <div id="labang-results" class="hidden"></div>
+  </div>
+
+  <!-- Step 2: Eligibility -->
+  <div id="labang-s2" class="hidden">
+    <div class="card" id="labang-detail"></div>
+    <div class="card" id="labang-eligibility"></div>
+    <div class="btn-row">
+      <button class="btn outline" onclick="labangReset()">← ກັບຄືນ</button>
+      <button class="btn" id="labang-submit-btn" onclick="submitLabang()">ສົ່ງຄຳຮ້ອງ Submit Request</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Submitted -->
+  <div id="labang-s3" class="hidden">
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:56px;margin-bottom:10px">✅</div>
+      <h2 style="margin-bottom:6px">ສົ່ງຄຳຮ້ອງສຳເລັດ!</h2>
+      <div class="muted" style="font-size:13px;margin-bottom:16px">Request Submitted Successfully</div>
+    </div>
+    <div class="card" id="labang-confirm"></div>
+    <div class="card">
+      <h3>📍 ຂັ້ນຕອນຕໍ່ໄປ — Next Steps</h3>
+      <ul class="tl">
+        <li class="done"><div class="t">ສົ່ງຄຳຮ້ອງ Request Submitted</div><div class="s">ຄຳຮ້ອງຂອງທ່ານຖືກບັນທຶກແລ້ວ</div></li>
+        <li><div class="t">ກວດສອບ By Officer</div><div class="s">ພະນັກງານຈະກວດສອບພາຍໃນ 1-3 ວັນທຸລະການ</div></li>
+        <li><div class="t">ອະນຸມັດ Approved</div><div class="s">ເມື່ອອະນຸມັດແລ້ວ ທ່ານຈະໄດ້ຮັບ SMSແຈ້ງເຕືອນ</div></li>
+        <li><div class="t">ດາວໂຫຼດ PDF Download</div><div class="s">ດາວໂຫຼດໃບແຈ້ງມີພ້ອມ QR Code</div></li>
+      </ul>
+    </div>
+    <button class="btn outline mt" onclick="showScr('home')">🏠 ກັບໜ້າຫຼັກ Home</button>
+  </div>
+</div>
+
+<!-- ================= DOCUMENT REQUEST ================= -->
+<div class="scr" id="scr-doc-request">
+  <h2>📄 ຂໍເອກະສານ — Document Request</h2>
+  <div class="sub">ຂໍສຳເນົາໃບຕາດິນ, ແຜນທີ່, ຫຼື ປະຫວັດການດຳເນີນງານ</div>
+
+  <div id="doc-s1">
+    <div class="card">
+      <h3>ເລືອກປະເພດເອກະສານ — Select Document Type</h3>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="pr" onclick="selectDocType('title_copy')">
+          <div class="pr-ico">📜</div>
+          <div class="pr-info"><div class="pr-code">ສຳເນົາໃບຕາດິນ</div><div class="pr-name">Title Copy · 50,000 ກີບ</div></div>
+          <div class="pr-arrow">›</div>
+        </div>
+        <div class="pr" onclick="selectDocType('map_extract')">
+          <div class="pr-ico">🗺️</div>
+          <div class="pr-info"><div class="pr-code">ແຜນທີ່ຕອນດິນ</div><div class="pr-name">Parcel Map Extract · 30,000 ກີບ</div></div>
+          <div class="pr-arrow">›</div>
+        </div>
+        <div class="pr" onclick="selectDocType('history')">
+          <div class="pr-ico">📊</div>
+          <div class="pr-info"><div class="pr-code">ປະຫວັດການດຳເນີນງານ</div><div class="pr-name">Transaction History · 20,000 ກີບ</div></div>
+          <div class="pr-arrow">›</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="doc-s2" class="hidden">
+    <div class="card">
+      <h3>ຂໍ້ມູນຕອນດິນ — Parcel Information</h3>
+      <div class="field">
+        <label>ລະຫັດຕອນດິນ Parcel Code</label>
+        <input class="input" id="doc-parcel-code" placeholder="0130.001.02.011.0033">
+      </div>
+      <div id="doc-parcel-info" class="hidden"></div>
+      <div class="field">
+        <label>ຂໍ້ມູນເພີ່ມເຕີ່ມ Additional Notes</label>
+        <textarea class="input" id="doc-notes" placeholder="ລາຍລະອຽດເພີ່ມເຕີ່ມ (optional)"></textarea>
+      </div>
+    </div>
+    <div class="card" id="doc-fee-card">
+      <div class="fee-box">
+        <div class="fee-amt" id="doc-fee-amt">50,000 ກີບ</div>
+        <div class="fee-lbl">ຄ່າບໍລິການ Service Fee</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>💸 ການຊຳລະເງິນ — Payment</h3>
+      <div class="field">
+        <label>ອັບໂຫລດສະລິບເງິນ Upload Payment Slip</label>
+        <div class="photo-slot" id="doc-payment-slot" onclick="mockUpload('doc-payment-slot')">📎</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn outline" onclick="docReset()">← ກັບ</button>
+      <button class="btn" onclick="submitDocRequest()">ສົ່ງຄຳຮ້ອງ Submit</button>
+    </div>
+  </div>
+
+  <div id="doc-s3" class="hidden">
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:56px;margin-bottom:10px">✅</div>
+      <h2 style="margin-bottom:6px">ສົ່ງສຳເລັດ!</h2>
+      <div class="muted" style="font-size:13px;margin-bottom:16px">Document Request Submitted</div>
+    </div>
+    <div class="card" id="doc-confirm"></div>
+    <button class="btn outline mt" onclick="showScr('home')">🏠 ກັບໜ້າຫຼັກ Home</button>
+  </div>
+</div>
+
+<!-- ================= REPORT ISSUE ================= -->
+<div class="scr" id="scr-report">
+  <h2>⚠️ ລາຍງານບັນຫາ — Report Issue</h2>
+  <div class="sub">ລາຍງານບັນຫາເລື່ອງເຂດທີ່ດິນ, ການລັກລອບບຸກລຸກ, ຫຼື ຂໍ້ມູນຜິດພາດ</div>
+
+  <div id="rpt-s1">
+    <div class="card">
+      <h3>ປະເພດບັນຫາ — Issue Type</h3>
+      <div class="field">
+        <select class="select" id="rpt-type">
+          <option value="">— ເລືອກປະເພດບັນຫາ —</option>
+          <option value="boundary">ຂໍ້ຂັດເຂດທີ່ດິນ Boundary Dispute</option>
+          <option value="encroachment">ການລັກລອບບຸກລຸກ Encroachment</option>
+          <option value="data_error">ຂໍ້ມູນຜິດພາດ Data Error</option>
+          <option value="damage">ຄວາມເສຍຫາຍຕໍ່ທີ່ດິນ Land Damage</option>
+          <option value="other">ອື່ນໆ Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>ລະຫັດຕອນດິນທີ່ກ່ຽວຂ້ອງ Parcel Code (ຖ້າມີ)</label>
+        <input class="input" id="rpt-parcel" placeholder="0130.001.02.011.0033">
+      </div>
+      <div class="field">
+        <label>ລາຍລະອຽດບັນຫາ — Description</label>
+        <textarea class="input" id="rpt-desc" placeholder="ອະທິບາຍບັນຫາທີ່ທ່ານພົບ…"></textarea>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📷 ຮູບພາບ — Photos</h3>
+      <div class="muted" style="font-size:12px;margin-bottom:6px">ຖ່າຍຮູບຫຼືອັບໂຫລດຮູບພາບເພື່ອເປັນຫຼັກຖານ (ສູງສຸດ 3 ຮູບ)</div>
+      <div class="photo-grid">
+        <div class="photo-slot" id="rpt-p1" onclick="mockUpload('rpt-p1')">📷</div>
+        <div class="photo-slot" id="rpt-p2" onclick="mockUpload('rpt-p2')">+</div>
+        <div class="photo-slot" id="rpt-p3" onclick="mockUpload('rpt-p3')">+</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📍 ຕຳແໜ່ງ — Location</h3>
+      <div class="map-mini">
+        <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
+          <rect width="400" height="200" fill="#eaf0e6"/>
+          <rect width="400" height="200" fill="url(#grid2)" opacity=".5"/>
+          <defs><pattern id="grid2" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="#cfe0d4" stroke-width=".5"/></pattern></defs>
+          <circle cx="200" cy="100" r="12" fill="var(--gov)" opacity=".8" stroke="#fff" stroke-width="2.5"/>
+          <circle cx="200" cy="100" r="30" fill="none" stroke="var(--gov)" stroke-width="1" stroke-dasharray="4 3" opacity=".4"/>
+          <text x="200" y="140" text-anchor="middle" font-size="10" fill="var(--muted)">📍 ຕຳແໜ່ງປັດຈຸບັນ Current Location</text>
+        </svg>
+      </div>
+      <button class="btn outline sm mt" onclick="toast('📍 GPS: 16.5467° N, 104.7523° E — Mock')">📍 ໃຊ້ຕຳແໜ່ງປັດຈຸບັນ Use Current Location</button>
+    </div>
+    <button class="btn" onclick="submitReport()">⚠️ ສົ່ງລາຍງານ Submit Report</button>
+  </div>
+
+  <div id="rpt-s2" class="hidden">
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:56px;margin-bottom:10px">📨</div>
+      <h2 style="margin-bottom:6px">ສົ່ງລາຍງານສຳເລັດ!</h2>
+      <div class="muted" style="font-size:13px;margin-bottom:16px">Report Submitted — We will review within 3 business days</div>
+    </div>
+    <div class="card" id="rpt-confirm"></div>
+    <button class="btn outline mt" onclick="showScr('home')">🏠 ກັບໜ້າຫຼັກ Home</button>
+  </div>
+</div>
+
+<!-- ================= TRACK ================= -->
+<div class="scr" id="scr-track">
+  <h2>📍 ຕິດຕາມການດຳເນີນງານ — Track Requests</h2>
+  <div class="sub">ເບິ່ງສະຖານະຄຳຮ້ອງທັງໝົດຂອງທ່ານ</div>
+  <div id="track-list"></div>
+</div>
+
+<!-- ================= REQUEST DETAIL ================= -->
+<div class="scr" id="scr-track-detail">
+  <div id="track-detail-body"></div>
+</div>
+
+<!-- ================= BOTTOM NAV ================= -->
+<nav class="bnav" id="bnav">
+  <button class="active" onclick="navTo('home',this)"><span class="ico">🏠</span>ຫຼັກ</button>
+  <button onclick="navTo('labang',this)"><span class="ico">📋</span>ໃບແຈ້ງມີ</button>
+  <button onclick="navTo('doc-request',this)"><span class="ico">📄</span>ເອກະສານ</button>
+  <button onclick="navTo('track',this)"><span class="ico">📍</span>ຕິດຕາມ</button>
+  <button onclick="navTo('report',this)"><span class="ico">⚠️</span>ລາຍງານ</button>
+</nav>
+
+</div><!-- /app -->
+
+<script>
+/* ================= DEMO DATA ================= */
+const PARCELS = [
+  {key:"P1",no:"0130.001.02.011.0033",tno:"833",dist:"KS",distLo:"ໄກສອນ ພົມວິຫານ",vill:"ດົງເທບ",area:0.85,use:"ທີ່ຢູ່ອາໄສ",holder:"ທ້າວ ສົມສະຫວາດ ພົມມະວົງ",id:"0101-1990-000123",st:"ACTIVE",mortgage:false,
+   hist:[{d:"2012-03-15",t:"ອອກໃບຕາດິນ"},{d:"2024-05-30",t:"ປົດຄ້ຳປະກັນ"}]},
+  {key:"P2",no:"0130.002.03.021.0344",tno:"512",dist:"OT",distLo:"ອຸທຸມພອນ",vill:"ຊຽງຫົວທ່ອນ",area:2.4,use:"ທີ່ດິນກະສິກໍາ",holder:"ທ້າວ ບຸນທັນ ສີສຸລາດ",id:"0103-1978-000789",st:"MORTGAGED",mortgage:true,mortBank:"ທະນາຄານພັດທະນາລາວ",mortAmt:120000000,
+   hist:[{d:"2015-06-02",t:"ອອກໃບຕາດິນ"},{d:"2019-11-18",t:"ຈົດທະບຽນຄ້ຳປະກັນ"}]},
+  {key:"P3",no:"0130.003.05.013.0009",tno:"1468",dist:"PL",distLo:"ພະລານໄຊ",vill:"ໂນນສະຫວ່າງ",area:15.0,use:"ທີ່ດິນອຸດສາຫະກໍາ",holder:"ບໍລິສັດ ສະຫວັນນະເຂດ ກະສິກໍາ",id:"0105-1980-000654",st:"ACTIVE",mortgage:false,
+   hist:[{d:"2018-02-11",t:"ອອກໃບຕາດິນ"},{d:"2020-07-01",t:"ປັບປຸງຂໍ້ມູນ"}]},
+  {key:"P4",no:"0130.004.01.032.0765",tno:"977",dist:"CB",distLo:"ຊົນນະບູລີ",vill:"ທ່າແຫ້",area:1.2,use:"ທີ່ດິນການຄ້າ",holder:"ນາງ ສຸລິພອນ ແກ້ວມະນີ",id:"0106-1995-000987",st:"ACTIVE",mortgage:false,
+   hist:[{d:"2010-09-25",t:"ອອກໃບຕາດິນ"}]},
+  {key:"P5",no:"0130.005.04.041.0211",tno:"1204",dist:"SK",distLo:"ສົງຄອນ",vill:"ຫາດຊາຍຄໍາ",area:3.8,use:"ທີ່ດິນກະສິກໍາ",holder:"ທ້າວ ວົງສະຫວັນ ພົມມະຈັນ",id:"0107-1988-000135",st:"PENDING",mortgage:false,
+   hist:[{d:"2014-04-08",t:"ອອກໃບຕາດິນ"}]},
+  {key:"P6",no:"0130.006.02.052.0688",tno:"611",dist:"CP",distLo:"ຈໍາພອນ",vill:"ຈັນສະຫວ່າງ",area:2.1,use:"ທີ່ຢູ່ອາໄສ",holder:"ທ້າວ ສົມສະຫວາດ ພົມມະວົງ",id:"0101-1990-000123",st:"MORTGAGED",mortgage:true,mortBank:"BCEL",mortAmt:250000000,
+   hist:[{d:"2008-12-19",t:"ອອກໃບຕາດິນ"},{d:"2018-10-05",t:"ການໂອນສິດ"},{d:"2023-03-14",t:"ຈົດທະບຽນຄ້ຳປະກັນ"}]}
+];
+
+const DOC_FEES = {title_copy:50000,map_extract:30000,history:20000};
+const DOC_NAMES = {title_copy:"ສຳເນົາໃບຕາດິນ Title Copy",map_extract:"ແຜນທີ່ຕອນດິນ Parcel Map",history:"ປະຫວັດການດຳເນີນງານ Transaction History"};
+
+/* ================= STATE ================= */
+let navStack = ['home'];
+let currentScr = 'home';
+let myRequests = [
+  {id:"REQ-2026-001",type:"LAND_AVAILABILITY",parcel:"0130.001.02.011.0033",parcelKey:"P1",status:"UNDER_REVIEW",created:"2026-09-18",step:1,
+   timeline:[{d:"2026-09-18 09:30",t:"ສົ່ງຄຳຮ້ອງ Request Submitted",s:"ຄຳຮ້ອງຖືກບັນທຶກແລ້ວ",done:true},
+             {d:"2026-09-19 14:20",t:"ກວດສອບ By Officer",s:"ພະນັກງານ ທ່ານ ວິໄຊ ກຳລັງກວດສອບ",done:true},
+             {d:"",t:"ອະນຸມັດ Approved",s:"ລໍຖ້າການອະນຸມັດ",done:false},
+             {d:"",t:"ດາວໂຫຼດ PDF",s:"",done:false}]},
+  {id:"REQ-2026-002",type:"DOCUMENT_COPY",parcel:"0130.004.01.032.0765",parcelKey:"P4",status:"SUBMITTED",created:"2026-09-20",step:0,
+   timeline:[{d:"2026-09-20 11:15",t:"ສົ່ງຄຳຮ້ອງ Request Submitted",s:"ສຳເນົາໃບຕາດິນ · 50,000 ກີບ",done:true},
+             {d:"",t:"ກວດສອບ By Officer",s:"",done:false},
+             {d:"",t:"ອະນຸມັດ Approved",s:"",done:false},
+             {d:"",t:"ດາວໂຫຼດ PDF",s:"",done:false}]}
+];
+
+/* ================= HELPERS ================= */
+const $=id=>document.getElementById(id);
+function toast(msg,type){const t=$('toast');t.textContent=msg;t.className='toast show'+(type?' '+type:'');setTimeout(()=>t.className='toast',3500)}
+function mockUpload(slotId){const s=$(slotId);s.classList.add('filled');s.textContent='✅';toast('📷 ເລືອກຮູບແລ້ວ — Photo selected (mock)')}
+
+/* ================= NAVIGATION ================= */
+function showScr(id){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('active'));
+  $('scr-'+id).classList.add('active');
+  currentScr=id;
+  // Update header
+  const titles={home:'ປ່ອງບໍລິການສາທາລະນະ',labang:'ໃບແຈ້ງມີ',track:'ຕິດຕາມ',report:'ລາຍງານບັນຫາ','doc-request':'ຂໍເອກະສານ','track-detail':'ລາຍລະອຽດ'};
+  $('hdr-title').textContent=titles[id]||'ປ່ອງບໍລິການສາທາລະນະ';
+  $('hdr-back').classList.toggle('show',id!=='home');
+  // Update bottom nav
+  document.querySelectorAll('.bnav button').forEach(b=>b.classList.remove('active'));
+  const navMap={home:0,labang:1,'doc-request':2,track:3,report:4};
+  if(navMap[id]!==undefined)document.querySelectorAll('.bnav button')[navMap[id]].classList.add('active');
+  // Show/hide bottom nav on detail screens
+  $('bnav').style.display=(id==='track-detail')?'none':'flex';
+  // Render
+  if(id==='home')renderHome();
+  if(id==='track')renderTrack();
+  window.scrollTo(0,0);
+}
+function navTo(id,btn){navStack=[id];showScr(id)}
+function goBack(){
+  navStack.pop();
+  const prev=navStack[navStack.length-1]||'home';
+  showScr(prev);
+}
+
+/* ================= HOME ================= */
+function renderHome(){
+  const c=$('my-requests');
+  if(!myRequests.length){c.innerHTML='<div class="muted" style="font-size:13px;padding:10px 0">ຍັງບໍ່ມີຄຳຮ້ອງ — No requests yet</div>';return}
+  c.innerHTML=myRequests.map(r=>{
+    const stMap={SUBMITTED:['⏳ ສົ່ງແລ້ວ','b-act'],UNDER_REVIEW:['🔍 ກວດສອບຢູ່','b-warn'],APPROVED:['✅ ອະນຸມັດແລ້ວ','b-ok'],REJECTED:['❌ ປະຕິເສດ','b-err'],READY_DOWNLOAD:['📥 ພ້ອມດາວໂຫຼດ','b-ok']};
+    const s=stMap[r.status]||['⏳','b-act'];
+    const tName=r.type==='LAND_AVAILABILITY'?'ໃບແຈ້ງມີ':DOC_NAMES[r.type]||r.type;
+    return `<div class="qs-card" onclick="openTrackDetail('${r.id}')">
+      <div class="qs-top"><span class="qs-type">${tName}</span><span class="badge ${s[1]}">${s[0]}</span></div>
+      <div class="qs-title">${r.parcel}</div>
+      <div class="qs-date">${r.created}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ================= LABANG FLOW ================= */
+function lookupParcel(){
+  const q=$('labang-code').value.trim();
+  if(!q){toast('⚠️ ກະລຸນາປ້ອນລະຫັດຕອນດິນ','warn');return}
+  const found=PARCELS.find(p=>p.no.includes(q)||p.tno===q);
+  const results=$('labang-results');
+  if(!found){
+    results.classList.remove('hidden');
+    results.innerHTML=`<div class="card"><div style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:8px">🔍</div><div class="fw">ບໍ່ພົບຕອນດິນ</div><div class="muted" style="font-size:13px">ກະລຸນາກວດສອບລະຫັດແລ້ວລອງໃໝ່</div></div></div>`;
+    return;
+  }
+  results.classList.remove('hidden');
+  results.innerHTML=`<div class="pr" onclick="selectParcel('${found.key}')">
+    <div class="pr-ico">🗺️</div>
+    <div class="pr-info"><div class="pr-code">${found.no}</div><div class="pr-name">${found.holder} · ${found.distLo}</div></div>
+    <div class="pr-arrow">›</div>
+  </div>`;
+}
+function selectParcel(key){
+  const p=PARCELS.find(x=>x.key===key);
+  if(!p)return;
+  $('labang-s1').classList.add('hidden');
+  $('labang-s2').classList.remove('hidden');
+
+  // Detail card
+  $('labang-detail').innerHTML=`<h3>🗺️ ຂໍ້ມູນທີ່ດິນ — Parcel Details</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px">
+      <div><span class="muted">ລະຫັດ:</span> <b>${p.no}</b></div>
+      <div><span class="muted">ເລກໃບຕາດິນ:</b> <b>${p.tno}</b></div>
+      <div><span class="muted">ເມືອງ:</span> ${p.distLo}</div>
+      <div><span class="muted">ບ້ານ:</span> ${p.vill}</div>
+      <div><span class="muted">ເນື້ອທີ່:</span> ${(p.area*10000).toLocaleString()} ຕາແມັດ</div>
+      <div><span class="muted">ປະເພດ:</span> ${p.use}</div>
+      <div style="grid-column:1/-1"><span class="muted">ເຈົ້າຂອງ:</span> <b>${p.holder}</b></div>
+    </div>`;
+
+  // Eligibility
+  const eligible=!p.mortgage && p.st!=='PENDING';
+  let eligHTML='<h3>✅ ກວດສອບສິດ — Eligibility Check</h3>';
+  if(p.mortgage){
+    eligHTML+=`<div style="background:#fdeaea;border-radius:8px;padding:10px;margin-top:8px;font-size:13px">
+      <div class="fw danger">⛔ ບໍ່ສາມາດຂໍໄດ້ — Not Eligible</div>
+      <div class="muted" style="margin-top:4px">ທີ່ດິນນີ້ຢູ່ໃນລະຫວ່າງຄ້ຳປະກັນກັับ ${p.mortBank || 'ທະນາຄານ'}</div>
+    </div>`;
+    $('labang-submit-btn').disabled=true;
+  } else if(p.st==='PENDING'){
+    eligHTML+=`<div style="background:#fdf1dc;border-radius:8px;padding:10px;margin-top:8px;font-size:13px">
+      <div class="fw" style="color:#8a6110">⏳ ກຳລັງດຳເນີນການ — Pending</div>
+      <div class="muted" style="margin-top:4px">ທີ່ດິນນີ້ມີການດຳເນີນການອື່ນຢູ່</div>
+    </div>`;
+    $('labang-submit-btn').disabled=true;
+  } else {
+    eligHTML+=`<div style="background:#e2f3ea;border-radius:8px;padding:10px;margin-top:8px;font-size:13px">
+      <div class="fw ok">✅ ສາມາດຂໍໄດ້ — Eligible</div>
+      <div class="muted" style="margin-top:4px">ທີ່ດິນບໍ່ມີການຈົດທະບຽນຄ້ຳປະກັນ ຫຼື ການດຳເນີນການອື່ນ</div>
+    </div>`;
+    $('labang-submit-btn').disabled=false;
+  }
+  eligHTML+=`<div class="fee-box"><div class="fee-amt">50,000 ກີບ</div><div class="fee-lbl">ຄ່າບໍລິການ Service Fee</div></div>`;
+  $('labang-eligibility').innerHTML=eligHTML;
+  $('labang-eligibility').dataset.parcelKey=key;
+  window.scrollTo(0,0);
+}
+function labangReset(){
+  $('labang-s1').classList.remove('hidden');
+  $('labang-s2').classList.add('hidden');
+  $('labang-s3').classList.add('hidden');
+  $('labang-results').classList.add('hidden');
+  $('labang-results').innerHTML='';
+}
+function submitLabang(){
+  const pk=$('labang-eligibility').dataset.parcelKey;
+  const p=PARCELS.find(x=>x.key===pk);
+  const reqId='REQ-2026-'+String(myRequests.length+1).padStart(3,'0');
+  const now=new Date();
+  const dateStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const newReq={
+    id:reqId,type:'LAND_AVAILABILITY',parcel:p.no,parcelKey:pk,status:'SUBMITTED',created:dateStr,step:0,
+    timeline:[{d:dateStr+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),t:'ສົ່ງຄຳຮ້ອງ Request Submitted',s:'ໃບແຈ້ງມີ · '+p.no,done:true},
+              {d:"",t:'ກວດສອບ By Officer',s:'',done:false},
+              {d:"",t:'ອະນຸມັດ Approved',s:'',done:false},
+              {d:"",t:'ດາວໂຫຼດ PDF',s:'',done:false}]
+  };
+  myRequests.unshift(newReq);
+
+  $('labang-s2').classList.add('hidden');
+  $('labang-s3').classList.remove('hidden');
+  $('labang-confirm').innerHTML=`
+    <div style="font-size:13px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px">
+      <span class="muted">ເລກທີຄຳຮ້ອງ:</span><b>${reqId}</b>
+      <span class="muted">ຕອນດິນ:</span>${p.no}
+      <span class="muted">ປະເພດ:</span>ໃບແຈ້ງມີ
+      <span class="muted">ຄ່າບໍລິການ:</span>50,000 ກີບ
+      <span class="muted">ສະຖານະ:</span><span class="badge b-act">⏳ ສົ່ງແລ້ວ</span>
+    </div>`;
+  // Mock SMS
+  setTimeout(()=>toast('📱 SMS: ຄຳຮ້ອງ '+reqId+' ຖືກຮັບແລ້ວ — Request received'),1500);
+  window.scrollTo(0,0);
+}
+
+/* ================= DOCUMENT REQUEST ================= */
+let selectedDocType=null;
+function selectDocType(type){
+  selectedDocType=type;
+  $('doc-s1').classList.add('hidden');
+  $('doc-s2').classList.remove('hidden');
+  $('doc-fee-amt').textContent=DOC_FEES[type].toLocaleString()+' ກີບ';
+}
+function docReset(){
+  $('doc-s1').classList.remove('hidden');
+  $('doc-s2').classList.add('hidden');
+  $('doc-s3').classList.add('hidden');
+  selectedDocType=null;
+}
+function submitDocRequest(){
+  const code=$('doc-parcel-code').value.trim();
+  if(!code){toast('⚠️ ກະລຸນາປ້ອນລະຫັດຕອນດິນ','warn');return}
+  const p=PARCELS.find(x=>x.no.includes(code)||x.tno===code);
+  const reqId='REQ-2026-'+String(myRequests.length+1).padStart(3,'0');
+  const now=new Date();
+  const dateStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const newReq={
+    id:reqId,type:'DOCUMENT_COPY',parcel:p?p.no:code,parcelKey:p?p.key:null,status:'SUBMITTED',created:dateStr,step:0,
+    timeline:[{d:dateStr+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),t:'ສົ່ງຄຳຮ້ອງ Request Submitted',s:DOC_NAMES[selectedDocType]+' · '+DOC_FEES[selectedDocType].toLocaleString()+' ກີບ',done:true},
+              {d:"",t:'ກວດສອບ By Officer',s:'',done:false},
+              {d:"",t:'ອະນຸມັດ Approved',s:'',done:false},
+              {d:"",t:'ດາວໂຫຼດ PDF',s:'',done:false}]
+  };
+  myRequests.unshift(newReq);
+  $('doc-s2').classList.add('hidden');
+  $('doc-s3').classList.remove('hidden');
+  $('doc-confirm').innerHTML=`
+    <div style="font-size:13px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px">
+      <span class="muted">ເລກທີຄຳຮ້ອງ:</span><b>${reqId}</b>
+      <span class="muted">ປະເພດ:</span>${DOC_NAMES[selectedDocType]}
+      <span class="muted">ຕອນດິນ:</span>${p?p.no:code}
+      <span class="muted">ຄ່າບໍລິການ:</span>${DOC_FEES[selectedDocType].toLocaleString()} ກີບ
+      <span class="muted">ສະຖານະ:</span><span class="badge b-act">⏳ ສົ່ງແລ້ວ</span>
+    </div>`;
+  setTimeout(()=>toast('📱 SMS: ຄຳຮ້ອງ '+reqId+' ຖືກຮັບແລ້ວ'),1500);
+  window.scrollTo(0,0);
+}
+
+/* ================= REPORT ISSUE ================= */
+function submitReport(){
+  const type=$('rpt-type').value;
+  if(!type){toast('⚠️ ກະລຸນາເລືອກປະເພດບັນຫາ','warn');return}
+  const desc=$('rpt-desc').value.trim();
+  if(!desc){toast('⚠️ ກະລຸນາອະທິບາຍບັນຫາ','warn');return}
+  const reqId='REQ-2026-'+String(myRequests.length+1).padStart(3,'0');
+  const now=new Date();
+  const dateStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const typeNames={boundary:'ຂໍ້ຂັດເຂດທີ່ດິນ',encroachment:'ການລັກລອບບຸກລຸກ',data_error:'ຂໍ້ມູນຜິດພາດ',damage:'ຄວາມເສຍຫາຍ',other:'ອື່ນໆ'};
+  myRequests.unshift({
+    id:reqId,type:'ISSUE_REPORT',parcel:$('rpt-parcel').value||'—',parcelKey:null,status:'SUBMITTED',created:dateStr,step:0,
+    timeline:[{d:dateStr+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),t:'ສົ່ງລາຍງານ Report Submitted',s:typeNames[type]+' · '+desc.substring(0,50)+'…',done:true},
+              {d:"",t:'ກວດສອບ By Officer',s:'',done:false}]
+  });
+  $('rpt-s1').classList.add('hidden');
+  $('rpt-s2').classList.remove('hidden');
+  $('rpt-confirm').innerHTML=`
+    <div style="font-size:13px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px">
+      <span class="muted">ເລກທີລາຍງານ:</span><b>${reqId}</b>
+      <span class="muted">ປະເພດ:</span>${typeNames[type]}
+      <span class="muted">ສະຖານະ:</span><span class="badge b-warn">⏳ ລໍຖ້າກວດສອບ</span>
+    </div>`;
+  setTimeout(()=>toast('📱 SMS: ລາຍງານ '+reqId+' ຖືກຮັບແລ້ວ'),1500);
+  window.scrollTo(0,0);
+}
+
+/* ================= TRACK ================= */
+function renderTrack(){
+  const c=$('track-list');
+  if(!myRequests.length){c.innerHTML='<div class="card" style="text-align:center;padding:30px"><div style="font-size:36px;margin-bottom:8px">📋</div><div class="muted">ຍັງບໍ່ມີຄຳຮ້ອງ</div></div>';return}
+  c.innerHTML=myRequests.map(r=>{
+    const stMap={SUBMITTED:['⏳ ສົ່ງແລ້ວ','b-act'],UNDER_REVIEW:['🔍 ກວດສອບຢູ່','b-warn'],APPROVED:['✅ ອະນຸມັດແລ້ວ','b-ok'],REJECTED:['❌ ປະຕິເສດ','b-err'],READY_DOWNLOAD:['📥 ພ້ອມດາວໂຫຼດ','b-ok']};
+    const s=stMap[r.status]||['⏳','b-act'];
+    const tName=r.type==='LAND_AVAILABILITY'?'ໃບແຈ້ງມີ':r.type==='DOCUMENT_COPY'?'ເອກະສານ':r.type==='ISSUE_REPORT'?'ລາຍງານບັນຫາ':r.type;
+    return `<div class="card" style="cursor:pointer" onclick="openTrackDetail('${r.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+        <div><div class="fw" style="font-size:14px">${tName}</div><div class="muted" style="font-size:12px">${r.id}</div></div>
+        <span class="badge ${s[1]}">${s[0]}</span>
+      </div>
+      <div style="font-size:13px;color:var(--muted)">ຕອນດິນ: ${r.parcel}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">ສົ່ງเมື່ນ: ${r.created}</div>
+    </div>`;
+  }).join('');
+}
+function openTrackDetail(id){
+  const r=myRequests.find(x=>x.id===id);
+  if(!r)return;
+  navStack.push('track-detail');
+  const tName=r.type==='LAND_AVAILABILITY'?'ໃບແຈ້ງມີ':r.type==='DOCUMENT_COPY'?DOC_NAMES[r.type]||'ເອກະສານ':'ລາຍງານບັນຫາ';
+  let html=`<h2 style="font-size:17px">${tName}</h2><div class="muted" style="font-size:12px;margin-bottom:12px">${r.id} · ສົ່ງ ${r.created}</div>`;
+
+  // Progress steps
+  const steps=['ສົ່ງ','ກວດສອບ','ອະນຸມັດ','ດາວໂຫຼດ'];
+  const maxStep=r.type==='ISSUE_REPORT'?2:3;
+  html+=`<div class="steps">`;
+  for(let i=0;i<=maxStep;i++){
+    const cls=i<r.step?'done':i===r.step?'cur':'';
+    html+=`<div class="st ${cls}"><span class="no">${i+1}</span>${steps[i]}</div>`;
+  }
+  html+=`</div>`;
+
+  // Timeline
+  html+=`<div class="card"><h3>📍 ປະຫວັດ — Timeline</h3><ul class="tl">`;
+  r.timeline.forEach(t=>{
+    html+=`<li class="${t.done?'done':''}">${t.d?'<div class="d">'+t.d+'</div>':''}<div class="t">${t.t}</div>${t.s?'<div class="s">'+t.s+'</div>':''}</li>`;
+  });
+  html+=`</ul></div>`;
+
+  // Parcel info
+  const p=PARCELS.find(x=>x.key===r.parcelKey);
+  if(p){
+    html+=`<div class="card"><h3>🗺️ ຂໍ້ມູນທີ່ດິນ</h3>
+      <div style="font-size:13px;display:grid;grid-template-columns:auto 1fr;gap:4px 10px">
+        <span class="muted">ລະຫັດ:</span><b>${p.no}</b>
+        <span class="muted">ເຈົ້າຂອງ:</span>${p.holder}
+        <span class="muted">ເນື້ອທີ່:</span>${(p.area*10000).toLocaleString()} ຕາແມັດ
+        <span class="muted">ບ້ານ:</span>${p.vill}, ${p.distLo}
+      </div></div>`;
+  }
+
+  // Download button (if approved)
+  if(r.status==='APPROVED'||r.status==='READY_DOWNLOAD'){
+    html+=`<div class="card" style="text-align:center;padding:20px">
+      <div style="font-size:40px;margin-bottom:8px">📥</div>
+      <div class="fw" style="margin-bottom:4px">ພ້ອມດາວໂຫຼດແລ້ວ</div>
+      <div class="muted" style="font-size:12px;margin-bottom:12px">PDF ພ້ອມ QR Code ການຢັ້ງຢືນ</div>
+      <button class="btn" onclick="toast('📥 ດາວໂຫຼດ PDF… (mock)')">📥 ດາວໂຫຼດ Download PDF</button>
+    </div>`;
+  }
+
+  html+=`<button class="btn outline mt" onclick="goBack()">← ກັບຄືນ</button>`;
+  $('track-detail-body').innerHTML=html;
+  showScr('track-detail');
+}
+
+/* ================= INIT ================= */
+renderHome();
+</script>
+</body>
+</html>

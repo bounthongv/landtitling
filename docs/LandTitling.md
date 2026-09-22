@@ -18,6 +18,17 @@ A central system for storing, managing and verifying data about:
 - ການນໍາຕອນດິນໄປຄ້ໍາປະກັນ — Using parcels as mortgage/security
 - ປະຫວັດຂອງຕອນດິນ ແລະ ກໍາມະສິດ — History of parcels and ownership
 
+### ລະບົບສາມາດໃຊ້ງານໄດ້ສອງຮູບແບບ (Two-App Architecture)
+
+ລະບົບນີ້ປະກອບມີສອງສ່ວນຫຼັກ ເຊິ່ງຮ່ວມກັນໃຊ້ຖານຂໍ້ມູນດຽວກັນ:
+
+The system consists of two main parts sharing a common database:
+
+| ສ່ວນ | ຜູ້ໃຊ້ | ເປົ້າໝາຍ |
+|------|---------|----------|
+| **ຫ້ອງການຫຼັງ (Back-Office)** | ພະນັກງານດິນ, ເມືອງ, ແຂວງ | ຄຸ້ມຄອງກໍລະນີ, ອອກໃບຕາດິນ, ການໂອນ/ຄ້ຳປະກັນ, ລາຍງານ |
+| **ປ່ອງບໍລິການສາທາລະນະ (Citizen Portal)** | ເຈົ້າຂອງທີ່ດິນ, ປະຊາຊົນ | ຂໍໃບແຈ້ງມີ, ລາຍງານບັນຫາ, ຂໍເອກະສານ, ຕິດຕາມສະຖານະ |
+
 ## ເປົ້າຫມາຍ (Goal)
 
 ປ່ຽນຈາກການຈັດເກັບໃບຕາດິນ ແລະ ເອກະສານແບບເຈ້ຽ ໄປສູ່ ຖານຂໍ້ມູນດິຈິຕອນທີ່ຄົບຖ້ວນ, ເຊື່ອມໂຍງຂໍ້ມູນດິນ, ຜູ້ຖືສິດ, ເອກະສານ ແລະ GIS ເຂົ້າໄວ້ໃນລະບົບດຽວ.
@@ -76,6 +87,103 @@ Each land parcel gets its own digital record linked to its title, documents, rig
 
 ---
 
+## ປ່ອງບໍລິການສາທາລະນະ (Citizen Portal)
+ 
+ ປ່ອງບໍລິການສາທາລະນະເປັນແອັບພລິເຄຊັນມືຖື (PWA) ທີ່ອະນຸຍາດໃຫ້ປະຊາຊົນເຂົ້າເຖິງບໍລິການດິນໄດ້ໂດຍກົງຈາກໂທລະສັບ, ໂດຍບໍ່ຈໍາເປັນຕ້ອງມາທີ່ຫ້ອງການ.
+
+The Citizen Portal is a mobile-first PWA that allows citizens to access land services directly from their phone, without visiting the office.
+
+### ບໍລິການຫຼັກ (Core Services)
+
+| # | ບໍລິການ | ລາຍລະອຽດ |
+|---|---------|------------|
+| 1 | **ໃບແຈ້ງມີ** (Land Availability Certificate) | ກວດສອບ ແລະ ຢັ້ງຢືນວ່າທີ່ດິນບໍ່ມີການຈົດທະບຽນຄ້ຳປະກັນ — ຈໍາເປັນສຳລັບການຂໍເງິນກູ້, ຄ້ຳປະກັນ, ຫຼື ການທາງກົດໝາຍ |
+| 2 | **ຂໍເອກະສານ** (Document Requests) | ສຳເນົາໃບຕາດິນ, ແຜນທີ່ຕອນດິນ, ປະຫວັດການດຳເນີນງານ |
+| 3 | **ລາຍງານບັນຫາ** (Issue Reporting) | ຂໍ້ຂັດເຂດທີ່ດິນ, ການລັກລອບບຸກລຸກ, ຂໍ້ມູນຜິດພາດ (ພ້ອມຮູບ ແລະ GPS) |
+| 4 | **ຕິດຕາມສະຖານະ** (Status Tracking) | ເບິ່ງຄວາມຄືບໜ້າຂອງຄຳຮ້ອງທັງໝົດ |
+
+### ຂັ້ນຕອນການຂໍໃບແຈ້ງມີ (How to Request a Land Availability Certificate)
+
+ນີ້ແມ່ນຂັ້ນຕອນຫຼັກທີ່ປະຊາຊົນໃຊ້ງານຫຼາຍທີ່ສຸດ:
+
+This is the most commonly used citizen flow:
+
+```
+ປະຊາຊົນປ້ອນລະຫັດຕອນດິນ → ລະບົບກວດສອບສິດ → ສະແດງຜົນ
+     ↓
+  ມີສິດ (Eligible)              ບໍ່ມີສິດ (Not Eligible)
+     ↓                                ↓
+  ຊຳລະຄ່າບໍລິການ              ປະຕິເສດ (ຕົວຢ່າງ: ຢູ່ໃນຄ້ຳປະກັນ)
+     ↓
+  ສົ່ງຄຳຮ້ອງ → ພະນັກງານກວດສອບ → ອະນຸມັດ → ດາວໂຫຼດ PDF ພ້ອມ QR
+```
+
+**ເງື່ອນໄຂການກວດສອບ (Eligibility Rules):**
+
+| ສະຖານະທີ່ດິນ | ສາມາດຂໍໄດ້ບໍ່? | ເຫດຜົນ |
+|----------------|-------------------|---------|
+| ACTIVE (ປົກກະຕິ) | ✅ ໄດ້ | ບໍ່ມີອຸປະສັກ |
+| MORTGAGED (ຄ້ຳປະກັນ) | ❌ ບໍ່ໄດ້ | ຕອນດິນຢູ່ໃນການຄ້ຳປະກັນ |
+| PENDING (ກຳລັງດຳເນີນການ) | ❌ ບໍ່ໄດ້ | ມີການດຳເນີນການອື່ນຢູ່ |
+
+### ຂັ້ນຕອນການຂໍເອກະສານ (Document Request Flow)
+
+```
+ເລືອກປະເພດເອກະສານ → ປ້ອນລະຫັດຕອນດິນ → ສະແດງຄ່າບໍລິການ
+     ↓
+  ອັບໂຫລດສະລິບເງິນ → ສົ່ງຄຳຮ້ອງ → ພະນັກງານກວດສອບ → ອະນຸມັດ → ດາວໂຫຼດ
+```
+
+**ຄ່າບໍລິການຕາມປະເພດ (Fee Schedule):**
+
+| ເອກະສານ | ຄ່າບໍລິການ |
+|----------|------------|
+| ສຳເນົາໃບຕາດິນ (Title Copy) | 50,000 ກີບ |
+| ແຜນທີ່ຕອນດິນ (Parcel Map) | 30,000 ກີບ |
+| ປະຫວັດການດຳເນີນງານ (Transaction History) | 20,000 ກີບ |
+
+### ການລາຍງານບັນຫາ (Issue Reporting)
+
+ປະຊາຊົນສາມາດລາຍງານບັນຫາກ່ຽວກັບທີ່ດິນໄດ້ໂດຍກົງ:
+
+Citizens can report land issues directly:
+
+```
+ເລືອກປະເພດບັນຫາ → ລະບຸຕອນດິນ → ອະທິບາຍລາຍລະອຽດ
+     ↓
+  ຖ່າຍຮູບ (ສູງສຸດ 3) → ກຳນົດຕຳແໜ່ງ GPS → ສົ່ງລາຍງານ
+     ↓
+  ລະບົບສົ່ງໄປຫາພະນັກງານເມືອງ → ກວດສອບ → ແຈ້ງຜົນກັບ
+```
+
+**ປະເພດບັນຫາທີ່ສາມາດລາຍງານໄດ້:**
+
+- ຂໍ້ຂັດເຂດທີ່ດິນ (Boundary Dispute)
+- ການລັກລອບບຸກລຸກ (Encroachment)
+- ຂໍ້ມູນຜິດພາດໃນລະບົບ (Data Error)
+- ຄວາມເສຍຫາຍຕໍ່ທີ່ດິນ (Land Damage)
+
+### ການເຊື່ອມຕໍ່ລະຫວ່າງລະບົບ (System Integration)
+
+| ທິດທາງ | ການເຊື່ອມຕໍ່ |
+|---------|---------------|
+| ປະຊາຊົນ → ຫ້ອງການ | ຄຳຮ້ອງໃໝ່ປາກົດຢູ່ໃນ Dashboard ຂອງພະນັກງານເປັນ "ກໍລະນີໃໝ່" |
+| ຫ້ອງການ → ປະຊາຊົນ | ການປ່ຽນແປງສະຖານະສົ່ງ SMS / Push Notification |
+| ຫ້ອງການ → ປະຊາຊົນ | ການສ້າງເອກະສານ PDF → ປະຊາຊົນດາວໂຫຼດໄດ້ |
+| ຫ້ອງການ ↔ GIS | ຂໍ້ມູນເຂດທີ່ດິນເຊື່ອມກັບແຜນທີ່ໃນພ໋ອຕໍລະບົບ |
+
+### ການຢັ້ງຢືນຕົວຕົນ ແລະ ການຊຳລະເງິນ (Authentication & Payment)
+
+**ການຢັ້ງຢືນຕົວຕົນ:** ປະຊາຊົນໃຊ້ເລກບັດປະຈໍາຕົວ + OTP SMS (ບໍ່ຕ້ອງໃສ່ລະຫັດຜ່ານ). ລະບົບຈະຊອກຫາຂໍ້ມູນຜູ້ຖືສິດຈາກຖານຂໍ້ມູນອັດຕະໂນມັດ.
+
+**Authentication:** Citizen enters national ID + OTP SMS (no password). System auto-links to holder record.
+
+**ການຊຳລະເງິນ:** Phase 1 ໃຊ້ການອັບໂຫລດສະລິບເງິນ, Phase 2 ໃຊ້ QR Code ຂອງ BCEL One, Phase 3 ຊຳລະໂດຍກົງຜ່ານທະນາຄານ.
+
+**Payment:** Phase 1 uses bank slip upload, Phase 2 adds BCEL One QR, Phase 3 adds direct bank integration.
+
+---
+
 ## ການບໍລິຫານທຸລະກໍາ ແລະ GIS (Transactions & Spatial Information)
 
 ### ການໂອນ ແລະ ປ່ຽນແປງສິດ (Transfers & Changes of Rights)
@@ -125,6 +233,8 @@ In the future, Chip / QR Code / Smart Identifiers on physical titles can link th
 
 ## ຜົນປະໂຫຍດຈາກລະບົບ (Benefits)
 
+### ສຳລັບຫ້ອງການ (For Officers)
+
 1. **🗂️ ຈັດເກັບຂໍ້ມູນຢ່າງເປັນລະບົບ — Organized storage**
    ຂໍ້ມູນໃບຕາດິນ, ຕອນດິນ, ຜູ້ຖືສິດ ແລະ ເອກະສານ ຖືກເຊື່ອມໂຍງໄວ້ໃນລະບົບດຽວ.
    Title, parcel, holder and document data linked in one system.
@@ -149,14 +259,41 @@ In the future, Chip / QR Code / Smart Identifiers on physical titles can link th
    ສາມາດສ້າງລາຍງານ, ສະຖິຕິ ແລະ Dashboard ເພື່ອຊ່ວຍຜູ້ບໍລິຫານໃນການຕິດຕາມ ແລະ ວາງແຜນ.
    Reports, statistics and dashboards help management monitor and plan.
 
+### ສຳລັບປະຊາຊົນ (For Citizens)
+
+7. **📱 ເຂົ້າເຖິງບໍລິການໄດ້ທຸກບ່ອນ — Access from anywhere**
+   ບໍ່ຈໍາເປັນຕ້ອງມາທີ່ຫ້ອງການ — ສາມາດຂໍໃບແຈ້ງມີ, ຂໍເອກະສານ, ແລະ ຕິດຕາມສະຖານະຜ່ານໂທລະສັບ.
+   No need to visit the office — request certificates, documents, and track status from your phone.
+
+8. **⏱️ ປະຢັດເວລາ — Save time**
+   ບໍລິການທີ່ເຄີຍໃຊ້ເວລາຫຼາຍມື້ ສາມາດດໍາເນີນການໄດ້ພາຍໃນບໍ່ເຖິງ 1 ມື້.
+   Services that used to take days can be completed in under a day.
+
+9. **💰 ຄ່າບໍລິການໂປ່ງໃສ — Transparent fees**
+   ຄ່າບໍລິການຖືກກໍານົດໄວ້ຊັດເຈນ, ບໍ່ມີການເກັບເງິນເພີ່ມເຕີ່ມ.
+   Fees are clearly stated, no hidden charges.
+
+10. **📍 ຕິດຕາມໄດ້ຕະຫຼອດເວລາ — Track anytime**
+    ເບິ່ງສະຖານະຄຳຮ້ອງແບບ real-time, ບໍ່ຕ້ອງໂທລະສັບຖາມ.
+    Real-time request status — no need to call and ask.
+
+11. **🔔 ແຈ້ງເຕືອນທັນທີ — Instant notifications**
+    SMS ແຈ້ງເຕືອນເມື່ອຄຳຮ້ອງຖືກຮັບ, ກວດສອບ, ແລະ ອະນຸມັດ.
+    SMS alerts when requests are received, reviewed, and approved.
+
+12. **📸 ລາຍງານບັນຫາໄດ້ງ່າຍ — Easy issue reporting**
+    ຖ່າຍຮູບ + GPS ແລະ ສົ່ງລາຍງານໄດ້ທັນທີ, ບໍ່ຕ້ອງຂຽນໜັງສື.
+    Photo + GPS and submit reports instantly, no paperwork needed.
+
 7. **🔄 ຮອງຮັບການພັດທະນາໃນອະນາຄົດ — Future-ready**
    ລະບົບສາມາດຕໍ່ຍອດໄປສູ່ — The system can extend to:
-   - Online Land Services — ບໍລິການດິນອອນລາຍ
-   - Mobile Application — ແອັບພລິເຄຊັນມືຖື
+   - 📱 Citizen Portal (PWA) — ປ່ອງບໍລິການສາທາລະນະ ✅ ສໍາເລັດແລ້ວ
+   - ແອັບພລິເຄຊັນມືຖື native (Android / iOS) — Native mobile app
    - GIS / Spatial Portal — ພອຕ໌ລ GIS / ຂໍ້ມູນພື້ນທີ່
    - QR / Smart Land Title — ໃບຕາດິນ QR / Smart
    - ການເຊື່ອມຕໍ່ກັບລະບົບຂອງຫນ່ວຍງານອື່ນ — Integration with other agencies' systems
    - Digital Government Services — ບໍລິການລັດຖະບານດິຈິຕອນ
+   - Online Payment Gateway (BCEL One) — ຊ່ອງທາງການຊຳລະເງິນອອນລາຍ
 
 ---
 
@@ -169,3 +306,20 @@ From **"land title as a document"** to **"digital land parcel data"**
 ເຊິ່ງສາມາດຄົ້ນຫາ, ກວດສອບ, ຈັດການ, ຕິດຕາມປະຫວັດ ແລະ ເຊື່ອມໂຍງກັບ GIS ໄດ້ຢ່າງເປັນລະບົບ.
 
 Searchable, verifiable, manageable, with traceable history and GIS integration — all systematically.
+
+### ຜົນລັບຕາມພາກສ່ວນ (Results by Stakeholder)
+
+| ພາກສ່ວນ | ຜົນລັບ |
+|---------|--------|
+| **ພະນັກງານ** | ຫຼຸດຂັ້ນຕອນການເຮັດວຽກດ້ວຍມື, ຄົ້ນຫາຂໍ້ມູນໄວ, ສ້າງລາຍງານອັດຕະໂນມັດ |
+| **ປະຊາຊົນ** | ບໍ່ຕ້ອງມາຫ້ອງການເລື້ອຍໆ, ສາມາດຕິດຕາມຄຳຮ້ອງໄດ້, ຄ່າບໍລິການໂປ່ງໃສ |
+| **ການບໍລິຫານ** | ມີຂໍ້ມູນຕົວຈິງເພື່ອວາງແຜນ, ກວດສອບການທຸລະກໍາໄດ້ |
+| **ລັດຖະບານ** | ເພີ່ມຄວາມໂປ່ງໃສ, ຫຼຸດການສໍ້ລາດບັງຫຼວງ, ເພີ່ມຄວາມໄວ້ວາງໃຈ |
+
+### ຂັ້ນຕອນການຈັດຕັ້ງປະຕິບັດ (Implementation Phases)
+
+| Phase | ເວລາ | ຂັ້ນຕອນ |
+|-------|-------|---------|
+| **Phase 1** | 2-3 ເດືອນ | ຫ້ອງການ: Dashboard, ຄົ້ນຫາ, ການໂອນ · ປະຊາຊົນ: ໃບແຈ້ງມີ, ຕິດຕາມ |
+| **Phase 2** | +2 ເດືອນ | ຫ້ອງການ: ຄ້ຳປະກັນ, ລາຍງານ · ປະຊາຊົນ: ຂໍເອກະສານ, ລາຍງານບັນຫາ |
+| **Phase 3** | +3 ເດືອນ | Payment Gateway, ດິຈິຕອນລາຍເຊັນ, ແອັບ native, GIS portal |

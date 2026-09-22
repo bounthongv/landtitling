@@ -1,0 +1,17 @@
+{
+  "name": "ປ່ອງບໍລິການສາທາລະນະ — Citizen Portal",
+  "short_name": "ລາວດິນ",
+  "description": "ບໍລິການດິນອອນລາຍ ສຳລັບປະຊາຊົນ Lao Land Services Portal",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0b3d2e",
+  "theme_color": "#0b3d2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230b3d2e' rx='20' width='100' height='100'/><text x='50' y='58' font-size='28' font-weight='bold' fill='%23c9a227' text-anchor='middle'>ລາວ</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
