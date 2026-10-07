@@ -1,51 +1,83 @@
 @echo off
 rem ============================================================
-rem  One-click audio downloader for the 6 LLR7 spec clips
-rem  Run on ANY Windows PC that can reach YouTube (home PC).
-rem  Then copy the audio_download\*.m4a (or .webm) files to:
-rem    D:\LandTitling\docs\llr7-spec\raw\audio\
-rem  (or this folder, if this PC has the repo checked out - the
-rem   script drops them into raw\audio\ automatically in that case)
+rem  LLR7 spec clips - one-click audio downloader (v2)
+rem
+rem  Run on any Windows PC that can reach YouTube.
+rem  If it fails: just send me the file
+rem      audio_download_log.txt   (sits next to this .bat)
+rem  No need to screenshot anything - the log has all details.
 rem ============================================================
-setlocal
-set OUTDIR=%~dp0audio_download
+setlocal EnableExtensions
+
+set "DIR=%~dp0"
+set "LOG=%DIR%audio_download_log.txt"
+set "OUTDIR=%DIR%audio_download"
+if exist "%DIR%raw\audio" set "OUTDIR=%DIR%raw\audio"
 if not exist "%OUTDIR%" mkdir "%OUTDIR%"
 
-rem If run from inside the repo, drop straight into raw\audio\
-if exist "%~dp0raw\audio" (
-  set OUTDIR=%~dp0raw\audio
-)
-
-echo [1/3] Checking yt-dlp ...
-python -m yt_dlp --version >nul 2>nul
-if errorlevel 1 (
-  echo yt-dlp not found - installing via pip ...
-  python -m pip install -U yt-dlp
-)
-if errorlevel 1 (
-  echo Could not install yt-dlp. Install Python first: https://www.python.org/downloads/
-  pause & exit /b 1
-)
-
-echo [2/3] Downloading audio-only for 6 clips ...
-python -m yt_dlp -f "bestaudio" --no-update ^
-  -o "%OUTDIR%\%%(id)s.%%(ext)s" ^
-  "https://youtu.be/ZeVzTp1T7XI" ^
-  "https://youtu.be/mp22eHRhsmM" ^
-  "https://youtu.be/r1AmBLHJ2Ro" ^
-  "https://youtu.be/Qe-M0fjP0PQ" ^
-  "https://youtu.be/jYLmyWtqps8" ^
-  "https://youtu.be/BfEUdQoXntE"
-
+echo ============================================
+echo  LLR7 audio downloader
+echo  Output folder : %OUTDIR%
+echo  Log file      : %LOG%
+echo ============================================
 echo.
-echo [3/3] Result in: %OUTDIR%
-dir /b "%OUTDIR%" 2>nul | findstr /i "ZeVzTp1T7XI mp22eHRhsmM r1AmBLHJ2Ro Qe-M0fjP0PQ jYLmyWtqps8 BfEUdQoXntE" >nul
-if errorlevel 1 (
-  echo !! SOME OR ALL FILES MISSING - check errors above, re-run.
-) else (
-  echo OK - all 6 present. If %OUTDIR% is not the repo raw\audio,
-  echo copy the files into D:\LandTitling\docs\llr7-spec\raw\audio\
-  echo (any of m4a / webm / opus / flac is fine - the whisper
-  step converts to wav automatically).
+
+rem ---- find a working Python launcher (python / py / python3)
+set "PY="
+for %%P in (python py python3) do (
+  if not defined PY (
+    %%P -V >nul 2>&1 && set "PY=%%P"
+  )
 )
+if not defined PY (
+  echo [FAIL] No Python found on this PC - tried python, py, python3.
+  echo        Install it: https://www.python.org/downloads/
+  echo        IMPORTANT: tick "Add python.exe to PATH" during install.
+  echo        Then double-click this file again.
+  goto :finish
+)
+echo [ok] Using Python launcher: %PY%
+
+rem ---- make sure the yt-dlp module is installed
+%PY% -m yt_dlp --version >nul 2>&1
+if errorlevel 1 (
+  echo [..] yt-dlp not found - installing with pip - needs internet ...
+  %PY% -m pip install -U yt-dlp >"%LOG%" 2>&1
+  if errorlevel 1 (
+    rem pip missing too? bootstrap it, then retry
+    %PY% -m ensurepip >nul 2>&1
+    %PY% -m pip install -U yt-dlp >>"%LOG%" 2>&1
+    if errorlevel 1 (
+      echo [FAIL] Could not install yt-dlp on this PC.
+      echo        Details in log: %LOG%
+      goto :finish
+    )
+  )
+)
+echo [ok] yt-dlp ready
+
+rem ---- download all 6 clips (audio only, named by video ID)
+echo [..] Downloading 6 clips - this takes a few minutes.
+echo     Progress is written to: %LOG%
+echo.
+%PY% -m yt_dlp -f bestaudio --no-update --retries 5 ^
+  -o "%OUTDIR%\%%(id)s.%%(ext)s" ^
+  "https://youtu.be/ZeVzTp1T7XI" "https://youtu.be/mp22eHRhsmM" "https://youtu.be/r1AmBLHJ2Ro" ^
+  "https://youtu.be/Qe-M0fjP0PQ" "https://youtu.be/jYLmyWtqps8" "https://youtu.be/BfEUdQoXntE" ^
+  >"%LOG%" 2>&1
+if errorlevel 1 (
+  echo [WARN] yt-dlp reported errors - full details in: %LOG%
+)
+
+rem ---- report what landed
+echo.
+echo === Files in output folder ===
+dir /b "%OUTDIR%" 2>nul
+echo.
+echo If you see 6 audio files above:
+echo   - if this PC has the repo, they are already in raw\audio: done, just tell me.
+echo   - otherwise copy them into  D:\LandTitling\docs\llr7-spec\raw\audio\
+echo If not all 6 are there: send me  %LOG%
+:finish
+echo.
 pause
