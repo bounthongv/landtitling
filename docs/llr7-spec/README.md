@@ -24,10 +24,36 @@ to a central server. Source link-list:
 
 | Status | Videos |
 |---|---|
-| **Lao ASR captured** | 01 install, 02 install, 03 new title, 04 transfer, 10 title letter, 11 field sync, 13 buffer, 14 drilling, 17 parcel edit, 18 create/restore DB, 20 Zone48, 21 QAD |
-| **Thai ASR only (verify)** | 06 valuation/fee-calc |
-| **No ASR — needs audio + Whisper** | 05 subdivision, 07 merging, 08 legacy import, 09 mortgage, 12 config, 15 Lreg export, 16 backup |
+| **ASR transcript captured + workflow steps extracted** | 01 install, 02 install, 03 new title, 04 transfer, 06 valuation (th), 10 title letter, 11 field sync, 13 buffer, 14 drilling, 17 parcel edit, 18 create/restore DB, 20 Zone48, 21 QAD |
+| **Whisper large-v3 local transcript** | 12 initial config (Thai narration, low-conf on 68s clip) |
+| **Title-only, no ASR, audio still pending (6 clips)** | 05 subdivision, 07 merging, 08 legacy import, 09 mortgage, 15 Lreg export, 16 backup |
 | **Video gone (404)** | 19 pgAdmin fix |
+
+**Key finding:** PERN narration is **Thai**, not Lao. The YouTube `lo` caption
+tracks are auto-translations of underlying ASR; auto-detect on the SETUP clip
+gave `th` @ 0.992. So Whisper runs use per-clip auto-detect (fallback `th`),
+**not** a forced `language="lo"` — see `raw/whisper_pass.py`.
+
+## How to fill the 6 pending audio gaps
+
+YouTube media (audio) is 403-blocked on the dev host. Download just the audio
+in your browser into `raw/audio/` named `<YouTubeID>.<ext>`:
+
+| Clip | YouTube | Save as |
+|---|---|---|
+| 05 Subdivision | https://youtu.be/ZeVzTp1T7XI | `ZeVzTp1T7XI.m4a` |
+| 07 Merging | https://youtu.be/mp22eHRhsmM | `mp22eHRhsmM.m4a` |
+| 08 Legacy import | https://youtu.be/r1AmBLHJ2Ro | `r1AmBLHJ2Ro.m4a` |
+| 09 Mortgage | https://youtu.be/Qe-M0fjP0PQ | `Qe-M0fjP0PQ.m4a` |
+| 15 Lreg export | https://youtu.be/jYLmyWtqps8 | `jYLmyWtqps8.m4a` |
+| 16 DB backup | https://youtu.be/BfEUdQoXntE | `BfEUdQoXntE.m4a` |
+
+Then run: `python raw/whisper_pass.py` (uses the hermes-agent venv python),
+which writes `<id>.whisper.txt` auto-detected-language transcripts.
+
+> NOTE: `build_spec.py` now refuses to overwrite existing (enriched) files
+> unless you pass `--force`. The enrichment lives in the .md files, not the
+> generator — re-running the generator is safe.
 
 ## What "not worse than legacy" implies (feature gaps vs our prototype)
 

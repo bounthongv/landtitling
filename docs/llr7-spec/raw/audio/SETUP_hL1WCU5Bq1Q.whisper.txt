@@ -1,0 +1,12 @@
+How to set up in order for the program to run
+1. On the document, set the value to be 4 and 7
+2. On the document, set the value to be 7
+3. On the QGIS, set the value to be 4
+4. On the QGIS, set the value to be 3.
+5. The
+6. Put out the file победر
+7. Please select the file Name and press Q.
+8. Ready to connect
+9. Select the index
+9. Select blyn
+Then press the button

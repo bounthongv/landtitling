@@ -15,9 +15,18 @@ _No transcript yet. See status._
 |---|---|---|
 | _pending_ | | |
 
-## Workflow steps (from transcript)
+## WHAT IS KNOWN (from header only — video unavailable, no transcript)
 
-1. _pending — extract from transcript during spec build_
+- **What the title promises:** A fix for pgAdmin4 not opening — a troubleshooting/repair procedure.
+- **Legacy capability documented:** operational support: getting the pgAdmin4 client (used for DB backup/administration, see 16_db-backup-pgadmin) working again on a workstation.
+- **Status:** the video is 404 on YouTube (0m 00s) — no audio can be captured until re-linked / PERN-copied.
+- **Expected:** [video re-link (PERN copy) + audio + Whisper pending]
+
+**Review questions (inferred from title only):**
+
+- [ ] What symptom/error does pgAdmin4 exhibit (crash on start, blank window, connection failure) [from title only]?
+- [ ] What are the fix steps (reinstall, DB service restart, config/log inspection) [from title only]?
+- [ ] Which Windows / pgAdmin4 versions are affected [from title only]?
 
 ## Open questions for review
 

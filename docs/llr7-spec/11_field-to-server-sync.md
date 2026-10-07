@@ -84,16 +84,42 @@ user
 ອອກກະສົ່ງອອກເທື່ອດຽວເນາະເທື່ອໜ້າມາມີແຕ່ເຮົາກະສົ່ງຕອນດິນອອກມາລະກະມານຳເຂົ້າໃນຖານເຊີເວີຈິງນີ້ເລີຍເນາະສຳລັບວິດີໂອນີ້ກໍຊິມີປະມານນີ້ເນາະກະໃຫ້ບັນດາທ່ານລອງໄປອາເຮັດຕາມເບິ່ງ
 ເບິ່ງ
 
-## Extracted screens / fields  (fill after human review or vision pass)
+## Extracted screens / fields
+
+_Reconstructed from ASR transcript; uncertain items marked [verify]._
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| Field LLR main screen | Province ("ແຂວງ") + district ("ເມືອງ") selectors; user-sync tick boxes ("ຕິກເອົາ user" — "ທັງສອງ" = both [verify]); "save data" button at the bottom of the screen ("ປຸ່ນເຊບຂໍ້ມູນ") | Example: Luang Prabang province field DB ("ຖານໂລໂກດ" [verify] = local DB); "ປິດປຸ່ນຜູ້ປະກອບການອອກກ່ອນ" (close the operator-exit first [verify]) |
+| Save-file dialog | Save location (e.g. desktop — "ໜ້າເດດ" [verify]); file name (example "user"); "save" button | Success message "ສົ່ງອອກສຳເລັດ" ("export complete") → "OK"; the file appears at the save location ("ມັນກໍຈະມາຢູ່... ໜ້າຂອງເດດອບ") |
+| Server settings (central) | Server IP (ASR "1831 82... 104... 1.96" [verify]); port "9901" [verify]; database name = district DB (example "ນ້ຳບາກ" [verify]); user "dbປerເລຕ" [verify — `dbperlet`?]; central-provided password ("ລະຫັດຂອງທາງສູນກາງມອບໃຫ້"); "test connect" ("ທົດລອງເຊື່ອມ") → "ການເຊື່ອມຕໍ່ສຳເລັດ" → "OK" | Log out first ("ລ໊ອກອອກຈາກລະບົບກ່ອນ"), then point to the real server ("ເຊີເວີຈິງ") |
+| Document (DOC) section | Same IP/port; DB name "document" ("ຊື່ document" [verify]); user "dbປerເລຕ" [verify]; "test connect" → "OK" | "ຕອນຟາກນີ້ຄືກັນ" (the DOC side is the same) |
+| Central admin — import user | Path: "ການຄຸ້ມຄອງລະບົບ" (System admin) → "ຜູ້ຄຸ້ມຄອງ" (Admin) → "ນຳເຂົ້າຜູ້ໃຊ້" (Import user); browse location (ASR "ເປີດເລກ f" [verify — e.g. F drive]); user list + tick boxes; "ນຳເຂົ້າ" (Import) button | Success: "ການນຳເຂົ້າສຳເລັດ" ("import successful") message listing the imported user names → "OK" |
+
+**Data that moves (for the new system):** (a) **user accounts** — one-time file export from the field DB ("ສົ່ງ user... ສົ່ງຄັ້ງດຽວ") → the file is carried to the central machine → imported by the admin via System admin → Admin → Import user. (b) **parcel data** — file export from the field DB (a separate clip) → imported into the central server DB ("ສົ່ງຕອນດິນອອກ... ນຳເຂົ້າໃນຖານເຊີເວີຈິງ"). The export file is only "a saved file" in the ASR — its extension (possibly .Lreg) is **not confirmed [verify]**.
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+_Reconstructed from ASR transcript; uncertain items marked [verify]._
+
+1. On the field PC, open the field's local database ("ຖານໂລໂກ" [verify] = local DB) and log in with the field team's usual user ("ລ໋ອກອິ user ທີ່ເຮົານຳໃຊ້ເປັນປະຈໍາ").
+2. Select the province ("ແຂວງ") and district ("ເມືອງ") in use — example: Luang Prabang ("ແຂວງຫຼວງພະບາງ"). "Other provinces do the same" ("ແຂວງອົ່ນກໍເຮັດເຊັ່ນດຽວກັນ").
+3. Before sending parcels ("ຕອນດິນ"), users ("user") must be sent first: close the exit button ("ປິດປຸ່ນຜູ້ປະກອບການອອກກ່ອນ" [verify]); tick the user check boxes ("ຕິກເອົາ user" — "ທັງສອງ" = both [verify]).
+4. Export the users: use the save-data button at the bottom of the screen ("ປຸ່ນເຊບຂໍ້ມູນ"); it prompts for a save location ("ແມ່ນບອກເຮົາໄປຊອກບ່ອນເຄັບຟ") and a file name (e.g. "user"); "save" → "ສົ່ງອອກສຳເລັດ" (export complete) → "OK"; the file appears at the save location (e.g. desktop — "ໜ້າເດດ" [verify]).
+5. User export is one-time ("ສົ່ງ user ແມ່ນເຮົາຈະສົ່ງຄັ້ງດຽວ") — after it, parcels can be sent continuously because the server "remembers" the users ("ໃຫ້ມັນຈື່ໄວ້... ວ່າມັນເຄີຍມີ user ແລ້ວ").
+6. On the central server: log out of the system first ("ລ໊ອກອອກຈາກລະບົບກ່ອນ"), then re-point the settings at the real server ("ເຊີເວີຈິງ"): IP (ASR "1831 82... 104... 1.96" [verify]), port "9901" [verify], database name = the district's DB (example "ນ້ຳບາກ" [verify]), user ("dbປerເລຕ" [verify]) + central-provided password ("ລະຫັດຂອງທາງສູນກາງມອບໃຫ້"); "test connect" → "ການເຊື່ອມຕໍ່ສຳເລັດ" (connect successful) → "OK".
+7. The document (DOC) section: copy the same IP/port, DB name "document" [verify], same user; "test connect" → "OK"; then click "ນຳໃຊ້" (Apply).
+8. The district/province admin ("ຜູ້ຄຸ້ມຄອງຂອງເມືອງ ຫຼື ແຂວງ") imports the users: System admin ("ການຄຸ້ມຄອງລະບົບ") → Admin ("ຜູ້ຄຸ້ມຄອງ") → Import users ("ນຳເຂົ້າຜູ້ໃຊ້"); browse to where the user file is saved (ASR "ເປີດເລກ f" [verify — e.g. F: drive]), tick the users ("ຕິກເລືອກ"), click "ນຳເຂົ້າ" (Import); success message "ການນຳເຂົ້າສຳເລັດ" (import successful) lists the user names → "OK".
+9. Log out, then log back into the real server; send parcels from the field back out: export parcels from the field DB ("ກັບໄປຖານພາກສະໜາມເພື່ອໄປໂຊກຕອນດິນອອກມາ") and import into the central server DB ("ສົ່ງເຂົ້າຖານ... ເຊີເວີຈິງ") — "one file export at a time" ("ອອກກະສົ່ງອອກເທື່ອດຽວ... ເຮົາກະສົ່ງຕອນດິນອອກມາລະກະມານຳເຂົ້າໃນຖານເຊີເວີຈິງ").
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] **Export file format/extension:** the ASR only ever calls it "a saved file" — what is it actually (e.g. .Lreg [verify])? The new system needs an equivalent sync mechanism, so confirm the exact container (JSON/CSV/SQLite?) and how it is named.
+- [ ] Is the user export truly one-time ("ສົ່ງ user... ສົ່ງຄັ້ງດຽວ")? What happens when a new field user is added later — re-export the whole list or just the new one?
+- [ ] Conflict rules: what happens if a user (or parcel) already exists on the central server — overwrite, skip, or error [verify]?
+- [ ] What is the physical transport of the export file between the field site and the central office (USB, courier, network share)?
+- [ ] Confirm the central server IP (ASR "1831 82... 104... 1.96" [verify]) and port 9901 — is 9901 the fixed LLR port?
+- [ ] Confirm the DB username "dbປerເລຕ" [verify — `dbperlet`?] and who issues the central password.
+- [ ] What does "ປິດປຸ່ນຜູ້ປະກອບການອອກກ່ອນ" [verify] mean operationally — which button/setting must be off before a user export?
+- [ ] Parcels: is sync strictly one-way (field → center), and do corrections flow back down? Which clip covers the parcel export/import?
+- [ ] Roles: only the district admin ("ຜູ້ຄຸ້ມຄອງ") can import users — is that a hard role restriction?

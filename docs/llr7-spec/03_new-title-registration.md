@@ -333,12 +333,49 @@ Google Satellite... ນີ້ຈະເປັນຮູບພາບ.
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| QGIS project login ("ການລົງທະບຽນ" inside the project's "QGS" menu) | per-account login; open project after login | registration entry lives in the project's QGIS menu [verify] |
+| Project / region selector | zone examples: ເຂດ 47, ເຂດ 48; example province "One Bay" [verify]; north incl. ໄຊຍະບຸລີ, ບາງບໍ່ແກ້ວ | pick the correct region per district rules before scoring |
+| Layer panel | right-click → hide layer; "ຈັດການຊັ້ນໄປຫາແຖບ" [verify]; "ລຶບຊັ້ນອອກ" (remove layer) | remove unwanted layers before working |
+| Point attribute table ("ຕາຕະລາງ") | opens when a point is clicked; "ເພີ່ມ" button does not add points [verify] | point data must come from the imported file |
+| Snap toolbar | snap command in toolbar; target-proximity settings | enable snap before drawing/measuring |
+| Base map plugin | satellite imagery (e.g. Google Satellite); "Sapphire" order [verify] | add plugin on fresh installs |
+| CRS settings | CRS row: 4326 → WGS84; "84" filename convention | export as WGS84 ("84-bit file" [verify]) |
+| Import options | "PZ" / "PZ Import" files; "imp" import button | old version may not need the addition [verify] |
+| "ຢືນຢັນການນໍາເຂົ້າ" (verify import) | error check; "ER" alert [verify]; OK → re-"imp" | overlap/parallel errors must be fixed and re-verified |
+| Parcel layer | colour change indicates parcel is registered / inside | zoom out to inspect colours |
+| Data entry screen ("ລາວເລ" [verify]) | parcel number, area (example 5,000 [verify]), use type (ປະເພດການນຳໃຊ້), road types (4 main types [verify]) | check the new version before entering data; district/city data first; land before house |
+| Owner / family form | registered family name ("ນາມສະກຸນ"), nationality (ASR "ປາກີສະຊາໂນ" [verify]), occupation (list select), family data, current address | enter exactly as on the documents, even if owner lives elsewhere |
+| "ປຶ້ມລົງທະບຽນ" (registration book) [verify] | section / binding step (ການຜູກມັດ) | after all personal data is entered |
+| Printing | parcel file printed in 2 copies | |
+| Symbol / line settings | symbol size 8; "deep line symbol" chosen for re-drawn lines [verify]; printed notice "ໃບແຈ້ງໜີ້" | |
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+> Note: source is noisy Lao ASR — proper nouns, button names and numbers marked [verify] are unconfirmed.
+
+1. Prepare data from the field survey as an Excel or CSV file; update/verify the file works before use.
+2. Log in to the LLR7 account; registration entry is in the project's QGIS menu ("QGS"); each user logs in with their own account.
+3. Open the correct project/region: select the right region per district rules (example province "One Bay" [verify]; zones ເຂດ 47 / ເຂດ 48). The transcript raises the question "what if the program we just reinstalled doesn't work?" [verify].
+4. Tidy the layer panel: right-click to hide layers; "ຈັດການຊັ້ນໄປຫາແຖບ" [verify]; remove unneeded layers ("ລຶບຊັ້ນອອກ").
+5. Import the survey points from the downloaded file: the point table opens; points cannot be added manually ("ເພີ່ມ" adds nothing [verify]) — data must come from the import.
+6. Verify each point against the real location: open point attributes, take background photos of the site, compare against satellite imagery (add a base-map plugin on fresh installs [verify], e.g. "Sapphire" order).
+7. Draw/measure vectors: open the Snap command from the toolbar; set target proximity; right-click + OK to enter values into the attribute table.
+8. Set CRS to WGS84 (4326) in the CRS row; save/export the file with an "84" name to indicate WGS84 ("84-bit file" [verify]).
+9. Import parcel data (PZ / PZ Import files [verify]); place the parcel into the area so it aligns with surrounding land ("ວາງ Parsel ໄວ້ໃນພື້ນທີ່ Ler" [verify]).
+10. Run "ຢືນຢັນການນໍາເຂົ້າ" (verify import): inspect errors (overlapping or parallel geometry); if errors: fix the point, press OK, re-import ("imp"), re-verify until clean.
+11. Confirm the parcel colour changed (registered / inside).
+12. Data entry (back in the data-entry screen "ລາວເລ" [verify]): check the new version before entering data; enter district/city data; parcel number and area (example 5,000 [verify]) before house data; select use type per the survey documents — options vary by district; road types split into 4 main types [verify]; urban planning zone only.
+13. Owner/family data: enter exactly as on the documents (registered family name, national ID [verify], occupation, family data, current address even if the owner lives elsewhere); after all personal data is entered, proceed to the "ປຶ້ມລົງທະບຽນ" (registration book) section [verify] and the binding step (ການຜູກມັດ).
+14. Printing: when the parcel file is ready, print 2 copies.
+15. Line/symbol finishing: when the line is complete, select the full line; symbol size 8; a re-drawn line uses the "deep line symbol" in the new version [verify]; outcome is a printed notice ("ໃບແຈ້ງໜີ້").
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] What do "C7" and "C8" (also "C7s") refer to — CRS codes, layer categories, or grading options? Which applies where?
+- [ ] What exactly is the "PZ / PZ Import" file, and is it required or optional on fresh installs?
+- [ ] What do zones ເຂດ 47 / ເຂດ 48 mean, and how are zones mapped to districts/provinces (e.g. "One Bay" [verify])?
+- [ ] Can survey points ever be added manually, or is the imported file the only source?
+- [ ] What is the "Ler" area ("ວາງ Parsel ໄວ້ໃນພື້ນທີ່ Ler") — a layer, a buffer, or a cadastral zone?
+- [ ] Is the data-entry order (district data → parcel number → use type → house data) enforced by the system or just practice?
+- [ ] What is "ເລກພາກສ່ວນ" (section number) and when is it added to the data?
+- [ ] Is printing 2 copies mandatory, and who receives each copy?

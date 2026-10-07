@@ -3,7 +3,7 @@
 - **Lao title:** LLR7 ການປະເມີນລາຄາ ແລະ ຄິດໄລ່ຄ່າທຳນຽມທີ່ດິນ EP.6
 - **YouTube:** https://youtu.be/k5N59T3ay-k (10m 31s)
 - **Group:** Part 1 · Core workflows
-- **Transcript status:** Thai ASR transcript captured (135 cues) — verify vs video
+- **Transcript status:** Thai ASR transcript captured (135 cues) — **low confidence: this is a Thai auto-caption of a Lao-language video, less reliable than the Lao ASR files; treat every detail in this file as [verify] until checked against the video/UI**
 
 ## Transcript (ASR)
 
@@ -149,12 +149,34 @@ layer มาที่เขตประเมินราคาที่ดิ�
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| Document set | "ใบติดปก" (cover sheet) and "ใบติดเอกสาร" (document sheet); each has a different barcode/code | cover sheet is produced at registration and re-produced on every movement; document sheet used for paperwork |
+| Fee-calc screen (ASR "คิคไลค่าธรรมเนีย"/"คิคไล" [verify]) | log in → fee-calc screen; check document type first (parcel movement type) | e.g. full transfer (moving whole parcel) = "change of rights registration" |
+| Barcode entry | scan box: only the document-sheet barcode works; scanning the cover-sheet barcode does not enter (not related) | fall back to code copy-out when no barcode |
+| Code fallback | "ข้อมูลข่าวสาร → ค่าเข้า-ค่าออก" → village (per the parcel's cover sheet) → copy the code character set | document example date: 9th day, 11th month, 2024 (ASR "วันที่ 9 เดื่อน 11 2024" [verify]) |
+| Valuation zone layer (ASR "เขตประเมินราคา" [verify]) | edit mode ("เปิดดัดแก้" [verify]); zoom out to see zone boundaries; click zone → code shown in bottom panel (e.g. "โซน A7"); enter the digit only ("7"), not the English code | fee-officer's entry step |
+| Parcel / structure check | close the zone layer; zoom in; drag the parcel to see; check structures ("สิ่งปลูกสร้าง"); verify use type (ASR "ประเภทการนำใช้" [verify]) | |
+| Fee result | formula may show "Factor" then a price; service fees (ASR "ค่าบริกาพึ" [verify]) sit under the service-fee menu; survey fees (ASR "ค่าสำรวจวัด") do not appear on this screen | road type (whether the parcel has a road) checked against the document |
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+> **Reliability warning:** this file's source is a Thai ASR of a Lao video — it is the least reliable transcript in this spec set. Every item below is [verify] until confirmed against the video/UI.
+
+1. Receive handover from the survey/measurement unit: completed measurement documents are sent to the valuation/fee unit; open the documents and check the two attached sheets — the cover sheet ("ใบติดปก") and the document sheet ("ใบติดเอกสาร") (different barcodes/codes). The cover sheet is produced at registration and re-produced whenever a movement occurs.
+2. Log in and go to the fee-calculation screen; first check the document type — what parcel movement is it? E.g. a full transfer (whole-parcel move) = "change of rights registration"; pick the item per the clause.
+3. Scan the document-sheet barcode into the required box. Scanning the cover-sheet barcode will not enter (they are unrelated) — only the correct form can be scanned.
+4. If there is no barcode: copy the code instead — from "ข้อมูลข่าวสาร → ค่าเข้า-ค่าออก", pick the village (per the parcel's cover sheet), copy the code character set, then use it in the fee calculation (change of rights).
+5. Check the valuation zone: open the valuation-zone layer in edit mode; zoom out to see the boundaries; click the zone and read the code from the bottom panel (e.g. "โซน A7"); enter the digit only ("7"), not the English code.
+6. Check the parcel contents: close the zone layer, zoom in, drag the parcel into view; check for structures ("สิ่งปลูกสร้าง"); verify the use type is consistent; correct if not.
+7. Back at Home: compute the fees and the registration; verify district/town/village (ASR "แขวง เมือง บ้าน") and the road/zone areas; when the formula shows "Factor" and a price comes out, the fee can be calculated.
+8. Fee items: for a standard land transfer, service fees appear under the service-fee menu [verify]; survey/measurement fees do not appear here — they are handled at the fee-calculation step [verify]; road type (whether the parcel has a road) is checked against the document by the valuation officer.
+9. For other land types, the fee is calculated according to the document sheet ("ใบติดเอกสาร").
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] Reliability: this file's source is a Thai ASR of a Lao video — confirm every item in this file against the video/UI before use.
+- [ ] What are the cover sheet and document sheet called in Lao, and exactly where does each barcode live?
+- [ ] How is the "Factor" in the fee formula determined, and who sets it?
+- [ ] Are service fees and survey/measurement fees computed on different screens? Which are mandatory for a transfer?
+- [ ] Zone-code entry: digits only (e.g. "7") — what is the rule when a code is letter+digit (e.g. G17)?
+- [ ] Is copying the code out from "ค่าเข้า-ค่าออก" the official fallback, or a workaround for missing barcodes?
+- [ ] Does the valuation zone have to be opened in edit mode for entry, or is it read-only in the fee screen?

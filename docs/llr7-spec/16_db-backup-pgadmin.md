@@ -15,9 +15,17 @@ _No transcript yet. See status._
 |---|---|---|
 | _pending_ | | |
 
-## Workflow steps (from transcript)
+## WHAT IS KNOWN (from header only — no transcript yet)
 
-1. _pending — extract from transcript during spec build_
+- **What the title promises:** How to back up the database using pgAdmin4 (ວິທີ Backup ຖານຂໍ້ມູນ pgAdmin4).
+- **Legacy capability documented:** DBA-level PostgreSQL backup via pgAdmin4 for the LLR7 database (Part 2 · GIS tools & admin; 5m 22s).
+- **Expected:** [audio + Whisper pending]
+
+**Review questions (inferred from title only):**
+
+- [ ] What backup format (SQL dump vs custom) and where are backups stored [from title only]?
+- [ ] What backup cadence is expected, and who is responsible for running/storing it [from title only]?
+- [ ] Is there a matching restore procedure (compare with 18_create-restore-db) [from title only]?
 
 ## Open questions for review
 

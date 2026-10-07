@@ -15,9 +15,17 @@ _No transcript yet. See status._
 |---|---|---|
 | _pending_ | | |
 
-## Workflow steps (from transcript)
+## WHAT IS KNOWN (from header only — no transcript yet)
 
-1. _pending — extract from transcript during spec build_
+- **What the title promises:** LLR7 parcel subdivision — registration of dividing a parcel into new parcels (LLR7 ການຈົດທະບຽນ ແບ່ງແຍກ EP.5).
+- **Legacy capability documented:** core GIS/registration work of splitting an existing parcel into multiple new parcels and registering each (Part 1 · Core workflows; 17m 46s).
+- **Expected:** [audio + Whisper pending]
+
+**Review questions (inferred from title only):**
+
+- [ ] What constraints apply to the resulting parcels (minimum area, shape, road access) [from title only]?
+- [ ] Does subdivision require a GIS split first, or can it be initiated from the registration side [from title only]?
+- [ ] Which fees/approvals are triggered by a subdivision registration [from title only]?
 
 ## Open questions for review
 

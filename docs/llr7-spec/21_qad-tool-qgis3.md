@@ -72,12 +72,33 @@ QAD
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| Project — coordinate zone | zone selector (0 48 / city zone [verify]), OK | set zone first after opening the .QGS project |
+| Plugin installer | search "QAD", tick entry, close | one-time install of the QAD (circle) plugin |
+| Layer > Create layer | layer name, save location (folder), geometry type, CRS (UTM zone 48 [verify]) | create a line layer then a point layer; save into a working folder (may overwrite the older one) |
+| QAD toolbar (Q icon) | circle symbol (ສັນຍາລັກວົງມົນ); distance entry (e.g. 25 m / 20 m) | draw circles from the offset point [verify] to find cut points (ຈຸດຕັດ) |
+| Add-point tool | point layer selection, add-point button, snap to cut point | place points at the circle intersections on the parcel boundary |
+| Snap settings | snap on/off, "snap node" tick box [verify] | if things don't snap: check project UTM zone (48N, code 32648 [verify]) and the snap tick boxes |
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+> Transcript note: heavy ASR noise; English UI labels marked [verify] where the transcript is unreliable.
+
+1. After opening the LLR7 project (.QGS) in QGIS3, first set the coordinate zone to 0 48 (select zone, OK)
+2. Open the parcel data that will be divided/cut in the drawing data
+3. Install the QAD plugin: plugin installer → type "QAD", tick it, close the installer
+4. Create a line layer first (before cutting): Layer > Create layer; save into the working folder (overwriting the old one is fine); geometry type = line; CRS = UTM Zone 48 (or the city's zone [verify]); OK → line layer appears
+5. Open the QAD tool (Q icon in the toolbar); click the circle symbol (ສັນຍາລັກວົງມົນ) to cut
+6. From the offset point [verify], enter the desired cut distance in meters (e.g. 25 m on point 1, 20 m on the other side) → the cut points (ຈຸດຕັດ) are obtained
+7. Create a point layer: Layer > Create layer; save in the same folder; name it "P" (for points); geometry type = point; CRS = zone 48
+8. Select the point layer; open the snap settings FIRST (if snap is off, points won't snap); click the add-point button and place each point at a cut point, OK — repeat for every side
+9. If the circle/points don't snap: (a) check the project UTM zone — should be 48N, code 32648 [verify] — change if wrong; (b) open snap settings and tick "snap node" [verify]
+10. Close the circle tool and save the layers → cut points captured
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] Does "offset point" (ຈຸດ offset [verify]) mean a specific parcel corner/monument, or is it chosen freely by the operator?
+- [ ] Are the 25 m / 20 m radii standard values, or just demo examples?
+- [ ] What happens with the cut points afterwards — are they fed into the parcel subdivision (see 05_subdivision.md), or only used for display?
+- [ ] Must the helper line/point layers be cleaned up after the split, or can they stay in the .QGS?
+- [ ] Is the QAD tool a specific plugin version, and is it required on every machine doing GIS work [verify]?
+- [ ] Which role uses the QAD tool — surveyors only [verify]?

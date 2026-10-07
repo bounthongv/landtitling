@@ -15,9 +15,17 @@ _No transcript yet. See status._
 |---|---|---|
 | _pending_ | | |
 
-## Workflow steps (from transcript)
+## WHAT IS KNOWN (from header only — no transcript yet)
 
-1. _pending — extract from transcript during spec build_
+- **What the title promises:** Registration of loan/mortgage contracts (LLR7 ການຈົດທະບຽນເຄື່ອນໄຫວສັນຍາຄ້ຳປະກັນເງິນກູ້ຢືມ EP.9).
+- **Legacy capability documented:** recording a loan contract (mortgage) against a parcel and its effects (Part 1 · Core workflows; 8m 55s).
+- **Expected:** [audio + Whisper pending]
+
+**Review questions (inferred from title only):**
+
+- [ ] Does a registered mortgage block other transactions (sale, subdivision) on the parcel [from title only]?
+- [ ] How is mortgage release/discharge recorded [from title only]?
+- [ ] Which parties/documents must be entered for a mortgage registration [from title only]?
 
 ## Open questions for review
 

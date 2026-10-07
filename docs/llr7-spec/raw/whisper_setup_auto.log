@@ -1,0 +1,11 @@
+detected lang: th prob: 0.992
+Traceback (most recent call last):
+  File "<string>", line 10, in <module>
+  File "<string>", line 10, in <listcomp>
+  File "C:\Users\bount\AppData\Local\hermes\hermes-agent\.venv\Lib\site-packages\faster_whisper\transcribe.py", line 1213, in generate_segments
+    ) = self.generate_with_fallback(encoder_output, prompt, tokenizer, options)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\bount\AppData\Local\hermes\hermes-agent\.venv\Lib\site-packages\faster_whisper\transcribe.py", line 1446, in generate_with_fallback
+    result = self.model.generate(
+             ^^^^^^^^^^^^^^^^^^^^
+RuntimeError: mkl_malloc: failed to allocate memory

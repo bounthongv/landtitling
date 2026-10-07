@@ -77,6 +77,8 @@ def find_vtt(vid):
     return None, None
 
 def main():
+    import sys
+    force = "--force" in sys.argv  # default: never clobber an enriched file
     n_files = 0
     for vid, (ep, slug, en_label) in LABELS.items():
         if vid not in avail:
@@ -146,6 +148,12 @@ def main():
                "SYNC":11,"CFG":12,"BUF":13,"DRILL":14,"LREG":15,"BKUP":16,"EDIT":17,
                "DBRST":18,"PGFIX":19,"Z48":20,"QAD":21}[ep]
         outpath = os.path.join(OUT, f"{num:02d}_{slug}.md")
+        # Never clobber a file that already exists (it may be enriched by
+        # subagents / humans). Only (re)write missing files, or with --force.
+        if os.path.exists(outpath) and not force:
+            print(f"skip (exists, use --force to overwrite): {outpath}")
+            n_files += 1
+            continue
         open(outpath, "w", encoding="utf-8").write("\n".join(md))
         n_files += 1
         print(f"{outpath}  [{status.split(' —')[0][:40]}]")

@@ -15,9 +15,17 @@ _No transcript yet. See status._
 |---|---|---|
 | _pending_ | | |
 
-## Workflow steps (from transcript)
+## WHAT IS KNOWN (from header only — no transcript yet)
 
-1. _pending — extract from transcript during spec build_
+- **What the title promises:** LLR7 parcel merging (combine) — registration of combining parcels into one (LLR7 ການຈົດທະບຽນ ໂຮມຕອນດິນເຂົ້າກັນ EP.7).
+- **Legacy capability documented:** core GIS/registration work of merging parcels into a single parcel (Part 1 · Core workflows; 28m 45s — the longest core-workflow video, expect a detailed procedure).
+- **Expected:** [audio + Whisper pending]
+
+**Review questions (inferred from title only):**
+
+- [ ] Must the merged parcels be contiguous and/or owned by the same person [from title only]?
+- [ ] What happens to the original titles of merged parcels (cancelled, kept as history) [from title only]?
+- [ ] Is merging allowed on parcels that carry a mortgage [from title only]?
 
 ## Open questions for review
 

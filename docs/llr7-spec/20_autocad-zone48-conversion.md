@@ -65,16 +65,40 @@ dfx
 97 ມາເປັນ 84
 ເນາະຄວນຈະເອົາຟທີ່ເປັນຕອນດິນຫຼາຍໆມາຄອນເວີດບາດດຽວລະກະສົ່ງເຂົ້າຖານບາດດຽວເລີຍອນີ້ຈະເປັນຂໍ້ມູນຕົວຢ່າງກໍສາມາດໄປນຳໃຊ້ອາປະໂຫຍດຕໍ່ໄດ້ສຳລັບຄລິບນີ້ກໍມີສ່ຳນີ້ກ່ອນເນາະ
 
+## Data migration fact
+
+- **Lao97 → Zone48 coordinate conversion (data migration):** legacy AutoCAD survey data in the Lao97 coordinate system is NOT georeferenced to UTM Zone 48 — it does not align with orthophotos until converted. LLR7 provides a Lao97 conversion tool: zone parameter values are issued by the central office (ສູນກາງ), the tool calculates parcel areas and moves shapes to their correct Zone48 positions, and the converted data can then be batch-loaded into the database. The new system must document/reproduce this migration path (import legacy AutoCAD → coordinate conversion → DB load) [verify details after audio review].
+
 ## Extracted screens / fields  (fill after human review or vision pass)
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| Project setup — new coordinate entry | name field (e.g. "97 2 84"), coordinate-system dropdown, parameter field (paste) | name is free display text; the parameter values matter; paste from central-office (ສູນກາງ) data; no trailing spaces allowed |
+| Layer panel — data import | edit → layer (ແດlayer [verify]); import DXF vector (.dxf) | sample data shown: Luang Prabang parcel data |
+| Image layer import | import image layer (ພາບຖ່າຍ); line width increased | used to check shape-vs-photo alignment; Lao97 data does not align before conversion |
+| Lao97 conversion tool | project settings (bottom) — select the new coordinate (shown as "Lao" [verify]); ID-code entry if it doesn't list; OK | tool computes parcel areas and moves shapes to correct positions |
+| Database load | batch insert after conversion | convert many parcel files, then send to database at once (ສົ່ງເຂົ້າຖານບາດ) |
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+> Transcript note: heavy ASR noise throughout; UI labels and proper nouns marked [verify] where the transcript is unreliable.
+
+1. In the LLR7 workspace, delete the old layer(s) of the legacy AutoCAD project that no longer apply [verify]
+2. Create a new coordinate entry: give it any name (e.g. "97 2 84" — the name is display text only) and pick the target zone from the coordinate-system dropdown (Zone 48 for this city; Zone 47 for other areas [verify])
+3. Obtain the parameter set for that zone from the data sent by the central office (ສູນກາງ): copy the old parameter values and paste into the new parameter field — make sure the field has no trailing spaces (format is strict), then OK
+4. Optionally name the entry "New zone" to mark it as a newly created zone; on re-open the app notes it was already created and saved
+5. Import the legacy AutoCAD data: edit → layer (ແດlayer [verify]), load the DXF (.dxf) vector data into the workspace (e.g. the Luang Prabang sample data)
+6. Import the image (ພາບຖ່າຍ) layer via the import-image option; increase line width to inspect — Lao97 data does not align with the photo
+7. Run the Lao97 conversion tool: in the project settings at the bottom, select the newly created coordinate (shown under "Lao" [verify]); if it doesn't list, type its ID code and it appears; click OK — the tool calculates parcel areas and moves shapes to their correct positions
+8. Verify: the parcel shapes now sit inside the image at the correct positions — conversion from Lao97 to Zone 48 (the transcript reads "from 97 to 84" [verify])
+9. For bulk work: bring in many parcel files, convert them, then send them into the database in one go (ສົ່ງເຂົ້າຖານບາດ)
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] What is the exact format of the central-office (ສູນກາງ) parameter data (file, text, DB table?) and who is authorized to distribute it [verify]?
+- [ ] Zone mapping: the transcript says Zone 48 "for this city" and Zone 47 "for others" — confirm the district → zone rule [verify]?
+- [ ] Is the transcript's "from 97 to 84" literal (is there also a Lao84 system), or a mishearing of "to Zone 48" [verify]?
+- [ ] Does the conversion tool correct position only, or also area (scale factor between Lao97 and UTM)?
+- [ ] Which AutoCAD versions / DXF versions are accepted by the import step?
+- [ ] After the batch send-to-database, who verifies the imported records (role, QC step)?
+- [ ] What happens to parcels that straddle a zone boundary (48/47) [verify]?

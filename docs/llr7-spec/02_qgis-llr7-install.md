@@ -102,16 +102,38 @@ user
 ກັບລະຫັດຜ່ານເນາະເຂົ້າໄປນຳໃຊ້ໄດ້ປົກກະຕິເລີຍເນາະສຳລັບຄລິບນີ້ກະອ່າຊິມີປະມານນີ້ເນາະການລົບຕິດຕັ້ງໂປແກຣມຄິວໂປແກຣມລາວເລັກແລະກະການຕັ້ງຄ່າເພື່ອນຳໃຊ້ໃຫ້ເນາະເຈົ້າຂໍຂອບໃຈ
 ໃຈ
 
-## Extracted screens / fields  (fill after human review or vision pass)
+## Extracted screens / fields
+
+_Reconstructed from ASR transcript; uncertain items marked [verify]._
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| QGIS 3.34 setup ("QS set up") | Options checkbox ("ຕິກເອົາ"); "Next"; "Install"; "Done"/"Finish" | Install QGIS first, before the LLR plugin ("ຕ້ອງຕິດຕັ້ງ... QG ກ່ອນເປັນອັນດັບແລກ") |
+| LLR 7.2 plugin installer | Browse folder → select the QGIS 3.34 install folder ("QS 3.34 34" [verify]); "OK"; "Next" until "Install"; "Install"; "Exit"/"Done" ("ອອກ") | Success: the LLR icon appears in QGIS ("ເຫັນໄອຄonອນຂອງລາວເລັກ") |
+| LLR first-run settings — local DB | host; port (the Postgres port — check it in pgAdmin, ASR "5 4 32" [verify — likely 5432]); database name (example "data"); user ("ໂພເກດ" [verify — `postgres`] or "db"); password (from the pgAdmin install); "test connect" ("ທົດລອງເຊື່ອມ") | Local demo scenario: DB on this machine ("ການເຊື່ອມຕໍ່ຖານຂໍ້ມູນຢູ່ໃນຄອມເຮົາເອງ") |
+| LLR settings — document DB | DB name "DOC"; "ຟສແກນສຳນວນ" [verify]; port "5 4 32" [verify]; user; password ("ລະຫັດຜ່ານກະອັນດຽວກັນ"); "test connect" | "ຈັດຕັ້ງຄ່າຄືກັນ" (configured the same way) |
+| LLR settings — storage locations | "ບ່ອນເກັບມ້ຽນໂຄງການ" (project storage) → browse to folder (ASR "ຊ່ອງ 4 ແລະ 7" [verify]); "ບ່ອນເກັບມ້ຽນເອກະສານ" (document storage) → browse (ASR "docum... 7" [verify]); "QIS ex"/"qis bin" — QGIS executable path (browse the "Program Files" drive → "qis bin" → "open") | "ຕັ້ງຄ່າເທື່ອດຽວແລ້ວກໍຖືວ່ານຳໃຊ້ໄດ້ຕະຫຼອດ" (set once, use forever) |
+| LLR main screen (after "ນຳໃຊ້") | user + password login fields | "ເຮົາໃສ່ user ກັບລະຫັດຜ່ານ... ເຂົ້າໄປນຳໃຊ້ໄດ້ປົກກະຕິ" |
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+_Reconstructed from ASR transcript; uncertain items marked [verify]._
+
+1. Install QGIS 3.34 first — "ກ່ອນທີ່ເຮົາຈະຕິດຕັ້ງ... ລາວເລັກ ທຸກຄັ້ງແມ່ນເຮົາຈະຕ້ອງໄດ້ຕິດຕັ້ງ... QG ກ່ອນເປັນອັນດັບແລກ" (before the LLR plugin, QGIS must come first). Run the QGIS setup ("QS set up"): tick the options box, "Next", "Install", wait, "Done"/"Finish".
+2. Install the LaoLandReg 7.2 plugin: click install; on the first screen, browse ("ບ້າວ") to the QGIS 3.34 install folder ("QS 3.34 34" [verify] — i.e. `...\Program Files\QGIS 3.34...`), "OK", then "Next" until "Install", click "Install", wait, then "Exit"/"Done".
+3. Success check: the LLR icon ("ໄອຄonອນຂອງລາວເລັກ") appears in QGIS.
+4. Open the LLR program — the first-run settings screen ("ໜ້າຕ່າງທີ່ຕັ້ງຄ່າກ່ອນ... ໃນເບື້ອງຕົ້ນທັ້ງຈຶ່ງສາມາດນຳໃຊ້ໄດ້").
+5. Configure the local database connection ("ການເຊື່ອມຕໍ່ຖານຂໍ້ມູນຢູ່ໃນຄອມເຮົາເອງ"): host; port — read it off pgAdmin ("pgອມmin... ພອດ" [verify: 5432]); database name (example "data"); user — "ໂພເກດ" [verify: `postgres`] or "db"; password — the one set at pgAdmin install; "test connect" ("ທົດລອງເຊື່ອມ") — if the success display appears, every character is correct → "OK".
+6. Configure the document DB ("ຖານຂໍ້ມູນ DOC"): same pattern — port ("5 4 32" [verify]), DB name ("DO"/DOC), user, password ("ລະຫັດຜ່ານກະອັນດຽວກັນ"), "test connect" → "OK".
+7. Set storage locations ("ບ່ອນເກັບມ້ຽນ"): project storage ("ບ່ອນເກັບມ້ຽນໂຄງການ") — browse to a folder (ASR "ຊ່ອງ 4 ແລະ 7" [verify]); document storage ("ບ່ອນເກັບມ້ຽນເອກະສານ") — browse ("docum... 7" [verify]); QGIS executable ("QIS ex" / "qis bin") — browse the "Program Files" drive, find a Q file, click the button, select "qis bin", "Open".
+8. This settings pass is done once ("ຕັ້ງຄ່າເທື່ອດຽວແລ້ວກໍຖືວ່ານຳໃຊ້ໄດ້ຕະຫຼອດ"); click "ນຳໃຊ້" (Apply/Use) — the app then shows its main screen, where user + password login takes you in ("ເຮົາໃສ່ user ກັບລະຫັດຜ່ານ... ເຂົ້າໄປນຳໃຊ້ໄດ້ປົກກະຕິ").
+9. Note: for online/central connection the local DB settings are skipped — only the central server's online settings are entered ("ຖ້າວ່າ... ເຮົາຈະໄປເຊື່ອມອນລາ... ບໍ່ຈໍາເປັນຕໍ່ກັບ... ຖານຂໍ້ມູນໃນຄອມເຮົາ... ມີແຕະພາະອອນລາຍຂອງສູນກາງເພື່ອໃຫ້ເຊື່ອມຕໍ່ເລີຍ").
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] Confirm the Postgres port LLR expects (ASR "5 4 32" [verify: 5432?]) — does LLR read it from pgAdmin or is it a fixed value?
+- [ ] In production/field setups, which DB user is used — "db" or `postgres` ("ໂພເກດ" [verify])? What does the "db" user's password differ from?
+- [ ] What is "ຟສແກນສຳນວນ" [verify] mentioned with the DOC DB — an encoding/format setting?
+- [ ] What are the exact folder names for project storage and document storage (ASR "ຊ່ອງ 4 ແລະ 7", "docum... 7" [verify])?
+- [ ] Is the QGIS-executable path setting ("qis bin") ever needed after setup, or is it set once and never revisited?
+- [ ] Version pinning: is LLR 7.2 only compatible with QGIS 3.34, or do other QGIS versions work [verify]?

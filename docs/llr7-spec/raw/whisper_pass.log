@@ -1,0 +1,7 @@
+AUDIO FILES: ['SETUP_hL1WCU5Bq1Q.m4a', 'SETUP_hL1WCU5Bq1Q.wav']
+Loading large-v3 int8 (downloads ~1.6GB to D: on first run)...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+model ready in 159s
+SETUP_hL1WCU5Bq1Q.m4a: 12 lines in 202s -> D:\LandTitling\docs\llr7-spec\raw\audio\SETUP_hL1WCU5Bq1Q.whisper.txt
+SETUP_hL1WCU5Bq1Q.wav: cached
+WHISPER PASS DONE

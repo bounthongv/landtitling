@@ -174,12 +174,45 @@
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| Program start | program displays "7" (LLR7) [verify]; each user opens their own account; log in after registration | |
+| Registration type screen | "ປະເພດການລົງທະບຽນ" selector; "ສິດນຳໃຊ້ທີ່ດິນ" (land use rights) option | choose registration type before searching |
+| Parcel search | by name or by number (digit count) at land level; "ຊັ້ນພື້ນດິນ" (land layer) with district filter (e.g. ພາກທີ 2) | |
+| Owner / applicant data | national ID card (ບັດປະຈຳຕົວ [verify]), nationality, occupation, owner type, current address; "room code" (ASR "ລະຫັດຫ້ອງ" [verify]) | add all names when the parcel is co-owned (joint vs individual property) |
+| Transfer type selector | "ປະເພດການຈັດສົ່ງ" (delivery type): land or inheritance (ມໍລະດົກ) per documents; "house number" (ເບີບ້ານ) entry where applicable | select per the supporting documents |
+| Export request | "ການຮ້ອງຂໍການສົ່ງອອກ" (export request) completed; sent to print for document tracking | printed copy attached to the document |
+| Fee / image collection | images + fee data collected (from entry fee, transcript garbled); sent to the registration unit (ASR "ໜ່ວຍງານລົງທະບຽນ") | |
+| Officer transfer form | last form ("ແບບຟອມລ່າສຸດ"); yellow marker; "+" press; "word set" (ASR "ຊຸດຄຳສັບ") click; previous rights-holder (ASR "ຜູ້ຖືລິຂະສິດ") name; person/entity (ບຸກຄົນ ຫຼື ຕົວລະຄອນ) symbol; "opinion" (ASR "ຄຳເຫັນ") shows username; handover (ASR "ພິທີມອບຮັບ" [verify]) | |
+| Transfer completion | "ໂອນກຳມະສິດ" (transfer title) button; "ຄຳສັ່ງການປ່ຽນແປງທີ່ຍືນຍົງ" (permanent change order); "ຄໍາສັ່ງລົງທະບຽນສໍາເລັດ" (registration completion command); red button in the registration document | |
+| Status colours | step status colour ("ມັນເປັນສີ" — colour itself unspecified in this transcript [verify]); green = finished | step must be closed to green before another transfer is possible; (EP10's transcript names blue/yellow = in progress) |
+| Valuation area | "ພື້ນທີ່ປະເມີນຜົນ" / land valuation zone; zone example G17; number 17; data layer with imagery (Google Maps [verify]); structure check → "ອາຄານ" (building) / construction land type | enter valuation area before other data |
+| Parcel data fields | parcel number (example 2), house number [unspecified in transcript]; phone number; land type; road type (ປະເພດຖະໜົນ) | update as needed |
+| Printed template | two-part template for withdraw/place (transcript garbled [verify]) | |
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+> Note: source is noisy Lao ASR — proper nouns, button names and numbers marked [verify] are unconfirmed.
+
+1. Each user opens their own account first; the program displays "7" (LLR7) [verify]; log into the user account. (Transcript also states money transfers "will be paid in installments" [verify — garbled].)
+2. Choose the operation: transfer (ໂອນ). Select "ປະເພດການລົງທະບຽນ" and pick "ສິດນຳໃຊ້ທີ່ດິນ" (land use rights).
+3. Search for the target parcel: by name or by number (digit count) at the land level; or go to the "ຊັ້ນພື້ນດິນ" (land layer) and check the district (e.g. ພາກທີ 2).
+4. Handle ownership: when there are multiple names (joint property vs individual property), add every selected name; enter applicant data (national ID, nationality, occupation, owner type, current address).
+5. Choose the transfer type per the documents: "ປະເພດການຈັດສົ່ງ" — land or inheritance (ມໍລະດົກ); enter "ເບີບ້ານ" (house number) where the documents use one.
+6. Complete the "ການຮ້ອງຂໍການສົ່ງອອກ" (export request); send to print for document tracking; attach the printed copy to the document and route it on.
+7. Fee/image collection: collect images and fee data, then send to the registration unit (ASR "ໜ່ວຍງານລົງທະບຽນ"); the registration procedure is finished at the office — if there is only one officer, that officer does everything, up to printing the confirmation letter (ໃບຢັ້ງຢືນ).
+8. Officer form work: open the last form ("ແບບຟອມລ່າສຸດ"); find the yellow marker; press "+" and click the "word set" (ASR "ຊຸດຄຳສັບ"); enter the previous rights-holder's (ASR "ຜູ້ຖືລິຂະສິດ") name; select the person/entity (ບຸກຄົນ ຫຼື ຕົວລະຄອນ) symbol; click "opinion" (ASR "ຄຳເຫັນ") to see the username; bring the new item into handover (ASR "ພິທີມອບຮັບ" [verify]).
+9. After the transfer is done: select the new recipient's name; press the "ໂອນກຳມະສິດ" (transfer title) button; issue the "ຄຳສັ່ງການປ່ຽນແປງທີ່ຍືນຍົງ" (permanent change order); then select "ຄໍາສັ່ງລົງທະບຽນສໍາເລັດ" (registration completion command); a red button appears in the registration document — press it.
+10. Close the status: even when every request shows "completed", the step colour must be closed to green (the in-progress colour is unnamed in this transcript [verify]; EP10's transcript says blue/yellow). While it is not green the parcel cannot be transferred again. Fix: find the transferred parcel (example: parcel no. 2, house number unspecified), verify the new name and entered data, re-close the step until green.
+11. Valuation before a further transfer: send to "ພື້ນທີ່ປະເມີນຜົນ"; give the valuation area before entering other data; open the map in the data layer (imagery, e.g. Google Maps [verify]); check for structures on the land — select "ອາຄານ" (building) or the construction land type where applicable; identify the valuation zone (example G17, number 17); update phone number, land type and road type (ປະເພດຖະໜົນ) as needed.
+12. Each valuation exists so the boundary marking is complete (transcript: the permit stays complete only if the boundary is marked [verify]); evaluate the price in detail before meeting the owner; the new person then becomes the owner.
+13. Repeat transfer: this parcel had already been transferred twice; this is the third time. Options for a full purchase include a gift (transcript garbled [verify]). The printed template has two parts (withdraw/place) [verify]; using the "teacher" template skips the layout step [garbled]; then print (garbled mention of "pipe no. 2").
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] Does "ການໂອນເງິນຈະຖືກຈ່າຍເປັນງວດ" (money transfers paid in installments) mean fees are collected in installments? Under what conditions?
+- [ ] Is one officer allowed to perform the whole transfer alone, or is a second sign-off required?
+- [ ] What do the status colours (blue/yellow/green) officially mean, and which one must be green before a subsequent transfer?
+- [ ] For co-owned parcels: does one co-owner's consent suffice, or must all names sign off?
+- [ ] Which "ປະເພດການຈັດສົ່ງ" options exist (sale, gift, inheritance, others) and which documents does each require?
+- [ ] Is valuation (zone, road type, area) mandatory before every transfer, or only when the data changes?
+- [ ] What exactly is the "word set" step and who enters the "opinion" — which officer roles are involved?
+- [ ] What is the standard set of printouts at the end of a completed transfer (the "two parts" [verify])?

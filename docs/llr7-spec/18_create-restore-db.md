@@ -60,16 +60,39 @@ successfully compພete
 ວ່າອ່າມັນບໍ່ຜ່ານເນາະຫຼືວ່າຂໍ້ມູນມັນມີບັນຫາຖ້າມັນມີບັນຫາແບບນັ້ນກໍໃຫ້ອ່າລົບລົບຖານຂໍ້ມູນແລ້ວໄປແກ້ໄຂຂໍ້ມູນໃໝ່ຫຼືວ່າໄປແບັກອັບອອກມາໃໝ່ລະກະໃໝ່ເນາະອ່າການລົບກໍມີແຕ່ຄິກຂວາໃສ່ກະກົດ
 ເນາະເນາະສຳລັບຄລິບກ່ຽວກັບການລຂໍ້ມູນກະມີສ່ຳນີ້ເນາະ
 
-## Extracted screens / fields  (fill after human review or vision pass)
+## Extracted screens / fields
+
+_Reconstructed from ASR transcript; uncertain items marked [verify]._
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| pgAdmin login | Password (each time) — or auto-login if the password was saved ("saເຊveພາເວີດ" [verify] = "save password") | "ຖ້າເຮົາຈື່ລະຫັດຜ່ານກໍໃຫ້ລ໊ອກອິເຂົ້າ" |
+| Server tree | "databas" node (PostgreSQL 15 — "ເຂດ 15" [verify]); "ກ້ອນຖານຂໍ້ມູນ" (database block/group) | Right-click for actions |
+| Create database dialog ("create databas" — "ຄate databas" [verify]) | Name: English only, case allowed ("ຕັ້ງເປັນຊື່ພາສາອັງກິດ... ບໍ່ໃຫ້ຕັ້ງເປັນຊື່ພາສາລາວ... ໂຕນ້ອຍໂຕໃຫຍ່ໄດ້ໝົດ"); example: district/province name ("ຕົວຢ່າງ... ຊື່ເມືອງ", ASR "ຕາຕາ" [verify — "data"?]); owner: choose between "postgres" ("ໂພສກ"/"pocດ" [verify]) and "dbperlet" ("dbປerເລຕ" [verify]); "save" | |
+| Restore dialog | Right-click the new DB → "restore"; "file name" — folder browse icon ("ຮູບໂຟoldເດີ"), file location (example: desktop — "ໜ້າເດop" [verify]), "open"; owner selection ("ອາໂພກ" [verify — "owner"]) must match the creation user; "restore" button | Backup file = SQL dump from another PC's Postgres/PGAdmin4 ("ຟy back SQL") |
+| Restore log view | Document icon ("ຮູບເອກະສານນີ້ວິວ" [verify]) shows progress/loading; green "successfully complete" message vs red failure | "ສີຂຽວ" = success; "ສີແດງ" = data problem |
+| Delete database | Right-click → delete ("ຄິກຂວາໃສ່ກະກົດ" [verify]) | Recovery: delete the DB, fix/re-back up the data, retry |
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+_Reconstructed from ASR transcript; uncertain items marked [verify]._
+
+1. Take a backup SQL file ("ຟy back SQL") created by Postgres or PGAdmin4 ("PG admin 4") from another machine ("ແບກອອກມາຈາກຄອມໜ່ວຍອື່ນ") and bring it to this machine.
+2. Open pgAdmin ("PGmin c" [verify]); go to PostgreSQL 15 ("ເຂດ 15" [verify]); log in with the password — if it was saved ("saເຊveພາເວີດ" [verify = "save password"]), it links straight in without asking.
+3. Right-click the database ("databas") → "Create database" ("ຄate databas" [verify]).
+4. Set the database name: use the district/province name ("ຮູ້ວ່າເປັນຖານຂໍ້ມູນຂອງເມືອງ ຫຼື ແຂວງ" — data of the district or province); "the name must be in English, not Lao — 'no Lao, English only' — uppercase/lowercase allowed" ("ຕັ້ງເປັນຊື່ພາສາອັງກິດ... ບໍ່ໃຫ້ຕັ້ງເປັນຊື່ພາສາລາວ... ໂຕນ້ອຍໂຕໃຫຍ່ໄດ້ໝົດ"). Example name used: "ຕາຕາ" [verify].
+5. Pick the owner ("ອເນີ" [verify]): choose between "postgres" ("ໂພສກ"/"pocດ") and "dbperlet" ("dbປerເລຕ") — either one works; this clip uses "postgres" [verify].
+6. Click "save".
+7. Right-click the new database → "restore"; in the "file name" field, click the folder icon ("ຮູບໂຟoldເດີ") and browse to where the backup file is stored (e.g. the desktop — "ໜ້າເດop" [verify]); select the file; "open".
+8. In the owner field, pick the same user as at creation ("ເລືອກເປັນ... ຄືກັນ" — if the DB was created with "db", pick "db"; here "pocດ"/postgres [verify]).
+9. Click "restore". To watch progress, click the document icon ("ຮູບເອກະສານນີ້ວິວ" [verify]) — the restore view shows the data loading.
+10. Result: green "successfully complete" message ("ສີຂຽວ" = success). If red ("ສີແດງ") = failure or data problem: delete the database ("ລົບຖານຂໍ້ມູນ" — right-click → "ຄິກຂວາໃສ່ກະກົດ" [verify]), fix the data or make a fresh backup, and retry.
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] Confirm the exact database name convention — ASR example "ຕາຕາ" [verify: "data"?] — is it always the district/province name?
+- [ ] Which owner is standard in production — "postgres" or "dbperlet" ("dbປerເລຕ" [verify])?
+- [ ] What is the backup file extension/format ("ຟy back SQL" [verify] — pg_dump .sql, or a custom format)?
+- [ ] Is the "document icon" progress view ("ຮູບເອກະສານນີ້ວິວ" [verify]) standard pgAdmin restore logging?
+- [ ] On red failure, is "delete the DB and retry" the only sanctioned recovery, or are there partial-restore options?
+- [ ] Does restoring overwrite an existing DB of the same name, or must the DB be created empty first?

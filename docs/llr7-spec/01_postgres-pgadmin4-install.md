@@ -153,16 +153,41 @@ GotHeb ບໍ່ຈຳເປັນຕ້ອງມີສ່ວນຂະຫຍາ�
 ເພື່ອເຊື່ອມຕໍ່ກັບຖານຂໍ້ມູນເຫຼົ່ານີ້...
 [ສຽງຕົບມື]
 
-## Extracted screens / fields  (fill after human review or vision pass)
+## Extracted screens / fields
+
+_Reconstructed from ASR transcript; uncertain items marked [verify]._
 
 | Screen / form | Fields & controls | Notes |
 |---|---|---|
-| _pending_ | | |
+| PostgreSQL 15 installer (file 1 of 2) | Password field; port digits "54, 31, 32, 33, 34" [verify — likely 5432]; "Next" ("ຕໍ່ໄປ") buttons; options checkbox; "Finish" ("ສຳເລັດ") | "ຈໍາເປັນຕ້ອງມີລະຫັດຜ່ານເພື່ອເຂົ້າເຖິງຖາດຂໍ້ມູນທຸກໆຄັ້ງ" (a password is required for every DB access); remember it "ເພື່ອຄວາມປອດໄພ" (for security) |
+| pgAdmin4 installer (file 2 — ASR "ຕິດຕັ້ງໄຟລ໌ໃບບິນ PO GIS" [verify]) | "ຕໍ່ໄປ, ຕໍ່ໄປ, ລໍຖ້າໃຫ້ມັນເຊື່ອມຕໍ່" (Next, next, wait for it to connect); "ສຳເລັດ" (Finish) | Close it before opening pgAdmin ("ປິດມັນ... ກ່ອນທີ່ພວກເຮົາຈະເປີດ PG.Admin") |
+| pgAdmin4 launch | Search box: type "pg Admin" ("ປຽງແຕ່ໃສ່ 'pg Admin' ແລະມັນຈະປາກົດຂຶ້ນ"); side button ("ກົດປຸ່ນຢູ່ດ້ານຂ້າງ") | From the C:\ program file ("ໄຟລ໌ໂປຣແກຣມໃນໂຟນເດີ C") |
+| Server connect dialog | "server" + password field; "save password" checkbox ("ບັນທຶກ Word" [verify]); other options left unselected ("ປະໄວ້ໂດຍບໍ່ເລືອກ") | Use the password set at install ("ສິ່ງທີ່ພວກເຮົາໃສ່ລົງໄປໃນຕອນທຳອິດ") |
+| pgAdmin tree — initial state | Only the default `postgres` DB ("po") exists; right-click ("ກົດປຸ່ນເມົ້າຂວາ") → "Rest" (Restore) | "ຈະມີພຽງແຕ່ po ແທນນັ້ນ" |
+| Create database dialog | Name: "doc" or "Document" ("ຕັ້ງຊື່ມັນວ່າ 'doc' ຫຼື 'Document'"); owner dropdown — example "pate" [verify — likely `postgres`] | The document DB holds "ໄຟລ໌ເອກະສານທີ່ສະແກນໄດ້" (scanned document files) |
+| Restore dialog | File picker — "ໄຟລ໌ນີ້ທີ່ມີຊື່ວ່າ [filename]" [verify]; run; log shows green success vs red error text | "ບໍ່ມີຕົວັກສີແດງ" (no red text) = success |
+| Failure recovery | Right-click the block ("ບລັອກ") → "delete" ("ລຶບ"), then create a new block; start over ("ເລີ່ມຕົ້ນລະບົບຄືນໃໝ່") | "ຖ້າມັນບໍ່ຜ່ານ, ໃຫ້ລຶບບລັອກທີ່ມີຢູ່ແລ້ວແລະສ້າງບລັອກໃໝ່" |
 
 ## Workflow steps (from transcript)
 
-1. _pending — extract from transcript during spec build_
+_Reconstructed from ASR transcript; uncertain items marked [verify]._
+
+1. Run the PostgreSQL 15 installer — "ມີສອງໄຟລ໌ໃຫ້ພວກເຮົາຕິດຕັ້ງ" (two files to install); follow the on-screen directions, clicking "ຕໍ່ໄປ" (Next) repeatedly.
+2. Set the database password: "ຈໍາເປັນຕ້ອງມີລະຫັດຜ່ານເພື່ອເຂົ້າເຖິງຖາດຂໍ້ມູນທຸກໆຄັ້ງ" (a password is required to access the database every time); remember it "ເພື່ອຄວາມປອດໄພ" (for security). Port: ASR "54, 31, 32, 33, 34" [verify — likely 5432].
+3. After install completes, tick the options box ("ໝາຍຕິກໃສ່ກ່ອງນີ້") and click "ສຳເລັດ" (Finish); then install the second file — the pgAdmin4 installer ("ຕິດຕັ້ງໄຟລ໌ໃບບິນ PO GIS" [verify] — ASR likely garbles "pgAdmin").
+4. "ຕໍ່ໄປ, ຕໍ່ໄປ, ລໍຖ້າໃຫ້ມັນເຊື່ອມຕໍ່" (Next, next, wait for it to connect); when done, "ປິດ" (close) it before opening pgAdmin.
+5. Launch pgAdmin4 from the program folder on the C: drive ("ໄຟລ໌ໂປຣແກຣມໃນໂຟນເດີ C"); find it via the search box by typing "pg Admin".
+6. On the server connect screen, enter the server password ("ກ່ຽວກັບຄຳວ່າ 'ເຊີບເວີ', ກະລຸນາໃສ່ລະຫັດຜ່ານ"); optionally tick "save password" ("ບັນທຶກ Word" [verify]); leave the other options unselected ("ປະໄວ້ໂດຍບໍ່ເລືອກ").
+7. Initial tree shows only the default `postgres` DB ("ຈະມີພຽງແຕ່ po ແທນນັ້ນ"); create the document database: right-click ("ກົດປຸ່ນເມົ້າຂວາ") → new database, name it "doc" or "Document", pick an owner from the dropdown (example "pate" [verify — likely `postgres`]).
+8. Restore the prepared data file into the new DB (right-click → "Rest" [verify]); success = no red text in the log ("ບໍ່ມີຕົວັກສີແດງ").
+9. If a failure message appears ("ຜິດພາດ"), one remedy is installing "Extension 7" [verify]; if it still fails: right-click the block ("ບລັອກ"), "delete" ("ລຶບ"), create a new block, and restart the system from the beginning ("ເລີ່ມຕົ້ນລະບົບຄືນໃໝ່").
+10. Once the DB "block" is in place on disk ("ບລັອກຂໍ້ມູນໄດ້ຖືກໃສ່ລົງໃນດິນສຳເລັດ"), create the database for storage; scanned document files are then uploaded into the DB ("ໄຟລ໌ເອກະສານທີ່ສະແກນໄດ້ຖືກອັບໂຫຼດຂຶ້ນຖານຂໍ້ມູນແລ້ວ").
 
 ## Open questions for review
 
-- [ ] _add questions that the transcript can't answer (rules, roles, edge cases)_
+- [ ] What is the exact Postgres port in use — ASR heard "54, 31, 32, 33, 34" [verify: 5432?]?
+- [ ] Is the second installer file definitely pgAdmin4, and what is the box that must be ticked at the end ("ໝາຍຕິກໃສ່ກ່ອງນີ້")?
+- [ ] What is meant by the "block" ("ບລັອກ") that gets deleted and recreated on failure — the database, a tablespace, or a pgAdmin node?
+- [ ] What is "Extension 7" that some machines need to install [verify: PostGIS or a contrib extension?]?
+- [ ] What is the owner convention for the "doc" database — `postgres` ("pate" [verify]) or a dedicated user?
+- [ ] What restore file is used ("ໄຟລ໌ນີ້ທີ່ມີຊື່ວ່າ [filename]" [verify]) and where does it come from (EP18 backup format)?
