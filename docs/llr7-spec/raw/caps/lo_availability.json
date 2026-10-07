@@ -1,0 +1,142 @@
+{
+ "DqM0Kndkz1U": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 699,
+  "title": "LLR7 ການຕິດຕັ້ງ Postgres 15 & PGAdmin4 EP.1"
+ },
+ "RsLpvQwGdEU": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 754,
+  "title": "ການຕິດຕັ້ງ Qgis3.34 & LLR7.2 EP.2"
+ },
+ "47BM01MAocA": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 1792,
+  "title": "LLR7 ການຂຶ້ນທະບຽນອອກໃບຕາດິນໃໝ່ EP.3"
+ },
+ "9X0FSJFq-k4": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 838,
+  "title": "LLR7 ການຈົດທະບຽນມອບໂອນໝົດຕອນ EP.4"
+ },
+ "ZeVzTp1T7XI": {
+  "lo": false,
+  "th": false,
+  "n_auto": 0,
+  "dur": 1066,
+  "title": "LLR7 ການຈົດທະບຽນ ແບ່ງແຍກ EP.5"
+ },
+ "k5N59T3ay-k": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 631,
+  "title": "LLR7 ການປະເມີນລາຄາ ແລະ ຄິດໄລ່ຄ່າທຳນຽມທີ່ດິນ EP.6"
+ },
+ "mp22eHRhsmM": {
+  "lo": false,
+  "th": false,
+  "n_auto": 0,
+  "dur": 1725,
+  "title": "LLR7 ການຈົດທະບຽນ ໂຮມຕອນດິນເຂົ້າກັນ EP.7"
+ },
+ "r1AmBLHJ2Ro": {
+  "lo": false,
+  "th": false,
+  "n_auto": 0,
+  "dur": 1274,
+  "title": "LLR7 ການນຳເຂົ້າຂໍ້ມູນຈາກລະບົບເກົ່າເປັນລະບົບDigital EP.8"
+ },
+ "Qe-M0fjP0PQ": {
+  "lo": false,
+  "th": false,
+  "n_auto": 0,
+  "dur": 535,
+  "title": "LLR7 ການຈົດທະບຽນເຄື່ອນໄຫວສັນຍາຄ້ຳປະກັນເງິນກູ້ຢືມ EP.9"
+ },
+ "5m74zCwNxpY": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 860,
+  "title": "ການເຄື່ອນໄຫວອອກໃບຢັ້ງຢືນຄວາມຖືກຕ້ອງຂອງໃບຕາດິນ EP.10"
+ },
+ "-PJH8cU8M8k": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 680,
+  "title": "ການສົ່ງ User ແລະ ຕອນດິນ ຈາກຖານພາກສະໜາມເຂົ້າໃນServerຈິງ"
+ },
+ "hL1WCU5Bq1Q": {
+  "lo": false,
+  "th": false,
+  "n_auto": 0,
+  "dur": 68,
+  "title": "LLR7 ການຕັ້ງຄ່າເບື້ອງຕົ້ນຂອງໂປຣແກຣມ LaoLandReg7.2 ກ່ອນທ"
+ },
+ "KkQO55HBhok": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 541,
+  "title": "ວິທີການສ້າງວົງມົນເພື່ອຕັດແບ່ງຕອນດິນ ໃນຮູບແບບBuffer Qgis"
+ },
+ "BIAhi9MW5g0": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 78,
+  "title": "ວິທີເຈາະຕອນດິນ Qgis3"
+ },
+ "jYLmyWtqps8": {
+  "lo": false,
+  "th": false,
+  "n_auto": 0,
+  "dur": 210,
+  "title": "ການສົ່ງຕອນດິນອອກຈາກພາກສະໜາມເປັນຟາຍ Lreg"
+ },
+ "BfEUdQoXntE": {
+  "lo": false,
+  "th": false,
+  "n_auto": 0,
+  "dur": 322,
+  "title": "ວິທີ Backup ຖານຂໍ້ມູນ pgAdmin4"
+ },
+ "1mTxz1hiVfI": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 343,
+  "title": "ການຕັ້ງຄ່າເພື່ອການດັດແກ້ parcel ຢູ່ໃນ Qgis"
+ },
+ "UqtkHpv6PJk": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 386,
+  "title": "ການສ້າງຖານຂໍ້ມູນ ແລະ Restore ຖານຂໍ້ມູນ"
+ },
+ "uSnpKIrRK2w": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 524,
+  "title": "ວິທີປ່ຽນຂໍ້ມູນ AutoCad Lao97 ເປັນ Zone48"
+ },
+ "wfBiN0-ePUA": {
+  "lo": true,
+  "th": true,
+  "n_auto": 157,
+  "dur": 484,
+  "title": "ການນຳໃຊ້ເຄື່ອງມື QAD ໃນ QGIS3"
+ }
+}

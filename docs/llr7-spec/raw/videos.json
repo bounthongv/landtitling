@@ -1,0 +1,170 @@
+[
+ {
+  "n": 1,
+  "ep": "EP1",
+  "id": "DqM0Kndkz1U",
+  "title": "LLR7 ການຕິດຕັ້ງ Postgres 15 & PGAdmin4",
+  "group": "1-workflows",
+  "note": "Installation: PostgreSQL 15 + pgAdmin4"
+ },
+ {
+  "n": 2,
+  "ep": "EP2",
+  "id": "RsLpvQwGdEU",
+  "title": "ການຕິດຕັ້ງ Qgis3.34 & LLR7.2",
+  "group": "1-workflows",
+  "note": "Installation: QGIS 3.34 + LaoLandReg 7.2 plugin"
+ },
+ {
+  "n": 3,
+  "ep": "EP3",
+  "id": "47BM01MAocA",
+  "title": "LLR7 ການຂຶ້ນທະບຽນອອກໃບຕາດິນໃໝ່",
+  "group": "1-workflows",
+  "note": "NEW TITLE REGISTRATION — core workflow (~30 min)"
+ },
+ {
+  "n": 4,
+  "ep": "EP4",
+  "id": "9X0FSJFq-k4",
+  "title": "LLR7 ການຈົດທະບຽນມອບໂອນໝົດຕອນ",
+  "group": "1-workflows",
+  "note": "FULL TRANSFER of a parcel"
+ },
+ {
+  "n": 5,
+  "ep": "EP5",
+  "id": "ZeVzTp1T7XI",
+  "title": "LLR7 ການຈົດທະບຽນ ແບ່ງແຍກ",
+  "group": "1-workflows",
+  "note": "SUBDIVISION of a parcel"
+ },
+ {
+  "n": 6,
+  "ep": "EP6",
+  "id": "k5N59T3ay-k",
+  "title": "LLR7 ການປະເມີນລາຄາ ແລະ ຄິດໄລ່ຄ່າທຳນຽມທີ່ດິນ",
+  "group": "1-workflows",
+  "note": "VALUATION + LAND FEE CALCULATION — rule engine candidate"
+ },
+ {
+  "n": 7,
+  "ep": "EP7",
+  "id": "mp22eHRhsmM",
+  "title": "LLR7 ການຈົດທະບຽນ ໂຮມຕອນດິນເຂົ້າກັນ",
+  "group": "1-workflows",
+  "note": "PARCEL MERGING"
+ },
+ {
+  "n": 8,
+  "ep": "EP8",
+  "id": "r1AmBLHJ2Ro",
+  "title": "LLR7 ການນຳເຂົ້າຂໍ້ມູນຈາກລະບົບເກົ່າເປັນລະບົບ Digital",
+  "group": "1-workflows",
+  "note": "LEGACY DATA IMPORT to digital system"
+ },
+ {
+  "n": 9,
+  "ep": "EP9",
+  "id": "Qe-M0fjP0PQ",
+  "title": "LLR7 ການຈົດທະບຽນເຄື່ອນໄຫວສັນຍາຄ້ຳປະກັນເງິນກູ້ຢືມ",
+  "group": "1-workflows",
+  "note": "MORTGAGE / LOAN contract registration"
+ },
+ {
+  "n": 10,
+  "ep": "EP10",
+  "id": "5m74zCwNxpY",
+  "title": "ການເຄື່ອນໄຫວອອກໃບຢັ້ງຢືນຄວາມຖືກຕ້ອງຂອງໃບຕາດິນ",
+  "group": "1-workflows",
+  "note": "TITLE AUTHENTICITY LETTER procedure (compare vs ໃບແຈ້ງມີ)"
+ },
+ {
+  "n": 11,
+  "ep": "FIELD",
+  "id": "-PJH8cU8M8k",
+  "title": "ການສົ່ງ User ແລະ ຕອນດິນ ຈາກຖານພາກສະໜາມເຂົ້າໃນ Server ຈິງ",
+  "group": "1-workflows",
+  "note": "Field DB -> central server sync (users + parcels)"
+ },
+ {
+  "n": 12,
+  "ep": "SETUP",
+  "id": "hL1WCU5Bq1Q",
+  "title": "LLR7 ການຕັ້ງຄ່າເບື້ອງຕົ້ນຂອງ LaoLandReg7.2",
+  "group": "2-tools",
+  "note": "Initial configuration before use"
+ },
+ {
+  "n": 13,
+  "ep": "BUFFER",
+  "id": "KkQO55HBhok",
+  "title": "ວິທີການສ້າງວົງມົນເພື່ອຕັດແບ່ງຕອນດິນ Buffer Qgis3.34",
+  "group": "2-tools",
+  "note": "Circle/buffer drawing for parcel splitting"
+ },
+ {
+  "n": 14,
+  "ep": "DRILL",
+  "id": "BIAhi9MW5g0",
+  "title": "ວິທີເຈາະຕອນດິນ Qgis3",
+  "group": "2-tools",
+  "note": "Drilling/punching parcels in QGIS3"
+ },
+ {
+  "n": 15,
+  "ep": "LREG",
+  "id": "jYLmyWtqps8",
+  "title": "ການສົ່ງຕອນດິນອອກຈາກພາກສະໜາມເປັນໄຟລ໌ Lreg",
+  "group": "2-tools",
+  "note": "Export field parcels to .Lreg file"
+ },
+ {
+  "n": 16,
+  "ep": "BACKUP",
+  "id": "BfEUdQoXntE",
+  "title": "ວິທີ Backup ຖານຂໍ້ມູນ pgAdmin4",
+  "group": "2-tools",
+  "note": "DB backup via pgAdmin4"
+ },
+ {
+  "n": 17,
+  "ep": "EDIT",
+  "id": "1mTxz1hiVfI",
+  "title": "ການຕັ້ງຄ່າເພື່ອການດັດແກ້ parcel ຢູ່ໃນ Qgis",
+  "group": "2-tools",
+  "note": "Settings for parcel editing in QGIS"
+ },
+ {
+  "n": 18,
+  "ep": "DB",
+  "id": "UqtkHpv6PJk",
+  "title": "ການສ້າງຖານຂໍ້ມູນ ແລະ Restore ຖານຂໍ້ມູນ",
+  "group": "2-tools",
+  "note": "Create + restore database"
+ },
+ {
+  "n": 19,
+  "ep": "PGADMIN",
+  "id": "Qh6ZYglhz_g",
+  "title": "ວິທີແກ້ກໍລະນີເປີດ pgAdmin4 ບໍ່ໄດ້",
+  "group": "2-tools",
+  "note": "pgAdmin4 won't open — fix. STATUS: video unavailable on YouTube"
+ },
+ {
+  "n": 20,
+  "ep": "ZONE48",
+  "id": "uSnpKIrRK2w",
+  "title": "ວິທີປ່ຽນຂໍ້ມູນ AutoCad Lao97 ເປັນ Zone48",
+  "group": "2-tools",
+  "note": "AutoCad Lao97 coordinate data -> Zone48"
+ },
+ {
+  "n": 21,
+  "ep": "QAD",
+  "id": "wfBiN0-ePUA",
+  "title": "ການນຳໃຊ້ເຄື່ອງມື QAD ໃນ QGIS3",
+  "group": "2-tools",
+  "note": "Using QAD measurement tool in QGIS3"
+ }
+]
