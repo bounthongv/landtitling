@@ -1,12 +1,20 @@
-How to set up in order for the program to run
-1. On the document, set the value to be 4 and 7
-2. On the document, set the value to be 7
-3. On the QGIS, set the value to be 4
-4. On the QGIS, set the value to be 3.
-5. The
-6. Put out the file победر
-7. Please select the file Name and press Q.
-8. Ready to connect
-9. Select the index
-9. Select blyn
-Then press the button
+# detected_language=th
+# chunks=1x180s (completed=1)
+ที่ตั้งคา เพื่อไม่ให้โปรแกมมันเดิงออก
+ที่ 1 บนเก็บเมียน โคงการ ให้มาเบา
+เบาหาสองซี และกะเล่นเล็ก 7
+โอเค
+ที่ 2 บนเก็บเมียน อิกษาท
+ให้เลือกเป็น document
+เล่นเล็ก 7
+โอเค
+ที่ 3 คิว ให้เลือกเป็นสองซี
+โปรแกมไฟ
+คิว จี เอ็ด จ้ำ สาม สี
+บิน
+และกะเลือกไฟใด ๆ หนึ่ง และกดตัวคิว ให้มันเล่นไปหา
+อักซอน คิว เลือก คิว จี เอ็ด บิน
+และกะ เอา เปิน
+จากนั้นกะกดน้ำไส้เลย
+และกะ น้ำไส้ปกติ มันกะสิบวดเองออก
+### DONE

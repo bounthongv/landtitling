@@ -4,3 +4,21 @@ docs/llr7-spec/raw/whisper_pass.log
 docs/llr7-spec/raw/whisper_setup_auto.log
 docs/llr7-spec/raw/caps_fetch.log
 docs/llr7-spec/raw/fetch_caps.log
+
+# --- media & caches (kept on disk, not committed) ---
+docs/llr7-spec/raw/audio/*.webm
+docs/llr7-spec/raw/audio/*.wav
+docs/llr7-spec/raw/audio/*.chunks/
+
+# --- logs ---
+docs/llr7-spec/raw/audio_dl.log
+docs/llr7-spec/raw/audio_dl2.log
+docs/llr7-spec/raw/whisper_pass2.log
+docs/llr7-spec/raw/whisper_pass3.log
+docs/llr7-spec/raw/whisper_pass_medium.log
+docs/llr7-spec/audio_download_log.txt
+
+# --- editor / OS junk ---
+.~lock.*#
+~$*
+

@@ -1,13 +1,15 @@
 # Land Title Management System — Consolidated Requirements (SRS)
 
-> **Status:** DRAFT v0.1 — compiled from the 13 ASR-complete legacy spec files.
-> The 6 clips still awaiting audio (05 subdivision, 07 merging, 08 legacy import,
-> 09 mortgage, 15 Lreg export, 16 DB backup) are marked **(audio pending)** and
-> will be folded in once `raw/audio/` is populated and the Whisper pass runs.
+> **Status:** DRAFT v1.0 — now covers **all 20 reachable legacy videos**
+> (19 transcripts: 13 YouTube ASR tracks + 6 local Whisper transcriptions of
+> user audio + 1 SETUP clip). The only clip without a transcript is 19
+> (pgAdmin-fix), whose YouTube video is gone (404).
 >
-> **Source basis:** `docs/llr7-spec/NN_*.md`. Every requirement cites the spec file
-> it came from. Items the ASR could not confirm are tagged **[verify]**. Where a
-> statement comes from a title-only (no-transcript) file it is tagged **[title only]**.
+> **Source basis:** `docs/llr7-spec/NN_*.md` (one file per video). Every
+> requirement cites its source file. Items the ASR could not confirm are
+> tagged **[verify]**. The 6 Whisper-based files (05, 07, 08, 09, 15, 16)
+> transcribe **Thai** narration — workflow-level detail, all proper nouns
+> [verify].
 
 ---
 
@@ -27,13 +29,13 @@ new system:
 |---|---|
 | New title registration (03) | Create a parcel + rights-holder title from survey data |
 | Full parcel transfer (04) | Transfer rights (sale / gift / inheritance) with valuation + fees |
-| Parcel **subdivision** (05 — audio pending) | Split a parcel into registered sub-parcels |
-| Parcel **merging** (07 — audio pending) | Combine parcels into one |
+| Parcel **subdivision** (05) | Split a parcel into registered sub-parcels |
+| Parcel **merging** (07) | Combine parcels into one |
 | Valuation + fee calc (06) | Zone-based valuation + registration/service/survey fee engine |
-| Mortgage / loan contract (09 — audio pending) | Register a mortgage/loan against a parcel |
-| Legacy data import (08 — audio pending) | Bulk-migrate pre-digital records |
+| Legacy data import (08) | Migrate pre-digital records into the digital system |
+| Mortgage / loan contract (09) | Register a mortgage/loan against a parcel |
 | Title authenticity letter (10) | Issue ໃບຢັ້ງຢືນຄວາມຖືກຕ້ອງຂອງໃບຕາດິນ (see §9) |
-| Field → server sync (11, 15 — 15 audio pending) | Two-tier sync: field local DB → central server |
+| Field → server sync (11, 15) | Two-tier sync: field local DB → central server (`.Lreg` export) |
 | GIS tools (13, 14, 17, 20, 21) | Splitting (buffer/QAD), parcel editing, coordinate conversion |
 | DB admin (01, 18, 16) | Per-district DB lifecycle, backup/restore |
 
@@ -187,7 +189,7 @@ Each requirement lists its source file. `[verify]` = not confirmed by ASR.
 - **FR-LTR-8** Officer checks documents + movements, notes any movement on the
   letter, then hands it to the citizen — procedure complete.
 
-### 4.5 Field → server sync (11; 15 audio pending)
+### 4.5 Field → server sync (11, 15)
 
 - **FR-SYNC-1** **Users are exported first, once.** From the field local DB: select
   province + district, tick the user boxes, use the **save-data** button → file is
@@ -201,9 +203,13 @@ Each requirement lists its source file. `[verify]` = not confirmed by ASR.
   "document", same user.
 - **FR-SYNC-5** Import path: **System admin → Admin → Import users**; browse to the
   file, tick users, Import → "import successful" lists the names.
-- **FR-SYNC-6** **Confirm the export-file format** (possibly `.Lreg` [verify], or
-  JSON/CSV/SQLite). The new system must reproduce this sync — this is the key
-  mechanism to design (see §7).
+- **FR-SYNC-6** **Parcel export format confirmed: `.Lreg` file** (15 — see §4.9).
+  From the field machine ("Logo host") the operator selects the area (village),
+  ticks the parcel numbers (a village with 154 plots; a plot with 5 sub-parcels
+  exports as 5), presses **"send data out"**, names the file (English OK), saves →
+  confirmation "send completed". The `.Lreg` is carried to the server/office and
+  imported (11). The new system must reproduce this sync (see §7); the API payload
+  can be modelled on `.Lreg` contents [verify — exact attribute set unknown].
 
 ### 4.6 GIS tools (13, 14, 17, 20, 21)
 
@@ -228,7 +234,7 @@ Each requirement lists its source file. `[verify]` = not confirmed by ASR.
   **batch-load into the DB**. The new system must reproduce this
   import → convert → load path [verify details].
 
-### 4.7 Database administration (01, 18; 16 audio pending)
+### 4.7 Database administration (01, 18, 16)
 
 - **FR-DB-1** Install PostgreSQL 15 (default port 5432 [verify]) + pgAdmin4.
 - **FR-DB-2** Create a **document DB** ("doc"/"Document") that stores scanned
@@ -238,21 +244,126 @@ Each requirement lists its source file. `[verify]` = not confirmed by ASR.
 - **FR-DB-4** **Restore** from a backup SQL dump (from another PC): create the DB,
   right-click → restore, browse to the backup file, owner must match the creation
   user, restore; green = success, red = delete the DB, fix/re-backup, retry.
-- **FR-DB-5** **Backup** via pgAdmin4 — **no transcript yet** (16 audio pending);
-  format (SQL dump vs custom) and cadence unknown [title only].
+- **FR-DB-5** **Backup via pgAdmin4** (16): open pgAdmin4 → connect to Postgres 15
+  (some PCs have the password saved) → right-click the database → **Backup**:
+  format **PostgreSQL (SQL)**, encoding **UTF-8**, target folder/file e.g.
+  `backup\backup_llr7` → wait for "**... fully complete**" → the `.sql` backup
+  exists. The backup file is then **sent to the district (แขวง) or central office
+  (ສູນກາງ)** for consolidation. [verify: SQL-dump vs custom; cadence; which DBs —
+  parcel DB, DOC DB, or both.]
 
-### 4.8 Audio-pending workflows (05, 07, 08, 09)
+### 4.8 Parcel subdivision (05)
 
-- **FR-SUBDIV (05)** Parcel **subdivision** — split a parcel into registered
-  sub-parcels. No transcript yet; title-only. The split mechanics likely combine
-  the GIS buffer/QAD tools (13/21) with a registration step. **[title only; verify]**
-- **FR-MERGE (07)** Parcel **merging** (combine) — the longest core clip (28 m 45 s),
-  expected to be detailed. No transcript yet. **[title only; verify]**
-- **FR-IMPORT (08)** **Legacy data import** — migrate pre-digital registry data into
-  LLR7. No transcript yet. **[title only; verify]**
-- **FR-MORTGAGE (09)** **Mortgage / loan-contract registration** — record a loan
-  contract against a parcel and its effects. No transcript yet. This maps to the
-  prototype's existing mortgage feature. **[title only; verify]**
+- **FR-SUBDIV-1** Identify the **split composition** — how the parent parcel divides
+  and who owns each resulting sub-parcel (e.g. 1 parent → 3 sub-parcels, 3 new
+  owners). The sub-parcel count must match the new-owner count [verify].
+- **FR-SUBDIV-2** **GIS split first** — in QGIS (new project, zone 47N/48N), load
+  the request-set code into the maintenance panel, open the **SurveyTask** layer,
+  select the parent parcel(s) (turn yellow), **Edit Geometry → Split Feature**;
+  N cuts → N+1 parcels. Save.
+- **FR-SUBDIV-3** **Close the LLR7 form to green** — the request set disappears from
+  the list (completed); sub-parcels remain in the GIS layer.
+- **FR-SUBDIV-4** **Register each sub-parcel** — in the "change register" panel,
+  add sub-parcel N (e.g. 70/71/72), **remove the old owner(s)**, add the new
+  owner(s) (an un-removed old owner prints alongside the new ones).
+- **FR-SUBDIV-5** Each sub-parcel's form must close to **green** before the next is
+  processed.
+- **FR-SUBDIV-6** **Print** the subdivision documents (sub-parcel no., owner,
+  transfer type) [verify — template].
+
+### 4.9 Parcel merging (07)
+
+- **FR-MERGE-1** Precondition: two **adjacent parcels owned by the same person**
+  [verify] that are in a state allowing merging [verify].
+- **FR-MERGE-2** Set up the **big request set** (data in/out): add co-owner data
+  (name, DOB, nationality, occupation, address) + a **small request set**.
+- **FR-MERGE-3** **Add the parcels** — search each parcel by number (video: 45 &
+  46), select, press **+** to add to the request set.
+- **FR-MERGE-4** Set registration type = **"survey change"** (even for a merge
+  [verify]); request type = **"parcel merging"**; status = "request out completed".
+- **FR-MERGE-5** **GIS merge** — QGIS new project (zone 48N), lock in the request-set
+  code, load **SurveyTask**, select both parcels (yellow), **Edit Geometry →
+  Merge Selected Features** → confirm "two layers will be merged".
+- **FR-MERGE-6** Enter the **new merged parcel number** (real value from the
+  register book; test value 5,000 in the video) [verify].
+- **FR-MERGE-7** **Close & save every QGIS window** (incl. layer panel) — unsaved
+  windows block **Finalize** (error, must restart). [operational pitfall]
+- **FR-MERGE-8** **Finalize** — auto fields: surveyor, equipment (RTK). The request
+  set disappearing = merge completed.
+- **FR-MERGE-9** **Owner cleanup** — in the "change" panel (parcel change →
+  registration change), **remove both old owner entries** from the big request set;
+  the merged parcel then shows a single owner; old parcel numbers show **red
+  (closed/void)**.
+- **FR-MERGE-10** **Move (ໂອນ)** to the new parcel number; "opening" completes →
+  request-set dot **green**.
+- **FR-MERGE-11** **Print** — merged parcel with both original numbers, road
+  classification, person data, closing stamp [verify — template].
+
+### 4.10 Legacy data import (08)
+
+Three phases (per the 21-minute clip):
+
+**Phase A — create the digital record (LLR7 data in/out):**
+- **FR-IMP-A1** Open Data in/out → village/parcel data → **add a new small request
+  set**; applicant = the title owner, data **from the old (paper) title**.
+- **FR-IMP-A2** Registration type = "internal"; request type = **"old-system title
+  into digital system"** [verify].
+- **FR-IMP-A3** Add parcel data (parcel no., area, land-use type, village/district/
+  town, road type, map sheet no. [verify values]) and **bind the owner** to the
+  parcel; enter old title book/page numbers; close the data-edit form (tracking
+  copy printable).
+
+**Phase B — update the GIS (QGIS):**
+- **FR-IMP-B1** QGIS new project, zone 48N/47N; add the **survey step-5 layer**
+  (newly-surveyed geometry).
+- **FR-IMP-B2** DB settings tab: Postgres host [verify], **port 5434** [verify —
+  confirm vs 5432], program user/password; **Test Connection** → success.
+- **FR-IMP-B3** Load the **"parcel update"** table → **partial update** layer →
+  **Add** → export **Save File** (CRS **WGS84**, e.g. "update 8.4").
+- **FR-IMP-B4** **Remap** the update layer into the zone; enable **snapping**
+  (meter) so the update aligns with the LLR7 layer; **parcel number must match**
+  (e.g. 146). Save; **Copy Fields** from the update layer into the **SurveyTask**
+  layer.
+- **FR-IMP-B5** Back in LLR7, **refresh** — the parcel shows the updated (green)
+  geometry with person data joined.
+
+**Phase C — PENCY → PENA (old title → new title number):**
+- **FR-IMP-C1** If the old title is **PENCY** (ເກົ່າ), it must be updated to
+  **PENA** (ໃໝ່) first: carry over the PENCY parcel no., old book no., PENA sheet
+  no. [verify — PENCY/PENA semantics garbled].
+- **FR-IMP-C2** Close the edit form → the parcel **moves to the PENA number**
+  (e.g. parcel 200).
+- **FR-IMP-C3** Enter the **handover** (general/normal handover,
+  ການມອບຕ່າງທົ່ວໄປ) → complete the "add data from old title" workflow.
+
+### 4.11 Mortgage / loan-contract registration (09)
+
+- **FR-MORT-1** Enter the loan data on the form; **add the request**; go to the
+  **land-use rights** step.
+- **FR-MORT-2** Find the target parcel by sub-parcel number; load the request set;
+  add the relevant co-owners/parties [verify].
+- **FR-MORT-3** Set registration type = **"record the movement" → "record the
+  loan-contract registration"** (ຈຶດທະບຽນສັນຍາຄຳປະກັນເງິນກູ້).
+- **FR-MORT-4** Enter the loan amount / contract authority (video demo: 600,000
+  kip; 500,000 limit) [verify — demo values]; record the receipt line.
+- **FR-MORT-5** Add a **tracking copy**; hand over to the **title owner who came to
+  stand**.
+- **FR-MORT-6** In the **registration panel** → movement → change edit → register
+  form: select the request set, **add the movement** (ເພີ່ມສິດເຄື່ອນໄພ), confirm
+  the change ("registration land"), set status = main, press **"complete all
+  requests"** → OK.
+- **FR-MORT-7** **Close the app; the status dot must turn green** (from blue). If
+  still red, open the other edit form and close it.
+- **FR-MORT-8** **Fees** — the mortgage triggers a **fee document** via the same
+  **barcode / fee-calc** path as EP6 (scan or type the barcode; the system adds a
+  **stamp-duty / service-fee** line; video demo: land 600,000 → service 50,000 →
+  stamp 50,000 [verify]); **create the document**.
+- **FR-MORT-9** The loan-contract type is stored on the parcel; a later movement
+  **creates a new request set** (does not delete).
+- **Open (from clip):** whether a registered mortgage **blocks** other
+  transactions (sale/subdivision) and how a **release/discharge** is recorded —
+  the clip ends before these. The citizen-portal prototype currently **blocks**
+  ໃບແຈ້ງມີ on mortgaged parcels — confirm this matches legacy.
 
 ---
 
