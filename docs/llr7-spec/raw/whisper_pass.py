@@ -12,7 +12,7 @@ Usage:
 import os, re, time, math, shutil, subprocess
 
 A = r"D:\LandTitling\docs\llr7-spec\raw\audio"
-RAW = os.path.dirname(os.path.dirname(A))
+RAW = os.path.dirname(A)  # .../raw  (where whisper_chunk.py lives)
 PY = r"C:\Users\bount\AppData\Local\hermes\hermes-agent\.venv\Scripts\python.exe"
 CHUNK = 180  # seconds
 THREADS_FALLBACK = [4, 2, 1]  # try 4, then 2, then 1 if a chunk OOMs
@@ -71,7 +71,7 @@ def run_chunk(cdir, cwav, i, n, lang):
     for idx, threads in enumerate(THREADS_FALLBACK):
         cmd = [PY, os.path.join(RAW, "whisper_chunk.py"), cwav, lang, cpath,
                str(threads)]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=2400)
         body = open(cpath, encoding="utf-8", errors="ignore").read() \
             if os.path.exists(cpath) else ""
         if CHUNK_OK in body:
@@ -117,6 +117,7 @@ def main():
         dur = get_duration(wav)
         n = max(1, math.ceil(dur / CHUNK))
         lines_all, lang = [], "auto"
+        n_ok = 0
         for i in range(n):
             cwav = os.path.join(cdir, f"{i+1:03d}.wav")
             ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
@@ -125,15 +126,25 @@ def main():
                             "pcm_s16le", cwav], capture_output=True, text=True)
             lines, lang = run_chunk(cdir, cwav, i, n, lang)
             lines_all.extend(lines)
+            cp2 = os.path.join(cdir, f"{i+1:03d}.txt")
+            if os.path.exists(cp2) and CHUNK_OK in open(cp2, encoding="utf-8",
+                                                        errors="ignore").read():
+                n_ok += 1
             try:
                 os.remove(cwav)
             except OSError:
                 pass
+        done_marker = "\n### DONE\n" if n_ok == n else "\n### INCOMPLETE\n"
         open(out, "w", encoding="utf-8").write(
             f"# detected_language={lang if lang != 'auto' else '?'}\n"
-            f"# chunks={n}x{CHUNK}s\n" + "\n".join(lines_all) + "\n### DONE\n")
-        print(f"{f}: {len(lines_all)} lines total -> {vid}.whisper.txt",
-              flush=True)
+            f"# chunks={n}x{CHUNK}s (completed={n_ok})\n"
+            + "\n".join(lines_all) + done_marker)
+        if n_ok == n:
+            print(f"{f}: {len(lines_all)} lines total -> {vid}.whisper.txt",
+                  flush=True)
+        else:
+            print(f"{f}: INCOMPLETE {n_ok}/{n} chunks - {vid}.whisper.txt "
+                  f"left without DONE marker, re-run will finish it", flush=True)
 
     print("WHISPER PASS DONE", flush=True)
 
