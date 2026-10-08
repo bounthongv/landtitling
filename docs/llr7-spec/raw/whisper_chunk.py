@@ -26,10 +26,11 @@ def main():
     os.environ["XDG_CACHE_HOME"] = r"D:\whisper-cache\xdg"
 
     import faster_whisper
+    model_name = os.environ.get("WHISPER_MODEL", "large-v3")
     t0 = time.time()
-    model = faster_whisper.WhisperModel("large-v3", device="cpu",
+    model = faster_whisper.WhisperModel(model_name, device="cpu",
                                         compute_type="int8", cpu_threads=threads)
-    print(f"model ready in {time.time()-t0:.0f}s", flush=True)
+    print(f"model ready in {time.time()-t0:.0f}s ({model_name})", flush=True)
 
     lines, lang = [], lang_arg
     if lang_arg == "auto":
