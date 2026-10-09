@@ -1,39 +1,41 @@
 -- Land Fee Payment MVP — Savannakhet Province
--- Phase 0: Seed Data (placeholders — replace with official PERN list)
+-- Phase 0: Seed Data
+-- Districts: official Savannakhet list (15 districts; Kaysone Phomvihane is the capital)
+-- Zone rates: PLACEHOLDER values pending the official MOF/central-office rate schedule
+--   (legacy transcripts EP6/EP20 confirm rates are issued by the central office,
+--    not hard-coded; replace these placeholders when PERN supplies the real schedule)
 
 SET search_path = landfee;
 
--- Districts (placeholder list — verify with PERN)
+-- Districts (official Savannakhet list)
 INSERT INTO districts (code, name_lo, name_en) VALUES
-('SAV', 'ສະຫວັນນະເຂດ', 'Savannakhet'),
-('KASE', 'ຄຳເຕີນ', 'Khamkeuth'),
-('DOMP', 'ດອນປາກສານ', 'Don'),
-('PHONG', 'ພົງສະຫວັນ', 'Phong Savan'),
-('KOUN', 'ຄູນ', 'Koune'),
-('PHOU', 'ພູ', 'Phou'),
-('LAK', 'ໄລຍ່າງ', 'Laik'),
-('SEB', 'ເຊບັ້ງໄຟ', 'Sengxay'),
-('PHINE', 'ພູນາບໍ່ເຄົ້າ', 'Phon'),
-('ATAPON', 'ອັດທະບໍ່ແກ້ວ', 'Atsaban'),
-('KHAM', 'ຄຳ', 'Kham'),
-('HAT', 'ຫ້າມ', 'Hat'),
-('KOK', 'ໂຄກ', 'Kok'),
-('XEO', 'ເຊໂປນ', 'Xebangfai'),
-('XEP', 'ເຊເປຽນ', 'Xepian'),
-('PHI', 'ພິນ', 'Phin'),
-('MOOK', 'ມູກໄທດີນ', 'Mouk'),
-('LAI', 'ໄລສະບຽງ', 'Laixabiang'),
-('VET', 'ວັດຈັນ', 'Vadkan'),
-('SE', 'ເຊບັ້ງໄຟ', 'Sengxay'),
-('PHONG', 'ພົງສະຫວັນ', 'Phong Savan');
+('KAY', 'ໄກສອນ ພົມວິຫານ', 'Kaysone Phomvihane'),
+('OUT', 'ອຸທຸມພອນ', 'Outhoumphone'),
+('ATS', 'ອາດສະພອນທອງ', 'Atsaphangthong'),
+('PHI', 'ພີນ', 'Phine'),
+('XEP', 'ເຊໂປນ', 'Sepon'),
+('NON', 'ນອງ', 'Nong'),
+('THA', 'ທ່າພັນທອງ', 'Thapangthong'),
+('SON', 'ຊົນຄອນ', 'Songkhone'),
+('CHA', 'ຈຳພອນ', 'Champhone'),
+('XON', 'ຊົນບຸລີ', 'Xonbuly'),
+('XAY', 'ໄຊບຸລີ', 'Xaybuly'),
+('VIL', 'ວີລະບຸລີ', 'Vilabuly'),
+('ATP', 'ອາດສະພອນ', 'Atsaphone'),
+('XPH', 'ໄຊພູທອງ', 'Xayphouthong'),
+('PHL', 'ຜະລັນໄຊ', 'Phalanxay');
 
--- Sample zone rates (PLACEHOLDER — get official rates from PERN)
-INSERT INTO zones_rates (district_id, road_category, rate_per_sqm, valid_from) 
-SELECT d.id, 'main', 50000.00, CURRENT_DATE FROM districts d UNION ALL
-SELECT d.id, 'branch', 40000.00, CURRENT_DATE FROM districts d UNION ALL
-SELECT d.id, 'alley', 30000.00, CURRENT_DATE FROM districts d UNION ALL
-SELECT d.id, 'none', 20000.00, CURRENT_DATE FROM districts d;
+-- Sample zone rates (PLACEHOLDER — replace with official MOF/central-office schedule)
+INSERT INTO zones_rates (district_id, road_category, rate_per_sqm, valid_from)
+SELECT d.id, rc.rc, rc.rate, CURRENT_DATE
+FROM districts d
+CROSS JOIN (
+  SELECT 'main' AS rc, 50000.00 AS rate UNION ALL
+  SELECT 'branch', 40000.00 UNION ALL
+  SELECT 'alley', 30000.00 UNION ALL
+  SELECT 'none', 20000.00
+) rc;
 
--- Sample user (officer — change password in real deployment)
+-- Sample user (officer — set a real bcrypt hash in deployment)
 INSERT INTO users (role, username, phone, password_hash, is_active) VALUES
 ('admin', 'sav_officer', '+8562012345678', '$2y$10$placeholderpasswordhash', 1);
