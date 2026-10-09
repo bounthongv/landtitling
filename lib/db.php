@@ -3,12 +3,12 @@ require_once __DIR__ . '/config.php';
 
 function db_connect() {
     $cfg = require __DIR__ . '/config.php';
-    $dsn = "mysql:host={$cfg['mysql_host']};dbname={$cfg['mysql_db']};charset=utf8mb3";
-    $pdo = new PDO($dsn, $cfg['mysql_user'], $cfg['mysql_pass'], [
+    $dsn = "pgsql:host={$cfg['pgsql_host']};port={$cfg['pgsql_port']};dbname={$cfg['pgsql_db']}";
+    $pdo = new PDO($dsn, $cfg['pgsql_user'], $cfg['pgsql_pass'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
-    $pdo->exec("SET time_zone = '{$cfg['timezone']}'");
+    $pdo->exec("SET timezone = '{$cfg['timezone']}'");
     return $pdo;
 }
 

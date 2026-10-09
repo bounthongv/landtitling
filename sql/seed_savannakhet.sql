@@ -1,13 +1,13 @@
 -- Land Fee Payment MVP — Savannakhet Province
 -- Phase 0: Seed Data (placeholders — replace with official PERN list)
 
-USE landfee_savannakhet;
+SET search_path = landfee;
 
 -- Districts (placeholder list — verify with PERN)
 INSERT INTO districts (code, name_lo, name_en) VALUES
 ('SAV', 'ສະຫວັນນະເຂດ', 'Savannakhet'),
 ('KASE', 'ຄຳເຕີນ', 'Khamkeuth'),
-('DOMP', 'ດອນ', 'Don'),
+('DOMP', 'ດອນປາກສານ', 'Don'),
 ('PHONG', 'ພົງສະຫວັນ', 'Phong Savan'),
 ('KOUN', 'ຄູນ', 'Koune'),
 ('PHOU', 'ພູ', 'Phou'),
@@ -19,7 +19,7 @@ INSERT INTO districts (code, name_lo, name_en) VALUES
 ('HAT', 'ຫ້າມ', 'Hat'),
 ('KOK', 'ໂຄກ', 'Kok'),
 ('XEO', 'ເຊໂປນ', 'Xebangfai'),
-('XEO', 'ເຊໂປນ', 'Xepian'),
+('XEP', 'ເຊເປຽນ', 'Xepian'),
 ('PHI', 'ພິນ', 'Phin'),
 ('MOOK', 'ມູກໄທດີນ', 'Mouk'),
 ('LAI', 'ໄລສະບຽງ', 'Laixabiang'),
