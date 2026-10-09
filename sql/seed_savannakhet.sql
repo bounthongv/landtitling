@@ -1,9 +1,9 @@
 -- Land Fee Payment MVP — Savannakhet Province
 -- Phase 0: Seed Data
 -- Districts: official Savannakhet list (15 districts; Kaysone Phomvihane is the capital)
--- Zone rates: PLACEHOLDER values pending the official MOF/central-office rate schedule
---   (legacy transcripts EP6/EP20 confirm rates are issued by the central office,
---    not hard-coded; replace these placeholders when PERN supplies the real schedule)
+-- Zone rates: user's web check shows 80-180 kip per m² (80,000-180,000 kip per m²);
+--   seeded inside that band by road category. Refine with the official MOF/central-office
+--   schedule when available (legacy EP6/EP20 confirm the central office sets the figures).
 
 SET search_path = landfee;
 
@@ -25,15 +25,17 @@ INSERT INTO districts (code, name_lo, name_en) VALUES
 ('XPH', 'ໄຊພູທອງ', 'Xayphouthong'),
 ('PHL', 'ຜະລັນໄຊ', 'Phalanxay');
 
--- Sample zone rates (PLACEHOLDER — replace with official MOF/central-office schedule)
+-- Sample zone rates (from user's web check: 80-180 kip per m², i.e. 80,000-180,000 kip per m²)
+-- Road category influences where in the band: main=180k, branch=140k, alley=110k, none=85k.
+-- Adjust per road category only; per-district variation + official MOF schedule can refine later.
 INSERT INTO zones_rates (district_id, road_category, rate_per_sqm, valid_from)
 SELECT d.id, rc.rc, rc.rate, CURRENT_DATE
 FROM districts d
 CROSS JOIN (
-  SELECT 'main' AS rc, 50000.00 AS rate UNION ALL
-  SELECT 'branch', 40000.00 UNION ALL
-  SELECT 'alley', 30000.00 UNION ALL
-  SELECT 'none', 20000.00
+  SELECT 'main' AS rc, 180000.00 AS rate UNION ALL
+  SELECT 'branch', 140000.00 UNION ALL
+  SELECT 'alley', 110000.00 UNION ALL
+  SELECT 'none', 85000.00
 ) rc;
 
 -- Sample user (officer — set a real bcrypt hash in deployment)
