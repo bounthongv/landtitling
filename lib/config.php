@@ -7,5 +7,5 @@ return [
     'pgsql_user' => getenv('PGUSER') ?: 'postgres',
     'pgsql_pass' => getenv('PGPASSWORD') ?: '',
     'timezone'   => 'Asia/Vientiane',
-    'uploads'    => __DIR__ . '/../uploads/',
+    'uploads'    => __DIR__ . '/../public/uploads',
 ];
