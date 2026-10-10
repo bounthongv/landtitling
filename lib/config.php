@@ -8,4 +8,6 @@ return [
     'pgsql_pass' => getenv('PGPASSWORD') ?: '',
     'timezone'   => 'Asia/Vientiane',
     'uploads'    => __DIR__ . '/../public/uploads',
+    'jwt_secret' => getenv('JWT_SECRET') ?: 'landfee-dev-secret-change-me',
+    'jwt_ttl'    => 86400, // seconds (24h)
 ];
