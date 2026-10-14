@@ -78,6 +78,9 @@ if (hash) {
   const btn = document.querySelector(`.tab-nav button[data-tab="${hash}"]`);
   if (btn) btn.click();
 }
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js').catch(() => {});
+}
 </script>
 </body>
 </html>
