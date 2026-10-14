@@ -14,6 +14,7 @@ function db_connect() {
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
     $pdo->exec("SET timezone = '{$cfg['timezone']}'");
+    $pdo->exec("SET search_path = '{$cfg['pgsql_schema']}'");
     return $pdo;
 }
 
