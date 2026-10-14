@@ -8,17 +8,25 @@ $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $me = require_auth(['citizen', 'officer', 'admin']);
 
-// ---- GET: list/search ----//
+// ---- GET: list/search / fetch by id ----
 if ($method === 'GET') {
     $district = $_GET['district_id'] ?? null;
-    $village = $_GET['village_id'] ?? null;
     $parcel_no = $_GET['parcel_no'] ?? '';
     $status = $_GET['status'] ?? null;
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+    if ($id) {
+        $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name
+            FROM parcels p JOIN districts d ON d.id = p.district_id JOIN villages v ON v.id = p.village_id
+            WHERE p.id = :id");
+        $stmt->execute([':id' => $id]);
+        $rows = $stmt->fetchAll();
+        json_ok(['parcels' => $rows, 'count' => count($rows)], 200);
+    }
 
     $where = [];
     $params = [];
     if ($district) { $where[] = 'p.district_id = :district'; $params[':district'] = (int)$district; }
-    if ($village) { $where[] = 'p.village_id = :village'; $params[':village'] = (int)$village; }
     if ($parcel_no !== '') { $where[] = 'p.parcel_no ILIKE :parcel'; $params[':parcel'] = '%' . $parcel_no . '%'; }
     if ($status) { $where[] = 'p.status = :status'; $params[':status'] = $status; }
 
