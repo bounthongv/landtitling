@@ -27,16 +27,6 @@ jobs:
             chown -R apis:www-data /var/www/html/landfee
           "
 
-          # Load DB schema
-          ssh -i "$TMP_KEY" -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "
-            sudo -n -u postgres psql -d landfee -f /var/www/html/landfee/sql/schema.sql
-          "
-
-          # Load seed data
-          ssh -i "$TMP_KEY" -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "
-            sudo -n -u postgres psql -d landfee -f /var/www/html/landfee/sql/seed_savannakhet.sql
-          "
-
           # Clear OPcache and restart
           ssh -i "$TMP_KEY" -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "
             sudo systemctl restart apache2
