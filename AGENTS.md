@@ -1,43 +1,39 @@
-# Land Title Management System — AGENTS.md
+# Land Fee Payment MVP — AGENTS.md
 
 ## What is this?
-Two-app prototype for a land title registry (Lao language):
-- **Back-Office:** Officer app for parcel management, transfers, mortgages, reporting
-- **Citizen Portal:** Mobile-first PWA for citizens to request documents, report issues, track status
+Land Fee Payment MVP for Savannakhet Province (Lao). Two front-ends over one PHP JSON API and a PostgreSQL DB:
+- **Citizen PWA** (`public/citizen/`) — mobile-first, installable: phone-OTP login, fee quote, payment slip, tracking
+- **Officer Back-Office** (`public/admin/`) — scan-upload + OCR review, parcel registry, zone-rate editor, verify/reject payments, MOF reports
 
 ## Key Files
 | File | Purpose |
 |------|---------|
-| `prototype/index.html` | Officer back-office prototype (HTML/CSS/JS) |
-| `prototype/citizen/index.html` | Citizen portal prototype (mobile-first PWA) |
-| `prototype/citizen/manifest.json` | PWA manifest for citizen portal install |
-| `prototype/build/gen_qr.py` | Generates QR codes for title parcels |
-| `docs/2-back-office-portal-architecture.md` | System architecture (both apps) |
-| `docs/LandTitling.md` | System requirements (Lao/English) |
+| `sql/schema.sql` | PostgreSQL schema (schema `landfee`) |
+| `sql/seed_savannakhet.sql` | 15 districts, 1,029 villages, 60 zone rates |
+| `lib/db.php` | PDO connect + `{ok,data,error,meta}` envelope helpers |
+| `lib/config.php` | DB/JWT config (env-overridable) |
+| `lib/auth.php` | HS256 JWT (no deps) |
+| `lib/slip.php` | Slip number generator + A4 HTML |
+| `lib/ocr.php` | Tesseract OCR (lao+eng) |
+| `api/v1/*.php` | Versioned JSON API (auth, fee, payments, districts, villages, rates, parcels, scans, reports) |
+| `public/admin/*.php` | Officer back-office screens |
+| `public/citizen/*.php` | Citizen PWA screens + manifest + service worker |
+| `.github/workflows/deploy.yml` | CI/CD → apis.com.la on push to main |
+| `archive/` | Legacy Land Titling prototype + LLR7 video specs (not live) |
 
-## How to Run
-1. **Back-Office:** Open `prototype/index.html` — login: `officer` / `demo1234`
-2. **Citizen Portal:** Open `prototype/citizen/index.html` — resize browser to ~400px for mobile view
+## Production
+- **Site:** `https://landfee.apis.com.la/` (Apache on apis.com.la, `/var/www/html/landfee`)
+- **DB:** PostgreSQL `landfee` on apis.com.la, schema `landfee`
+- **Deploy:** GitHub Actions `deploy.yml` on push to `main` (needs `VPS_SSH_KEY` secret)
 
-## Architecture Notes
-- Pure HTML/CSS/JS — no build system, no framework
-- Mock data embedded in JS (PARCELS, PERSONS, DISTRICTS constants)
-- Both apps share the same visual language (gov green + gold branding)
-- Citizen portal is mobile-first with bottom navigation bar
+## Local Dev
+- PHP built-in server: `php -S localhost:8080` (env: `PGHOST=localhost PGPORT=5432 PGDATABASE=landfee PGUSER=postgres PGPASSWORD=test1234 PG_SCHEMA=landfee`)
+- DB: Docker `landfee-test-postgres` (postgres:16-alpine) on localhost:5432
 
-## Citizen Portal Features
-- **ໃບແຈ້ງມີ** — Land Availability Certificate request (parcel lookup → eligibility → submit → track)
-- **Document Requests** — Title copy, map extract, history (with fee calc + payment slip)
-- **Issue Reporting** — Boundary disputes, encroachment, data errors (photo + GPS)
-- **Status Tracking** — Timeline view of all requests
-- Mock SMS notifications (toast messages)
-- PWA installable on Android/iOS
+## Demo Credentials
+- **Officer:** `sav_officer` / `demo1234`
+- **Citizen:** phone OTP (dev stub returns code in JSON `meta.debug_code`)
 
-## Demo Data
-- 6 parcels across 6 districts in Savannakhet
-- Pre-loaded sample requests in citizen portal (REQ-2026-001, REQ-2026-002)
-- Eligibility checks: parcels with mortgages are blocked from ໃບແຈ້ງມີ
-
-## Important
-- This is **demo-only** — no backend, no database
-- For real implementation: need backend, database, OTP auth, SMS gateway, GIS server
+## Fee Model (user-confirmed)
+Flat, location-only: `fee = zone_rate(district, road_category) × area_sqm`.
+Zone rates: main=180k, branch=140k, alley=110k, none=85k kip/m². No land_use or transaction_type in fee math.
