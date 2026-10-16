@@ -47,9 +47,9 @@ async function api(path, opts) {
 }
 (async () => {
   const [scanResp, parcelResp, payResp] = await Promise.all([
-    api('api/v1/scans.php?status=pending'),
-    api('api/v1/parcels.php'),
-    api('api/v1/payments.php?status=ISSUED'),
+    api('/api/v1/scans.php?status=pending'),
+    api('/api/v1/parcels.php'),
+    api('/api/v1/payments.php?status=ISSUED'),
   ]);
   document.getElementById('scan-count').textContent = (scanResp.data?.scans?.length ?? 0);
   document.getElementById('parcel-count').textContent = (parcelResp.data?.count ?? 0);

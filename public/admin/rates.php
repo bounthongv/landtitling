@@ -5,7 +5,7 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 
 $rates = [];
-$d = api_call('GET', 'rates.php');
+$d = api_call('GET', 'rates.php', null, $_SESSION['admin_token']);
 if (!empty($d['ok'])) { $rates = $d['data']['rates'] ?? []; }
 
 // districts for the editor list
@@ -18,7 +18,9 @@ foreach ($rates as $r) {
     $ratesByDistrict[$r['district_id']][$r['road_category']] = $r['rate_per_sqm'];
 }
 
-$editId = 0; $editDistrict = 0; $editCategory = ''; $editRate = 0; $editNote = '';
+$editDistrict = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
+$editCategory = $_GET['road_category'] ?? '';
+$editRate = ($editDistrict && $editCategory) ? ($ratesByDistrict[$editDistrict][$editCategory] ?? 0) : 0;
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
     $body = [
@@ -27,10 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
         'rate_per_sqm' => (float)($_POST['rate_per_sqm'] ?? 0),
         'note' => $_POST['note'] ?? '',
     ];
-    $d = api_call('PUT', 'rates.php?id=' . $editId, $body, $_SESSION['admin_token']);
+    $d = api_call('PUT', 'rates.php', $body, $_SESSION['admin_token']);
     if (!empty($d['ok'])) {
-        $msg = 'Rate saved: ' . $body['rate_per_sqm'] . ' kip/m²';
-        $editId = 0; $editDistrict = 0; $editCategory = ''; $editRate = 0;
+        $msg = 'Rate saved: ' . number_format($body['rate_per_sqm'], 0) . ' kip/m²';
+        $editDistrict = $body['district_id'];
+        $editCategory = $body['road_category'];
+        $editRate = $body['rate_per_sqm'];
     } else {
         $msg = $d['error']['message'] ?? 'Save failed';
     }
@@ -132,15 +136,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
     </div>
   </main>
 </div>
-<script>
-const TOKEN = '<?= e($_SESSION['admin_token'] ?? '') ?>';
-// On district/category change, reload the page so the rates grid (server-rendered) updates
-const districtSel = document.getElementById('rate-district');
-const catSel = document.getElementById('rate-cat');
-if (districtSel && catSel) {
-  districtSel.addEventListener('change', () => { location.reload(); });
-  catSel.addEventListener('change', () => { location.reload(); });
-}
-</script>
 </body>
 </html>

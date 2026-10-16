@@ -1,6 +1,8 @@
 # Land Fee Payment MVP — Back-Office Web Build Plan (Page by Page)
 
 > **Savannakhet Province.** | **Status:** live on `https://landfee.apis.com.la/` | **Approach:** Build back-office web page by page, test through real web UI
+>
+> **v3 design (annual fee + title parsing + auto-verify):** see `docs/5-annual-land-fee-back-office-design.md`. It supersedes the fee/payment parts of this plan.
 
 ---
 

@@ -29,13 +29,17 @@ return [
     'pgsql_user'   => getenv('PGUSER') ?: 'postgres',
     'pgsql_pass'   => getenv('PGPASSWORD') ?: '',
     'timezone'     => 'Asia/Vientiane',
-    'uploads'      => __DIR__ . '/../public/uploads',
+    'uploads'      => getenv('UPLOADS') ?: (dirname(__DIR__) . '/public/uploads/'),
     'jwt_secret'   => getenv('JWT_SECRET') ?: 'landfee-dev-secret-change-me',
     'jwt_ttl'      => 86400, // seconds (24h)
     // Schema name for the landfee tables
     'pgsql_schema' => getenv('PG_SCHEMA') ?: 'landfee',
     // API base (same origin as this app, /api/v1) — dynamic so it works locally + prod.
-    'api_base'     => $__scheme . '://' . $__host . '/api/v1',
+    // API_BASE env override is for local dev/testing when the API runs on a different port.
+    'api_base'     => getenv('API_BASE') ?: ($__scheme . '://' . $__host . '/api/v1'),
     // Admin public base path.
     'admin_base'   => '/public/admin',
+    // Dev-only: echo the OTP back in the API response so the login screen can show it.
+    // MUST be unset/false in production, otherwise any caller can read the code.
+    'otp_debug'    => (getenv('OTP_DEBUG') ?: '0') === '1',
 ];

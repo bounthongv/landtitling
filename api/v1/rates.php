@@ -18,10 +18,8 @@ if ($method === 'GET') {
     json_ok(['rates' => $rates]);
 }
 
-// ---- PUT /rates/{id} ----//
+// ---- PUT: upsert rate by (district_id, road_category) — no row id needed ----//
 if ($method === 'PUT') {
-    $id = (int)($_GET['id'] ?? '0');
-    if (!$id) { json_error('Rate id required', 400, 'missing_id'); }
     $body = read_json_body();
     $rate = $body['rate_per_sqm'] ?? null;
     $note = $body['note'] ?? null;
@@ -32,23 +30,29 @@ if ($method === 'PUT') {
         'road_category' => validate_required($body['road_category'] ?? null, 'road') ?: validate_enum($body['road_category'] ?? null, ['main','branch','alley','none'], 'road'),
     ]);
     reject_on_errors($err);
-    if (!isset($body['district_id']) || !isset($body['road_category'])) {
-        json_error('district_id and road_category required', 400, 'missing_fields');
-    }
+
+    $districtId = (int)$body['district_id'];
+    $rc = $body['road_category'];
 
     // Ensure district exists
     $stmt = $pdo->prepare("SELECT id FROM districts WHERE id = :id");
-    $stmt->execute([':id' => (int)$body['district_id']]);
+    $stmt->execute([':id' => $districtId]);
     if (!$stmt->fetch()) { json_error('District not found', 404, 'district_not_found'); }
 
+    // Update the latest existing row, else insert a new one
     $stmt = $pdo->prepare("UPDATE zones_rates SET rate_per_sqm = :rate, note = :note, updated_at = CURRENT_TIMESTAMP
-        WHERE id = :id AND district_id = :did AND road_category = :rc");
-    $stmt->execute([':rate' => (float)$rate, ':note' => $note, ':id' => $id, ':did' => (int)$body['district_id'], ':rc' => $body['road_category']]);
+        WHERE id = (
+            SELECT id FROM zones_rates
+            WHERE district_id = :did AND road_category = :rc
+            ORDER BY valid_from DESC, id DESC
+            LIMIT 1
+        )");
+    $stmt->execute([':rate' => (float)$rate, ':note' => $note, ':did' => $districtId, ':rc' => $rc]);
     if ($stmt->rowCount() === 0) {
-        // Insert if not found (create)
-        $stmt = $pdo->prepare("INSERT INTO zones_rates (district_id, road_category, rate_per_sqm, note) VALUES (:did, :rc, :rate, :note)");
-        $stmt->execute([':did' => (int)$body['district_id'], ':rc' => $body['road_category'], ':rate' => (float)$rate, ':note' => $note]);
+        $stmt = $pdo->prepare("INSERT INTO zones_rates (district_id, road_category, rate_per_sqm, note, updated_at)
+            VALUES (:did, :rc, :rate, :note, CURRENT_TIMESTAMP)");
+        $stmt->execute([':did' => $districtId, ':rc' => $rc, ':rate' => (float)$rate, ':note' => $note]);
     }
-    json_ok(['rate_per_sqm' => (float)$rate], 200);
+    json_ok(['district_id' => $districtId, 'road_category' => $rc, 'rate_per_sqm' => (float)$rate], 200);
 }
 json_error('Method not allowed', 405, 'method_not_allowed');

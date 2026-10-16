@@ -15,7 +15,7 @@ if ($status) { $url .= ($district_id || $parcel_no ? '&' : '?') . 'status=' . $s
 
 $parcels = [];
 $count = 0;
-$d = api_call('GET', $url);
+$d = api_call('GET', $url, null, $_SESSION['admin_token']);
 if (!empty($d['ok'])) { $parcels = $d['data']['parcels'] ?? []; $count = $d['data']['count'] ?? 0; }
 
 // districts for filter
@@ -55,7 +55,7 @@ $districts = api_call('GET', 'districts.php')['data'] ?? [];
       <tbody>
         <?php foreach ($parcels as $p): ?>
         <tr>
-          <td><?= e($p['parcel_no']) ?></td>
+          <td><a href="<?= $base ?>/parcel.php?id=<?= (int)$p['id'] ?>"><?= e($p['parcel_no']) ?></a></td>
           <td><?= e($p['district_name']) ?></td>
           <td><?= e($p['village_name']) ?></td>
           <td><?= number_format((float)$p['area_sqm'], 2) ?></td>
