@@ -1,157 +1,118 @@
 <?php
-// public/citizen/quote.php — fee quote + create payment
-require __DIR__ . '/common.php';
-$token = $_SESSION['citizen_token'] ?? '';
-if (!$token) { header('Location: login.php'); exit; }
+// public/citizen/quote.php — review the assessed fee for a year and issue a payment slip
+$token = citizen_token();
+citizen_require_login();
 
-// Incoming parcel from lookup
-$parcel = [];
-$parcelNo = $_GET['parcel_no'] ?? '';
-$statusMsg = '';
-if ($parcelNo !== '') {
-    $ch = curl_init($api_base . '/parcels.php?parcel_no=' . urlencode($parcelNo));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $resp = curl_exec($ch); curl_close($ch);
-    $d = json_decode($resp, true);
-    if (!empty($d['ok'])) { $parcel = $d['data']['parcels'][0] ?? []; }
-}
+$obligationId = (int)($_GET['obligation_id'] ?? $_POST['obligation_id'] ?? 0);
+$parcelId     = (int)($_GET['parcel_id'] ?? $_POST['parcel_id'] ?? 0);
+$method_      = $_POST['method'] ?? 'counter';
+$err = '';
+$created = null;
 
-// Fee quote
-$rate = $fee = null;
-$quoteDistrict = $_POST['district_id'] ?? ($_GET['district_id'] ?? '');
-$quoteCategory = $_POST['road_category'] ?? '';
-$quoteArea = $_POST['area_sqm'] ?? '';
-if ($quoteDistrict && $quoteCategory && $quoteArea > 0) {
-    $ch = curl_init($api_base . '/fee/quote.php');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-        'district_id' => (int)$quoteDistrict,
-        'road_category' => $quoteCategory,
-        'area_sqm' => (float)$quoteArea,
-    ]));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    $resp = curl_exec($ch); curl_close($ch);
-    $d = json_decode($resp, true);
-    if (!empty($d['ok'])) {
-        $rate = $d['data']['rate_per_sqm'];
-        $fee = $d['data']['fee_total'];
+// ---- Issue a payment (explicit action; no payment is created just by viewing) ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['submit_payment'])) {
+    if (!$obligationId) {
+        $err = 'No obligation selected.';
     } else {
-        $statusMsg = $d['error']['message'] ?? 'Quote failed';
+        $body = ['obligation_id' => $obligationId, 'method' => $method_];
+        if ($parcelId) { $body['parcel_id'] = $parcelId; }
+        $d = citizen_api('POST', 'payments.php', $body, $token);
+        if (!empty($d['ok'])) {
+            $created = citizen_data($d);
+        } else {
+            $err = citizen_error($d);
+        }
     }
 }
 
-// Create payment
-$created = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['submit_payment'])) {
-    $parcelId = $_POST['parcel_id'] ?? null;
-    $districtId = $_POST['district_id'] ?? null;
-    $area = $_POST['area_sqm'] ?? null;
-    if ($parcelId && $districtId && $area > 0) {
-        $ch = curl_init($api_base . '/payments.php');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            'parcel_id' => (int)$parcelId,
-            'district_id' => (int)$districtId,
-            'area_sqm' => (float)$area,
-        ]));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        $resp = curl_exec($ch); curl_close($ch);
-        $d = json_decode($resp, true);
-        if (!empty($d['ok'])) {
-            $created = $d['data'];
-            $statusMsg = 'Payment ISSUED. Slip #: ' . e($created['slip_no']);
-        } else {
-            $statusMsg = $d['error']['message'] ?? 'Failed to create payment';
+// ---- Load the obligation for display ----
+$ob = null;
+$parcel = null;
+if ($obligationId) {
+    $mine = citizen_data(citizen_api('GET', 'my_parcels.php', null, $token))['parcels'] ?? [];
+    foreach ($mine as $mp) {
+        if ((int)$mp['parcel_id'] === $parcelId || !$parcelId) {
+            foreach ($mp['obligations'] as $o) {
+                if ((int)$o['id'] === $obligationId) {
+                    $ob = $o;
+                    $parcel = $mp;
+                    $parcelId = (int)$mp['parcel_id'];
+                    break 2;
+                }
+            }
         }
-    } else {
-        $statusMsg = 'Please enter a parcel and a valid area.';
+    }
+    if (!$ob) {
+        $err = $err ?: 'That fee is not linked to your account.';
     }
 }
 ?>
 <div class="card">
   <h2>ເບິ່ງຄ່າຊຳລະ</h2>
-  <p class="sub">Land Fee — Select location &amp; area to see the fee. Flat rate by location only.</p>
+  <p class="sub">Fee = zone rate (location) × area. One fee per parcel per year.</p>
 
-  <?php if ($statusMsg): ?><div style="background:#eaf4ea; border:1px solid #bbdefb; border-radius:6px; padding:10px; font-size:13px; margin-bottom:12px;"><?= e($statusMsg) ?></div><?php endif; ?>
-
-  <?php if ($parcel && empty($_POST['district_id'])): ?>
-    <form method="get" action="quote.php" class="form-group">
-      <input type="hidden" name="parcel_no" value="<?= e($parcelNo) ?>">
-      <div class="form-group">
-        <label>Parcel: <?= e($parcel['parcel_no']) ?> — <?= e($parcel['district_name'] ?? '') ?> / <?= e($parcel['village_name'] ?? '') ?></label>
-      </div>
-      <div class="form-group">
-        <label>Area (m²) — auto from title</label>
-        <input type="number" step="0.01" value="<?= e($parcel['area_sqm']) ?>" disabled>
-      </div>
-      <button class="btn btn-gold" type="submit">ເບິ່ງຄ່າຊຳລະ</button>
-    </form>
-  <?php else: ?>
-    <form method="post" action="quote.php">
-      <div class="form-group">
-        <label>District</label>
-        <select name="district_id" id="quote-district">
-          <option value="">-- select --</option>
-          <?php
-          $ch = curl_init($api_base . '/districts.php');
-          curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-          $resp = curl_exec($ch); curl_close($ch);
-          $districts = json_decode($resp, true)['data'] ?? [];
-          foreach ($districts as $d): $sel = ($d['id'] == $quoteDistrict) ? 'selected' : ''; ?>
-            <option value="<?= $d['id'] ?>" <?= $sel ?>><?= e($d['name_lo']) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Road category</label>
-        <select name="road_category" id="quote-category">
-          <option value="">-- select --</option>
-          <option value="main" <?= $quoteCategory === 'main' ? 'selected' : '' ?>>Main road</option>
-          <option value="branch" <?= $quoteCategory === 'branch' ? 'selected' : '' ?>>Branch road</option>
-          <option value="alley" <?= $quoteCategory === 'alley' ? 'selected' : '' ?>>Alley</option>
-          <option value="none" <?= $quoteCategory === 'none' ? 'selected' : '' ?>>None</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Area (m²)</label>
-        <input type="number" step="0.01" name="area_sqm" value="<?= e($quoteArea) ?>">
-      </div>
-      <button class="btn" type="submit">Calculate Fee</button>
-    </form>
-  <?php endif; ?>
-
-  <?php if ($rate && $fee !== null): ?>
-    <div class="card" style="background:#eaf4ea; border-color:#bbdefb;">
-      <div class="row">
-        <div class="stat" style="flex:1;text-align:left;">
-          <div class="lbl">Rate per m²</div>
-          <div style="font-size:20px;"><?= number_format((float)$rate, 0) ?> kip</div>
-        </div>
-        <div class="stat" style="flex:1;text-align:left;">
-          <div class="lbl">Area</div>
-          <div style="font-size:20px;"><?= number_format((float)($quoteArea), 2) ?> m²</div>
-        </div>
-      </div>
-      <div class="row" style="margin-top:12px;">
-        <div class="stat" style="flex:1;text-align:left;">
-          <div class="lbl">Total fee</div>
-          <div class="amount" style="font-size:26px;"><?= number_format((float)$fee, 0) ?> kip</div>
-        </div>
-        <div class="stat" style="flex:1;text-align:right;font-size:13px;color:var(--muted);">Flat rate · location only</div>
-      </div>
-    </div>
-  <?php endif; ?>
+  <?php if ($err): ?><div class="alert err"><?= e($err) ?></div><?php endif; ?>
 
   <?php if ($created): ?>
     <div class="card" style="background:#d4edda; border-color:#2e7d32;">
-      <h3>✅ Payment created</h3>
-      <p class="sub">Status: <span class="pill pill-paid">PAID (officer to verify)</span></p>
-      <p class="sub">Slip #: <strong><?= e($created['slip_no']) ?></strong></p>
-      <p class="sub">Amount: <strong><?= number_format((float)$created['fee_total'], 0) ?> kip</strong></p>
-      <p class="sub">Parcel: <?= e($created['parcel_no'] ?? 'N/A') ?></p>
-      <a class="btn btn-gold" href="payment-view.php?id=<?= $created['id'] ?>">View slip + tracking →</a>
+      <h3>✅ ສາງບິນຊຳລະແລ້ວ — slip created</h3>
+      <p class="sub">Status: <span class="pill pill-pending"><?= e($created['status']) ?></span> (awaiting payment)</p>
+      <p class="sub">Reference: <strong><?= e($created['reference_no']) ?></strong></p>
+      <p class="sub">Amount: <strong><?= kip($created['amount']) ?></strong></p>
+      <p class="sub">Pay at any bank or counter using the reference above, then upload your receipt.</p>
+      <a class="btn btn-gold" href="payment-view.php?id=<?= (int)$created['id'] ?>">View slip + upload receipt →</a>
     </div>
+  <?php endif; ?>
+
+  <?php if ($ob && !$created): ?>
+    <?php $outstanding = (float)$ob['outstanding']; ?>
+    <div class="card" style="background:#eaf4ea; border-color:#bbdefb;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);">Parcel</div>
+          <div style="font-size:16px;"><strong><?= e($parcel['parcel_no']) ?></strong></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:12px;color:var(--muted);">Fee year</div>
+          <div style="font-size:16px;"><strong><?= e($ob['fee_year']) ?></strong></div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px;">
+        <?= e($parcel['district_name']) ?> / <?= e($parcel['village_name']) ?> ·
+        <?= number_format((float)$parcel['area_sqm'], 2) ?> m² ·
+        <?= e(ucfirst((string)$parcel['road_category'])) ?>
+      </div>
+      <table class="slip-table" style="margin-top:12px;">
+        <tr><td>Assessed</td><td><?= number_format((float)$ob['amount_due'], 0) ?> ກີບ</td></tr>
+        <tr><td>Already paid</td><td><?= number_format((float)$ob['amount_paid'], 0) ?> ກີບ</td></tr>
+        <?php if ((float)$ob['penalty'] > 0): ?>
+          <tr><td>Penalty</td><td><?= number_format((float)$ob['penalty'], 0) ?> ກີບ</td></tr>
+        <?php endif; ?>
+        <tr class="amount"><td>Outstanding</td><td><?= kip($outstanding) ?></td></tr>
+        <tr><td>Due date</td><td><?= e($ob['due_date'] ?? '—') ?></td></tr>
+      </table>
+
+      <?php if ($outstanding > 0): ?>
+      <form method="post" action="quote.php">
+        <input type="hidden" name="obligation_id" value="<?= (int)$ob['id'] ?>">
+        <input type="hidden" name="parcel_id" value="<?= (int)$parcelId ?>">
+        <div class="form-group">
+          <label>ວິທີຊຳລະ / Payment method</label>
+          <select name="method">
+            <option value="counter"     <?= $method_ === 'counter' ? 'selected' : '' ?>>ທີ່ຫຼັກຖານ (counter)</option>
+            <option value="bank_transfer" <?= $method_ === 'bank_transfer' ? 'selected' : '' ?>>ຫຼັກຖານທະນາຄານ (bank transfer)</option>
+            <option value="mobile"      <?= $method_ === 'mobile' ? 'selected' : '' ?>>ທະນາຄານມືຖືອ (mobile)</option>
+          </select>
+        </div>
+        <button class="btn btn-gold" type="submit" name="submit_payment" value="1">
+          ສ້າງບິນຊຳລະ · Create slip · <?= kip($outstanding) ?>
+        </button>
+      </form>
+      <?php else: ?>
+        <p class="sub">This year is already settled. <a href="lookups.php">Back to my parcels</a>.</p>
+      <?php endif; ?>
+    </div>
+  <?php elseif (!$created && !$err): ?>
+    <p class="empty">Select a parcel year from <a href="lookups.php">my parcels</a> to see its fee.</p>
   <?php endif; ?>
 </div>

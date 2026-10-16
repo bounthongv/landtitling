@@ -15,12 +15,42 @@ if ($method === 'GET') {
     $status = $_GET['status'] ?? null;
     $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
+    // Citizens may look up a specific parcel they name, or their own, but must not be
+    // able to enumerate the whole land registry.
+    $mineOnly = !empty($_GET['mine']);
+    if ($me['role'] === 'citizen' && !$id && $parcel_no === '' && !$mineOnly) {
+        json_error('Specify a parcel number, or use mine=1 to list your own parcels', 403, 'listing_forbidden');
+    }
+    if ($mineOnly) {
+        if ($me['role'] !== 'citizen') {
+            json_error('mine=1 is only available to citizens', 400, 'bad_request');
+        }
+        $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name
+            FROM parcels p
+            JOIN districts d ON d.id = p.district_id
+            JOIN villages v ON v.id = p.village_id
+            WHERE p.id IN (SELECT po.parcel_id FROM parcel_owners po
+                           JOIN owners o ON o.id = po.owner_id
+                           WHERE o.citizen_user_id = :me)
+            ORDER BY p.created_at DESC LIMIT 200");
+        $stmt->execute([':me' => $me['sub']]);
+        $rows = $stmt->fetchAll();
+        json_ok(['parcels' => $rows, 'count' => count($rows)], 200);
+    }
+
     if ($id) {
         $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name
             FROM parcels p JOIN districts d ON d.id = p.district_id JOIN villages v ON v.id = p.village_id
             WHERE p.id = :id");
         $stmt->execute([':id' => $id]);
         $rows = $stmt->fetchAll();
+        if ($me['role'] === 'citizen') {
+            $owns = (int)$pdo->query("SELECT COUNT(*) FROM parcel_owners po JOIN owners o ON o.id = po.owner_id
+                WHERE o.citizen_user_id = " . (int)$me['sub'] . " AND po.parcel_id = " . $id)->fetchColumn();
+            if (!$owns) {
+                json_error('Forbidden', 403, 'forbidden');
+            }
+        }
         json_ok(['parcels' => $rows, 'count' => count($rows)], 200);
     }
 

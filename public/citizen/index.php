@@ -1,20 +1,12 @@
 <?php
 // public/citizen/index.php — citizen app shell
 require __DIR__ . '/common.php';
-$token = $_SESSION['citizen_token'] ?? '';
-$user = $_SESSION['citizen_user'] ?? null;
-if (!$token) { header('Location: login.php'); exit; }
+citizen_require_login();
+$user = $_SESSION['citizen_user'] ?? ['id' => 0, 'role' => 'citizen'];
 
-// Fetch user name
-$name = 'Citizen';
-if (!empty($user['id'])) {
-    $ch = curl_init($api_base . '/auth.php');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    // Use a server-side bootstrap to get user name via a new endpoint is not done here;
-    // we'll accept the token and show the user id/role.
-    $u = json_decode($user, true);
-    $name = $u['phone'] ?? 'Citizen';
-}
+// citizen_user is stored in the session already decoded, so just read it.
+$name = (string)($_SESSION['citizen_phone'] ?? 'Citizen');
+$role = $user['role'] ?? 'citizen';
 
 $tab = $_GET['tab'] ?? 'lookup';
 ?>
@@ -48,7 +40,7 @@ $tab = $_GET['tab'] ?? 'lookup';
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const TOKEN = '<?= e($token) ?>';
+const TOKEN = '<?= e(citizen_token()) ?>';
 const shop = {
   async api(path, opts) {
     const r = await fetch(path, {

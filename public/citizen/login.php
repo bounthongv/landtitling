@@ -8,49 +8,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_request'])) {
     if (!preg_match('/^\+?[0-9]{8,15}$/', $phone)) {
         $error = 'Enter a valid Lao phone number (e.g. +856****9999)';
     } else {
-        $ch = curl_init($api_base . '/auth.php');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['action' => 'otp/request', 'phone' => $phone]));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        $resp = curl_exec($ch);
-        curl_close($ch);
-        $d = json_decode($resp, true);
+        $d = citizen_api('POST', 'auth.php', ['action' => 'otp/request', 'phone' => $phone], '');
         if (!empty($d['ok'])) {
             $_SESSION['citizen_phone'] = $phone;
+            // The OTP token is stateless and signed by the API — carry it through verify.
+            $_SESSION['citizen_otp_token'] = $d['data']['otp_token'] ?? '';
             $_SESSION['citizen_otp_sent'] = time();
-            $statusMessage = 'OTP code sent. (Development stub: code shown below)';
-            $statusCode = $d['meta']['debug_code'] ?? '';
-            $statusStatus = $d['meta']['hint'] ?? '';
+            $statusMessage = 'OTP code sent.';
+            $statusCode = $d['data']['debug_code'] ?? '';   // only present when OTP_DEBUG=1
         } else {
-            $error = $d['error']['message'] ?? 'Failed to request OTP';
+            $error = citizen_error($d) ?: 'Failed to request OTP';
         }
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_verify'])) {
-    $phone = $_POST['phone'] ?? '';
-    $code = $_POST['code'] ?? '';
+    $phone = $_POST['phone'] ?? ($_SESSION['citizen_phone'] ?? '');
+    $code  = $_POST['code'] ?? '';
+    $otp   = $_SESSION['citizen_otp_token'] ?? '';
     if ($phone !== ($_SESSION['citizen_phone'] ?? '')) {
         $error = 'This OTP was sent to a different number. Please sign in again.';
     } elseif (time() - ($_SESSION['citizen_otp_sent'] ?? 0) > 300) {
         $error = 'OTP has expired. Request a new code.';
     } else {
-        $ch = curl_init($api_base . '/auth.php');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['action' => 'otp/verify', 'phone' => $phone, 'code' => $code]));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        $resp = curl_exec($ch);
-        curl_close($ch);
-        $d = json_decode($resp, true);
+        $d = citizen_api('POST', 'auth.php', [
+            'action' => 'otp/verify', 'phone' => $phone, 'code' => $code, 'otp_token' => $otp,
+        ], '');
         if (!empty($d['ok']) && !empty($d['data']['token'])) {
             $_SESSION['citizen_token'] = $d['data']['token'];
             $_SESSION['citizen_user'] = $d['data']['user'] ?? ['id' => 0, 'role' => 'citizen'];
+            unset($_SESSION['citizen_otp_token'], $_SESSION['citizen_otp_sent']);
             header('Location: ' . $citizen_base . '/index.php');
             exit;
         } else {
-            $error = $d['error']['message'] ?? 'Invalid code';
+            $error = citizen_error($d) ?: 'Invalid code';
         }
     }
 }
@@ -77,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_verify'])) {
     <?php endif; ?>
     <?php if ($error): ?><div style="color:#b71c1c; background:#fdecea; padding:10px; border-radius:6px; font-size:13px; margin-bottom:12px;"><?= e($error) ?></div><?php endif; ?>
 
-    <?php if (empty($_SESSION['citizen_otp_sent'])): ?>
+    <?php if (empty($_SESSION['citizen_otp_token'])): ?>
       <form method="post">
         <div class="form-group">
           <label>Phone number (+856 Lao)</label>
@@ -94,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_verify'])) {
         <button type="submit" name="otp_verify" class="btn">Verify OTP</button>
       </form>
     <?php endif; ?>
-    <p class="foot-note" style="text-align:center;margin-top:12px;">Dev stub — code shown in panel. Real SMS gateway to be wired (open item).</p>
+    <p class="foot-note" style="text-align:center;margin-top:12px;">SMS gateway not yet wired — see <code>otp_send_sms()</code> in <code>lib/otp.php</code>.</p>
   </div>
 </div>
 </body>

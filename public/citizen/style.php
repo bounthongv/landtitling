@@ -101,4 +101,13 @@
     font-size: 14px; z-index: 200; opacity: 0; transition: all .3s; max-width: 90%;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .alert { padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+  .alert.err { background: #fdecea; color: #b71c1c; border: 1px solid #f5c6cb; }
+  .alert.ok  { background: #eaf4ea; color: #1b5e20; border: 1px solid #bbdefb; }
+  /* Obligation statuses (annual fee, not payment status) */
+  .pill-unpaid   { background: #fdecea; color: #b71c1c; }
+  .pill-partial  { background: #fff3cd; color: #856404; }
+  .pill-overpaid { background: #e1f5fe; color: #01579b; }
+  .pill-waived, .pill-refunded, .pill-disputed { background: #eceff1; color: #546e7a; }
+  .ref-box { font-family: monospace; font-size: 15px; letter-spacing: .5px; }
 </style>

@@ -3,13 +3,15 @@
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/validate.php';
+require_once __DIR__ . '/../../lib/otp.php';
 require_method('POST');
 $body = read_json_body();
+$cfg = require __DIR__ . '/../../lib/config.php';
 
 $action = $body['action'] ?? '';
 
 if ($action === 'otp/request') {
-    // Citizen OTP login — request a code
+    // Citizen OTP login — issue a signed code (stateless; see lib/otp.php)
     $phone = $body['phone'] ?? '';
     $err = collect_errors([
         'phone' => validate_required($phone, 'phone') ?: validate_phone($phone, 'phone'),
@@ -27,23 +29,34 @@ if ($action === 'otp/request') {
         $user = $stmt->fetch();
     }
 
-    $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT); // dev stub
-    // Store the code keyed to the user in session for verification
-    session_start();
-    $_SESSION['otp'][$user['id']] = ['code' => $code, 'exp' => time() + 300];
+    $otp = otp_issue($phone, $cfg['jwt_secret']);
+    // DEV STUB: real deployment delivers the SMS inside otp_send_sms().
+    otp_send_sms($phone, 'Your land fee code is ' . $otp['code']);
 
-    // DEV STUB: in real deployment, send $code via SMS gateway here.
-    json_ok(['debug_code' => $code], 200, ['hint' => 'SMS gateway not wired; code returned for development']);
+    // Never echo the code back unless OTP_DEBUG=1 is explicitly set.
+    $data = ['otp_token' => $otp['token'], 'expires_at' => $otp['expires_at']];
+    if (!empty($cfg['otp_debug'])) {
+        $data['debug_code'] = $otp['code'];
+        json_ok($data, 200, ['hint' => 'SMS gateway not wired; code returned for development']);
+    }
+    json_ok($data);
 }
 
 if ($action === 'otp/verify') {
     $phone = $body['phone'] ?? '';
-    $code = $body['code'] ?? '';
+    $code  = $body['code'] ?? '';
+    $token = $body['otp_token'] ?? '';
     $err = collect_errors([
         'phone' => validate_required($phone, 'phone') ?: validate_phone($phone, 'phone'),
         'code'  => validate_required($code, 'code'),
+        'otp_token' => validate_required($token, 'otp token'),
     ]);
     reject_on_errors($err);
+
+    $res = otp_verify($phone, $code, $token, $cfg['jwt_secret']);
+    if (!$res['ok']) {
+        json_error('Invalid or expired code', 401, 'invalid_otp');
+    }
 
     $pdo = db_connect();
     $stmt = $pdo->prepare("SELECT id, role FROM users WHERE phone = :phone AND is_active = TRUE");
@@ -52,14 +65,7 @@ if ($action === 'otp/verify') {
     if (!$user) {
         json_error('Phone not registered', 404, 'not_found');
     }
-    session_start();
-    $stored = $_SESSION['otp'][$user['id']] ?? null;
-    if (!$stored || $stored['exp'] < time() || !hash_equals((string)$stored['code'], (string)$code)) {
-        json_error('Invalid or expired code', 401, 'invalid_otp');
-    }
-    unset($_SESSION['otp'][$user['id']]);
-    $token = auth_issue_token($user);
-    json_ok(['token' => $token, 'user' => ['id' => (int)$user['id'], 'role' => $user['role']]]);
+    json_ok(['token' => auth_issue_token($user), 'user' => ['id' => (int)$user['id'], 'role' => $user['role']]]);
 }
 
 if ($action === 'login') {

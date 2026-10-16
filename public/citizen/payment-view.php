@@ -1,108 +1,157 @@
 <?php
-// public/citizen/payment-view.php — printable slip + tracking
+// public/citizen/payment-view.php — printable slip, receipt upload, payment tracking
 require __DIR__ . '/common.php';
-$token = $_SESSION['citizen_token'] ?? '';
-if (!$token) { header('Location: login.php'); exit; }
+citizen_require_login();
+$token = citizen_token();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-if (!$id) { header('Location: payments.php'); exit; }
+if (!$id) { header('Location: index.php#payments'); exit; }
 
-$payments = [];
-$ch = curl_init($api_base . '/payments.php');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$resp = curl_exec($ch); curl_close($ch);
-$d = json_decode($resp, true);
-$payments = $d['data'] ?? [];
+$err = '';
+$flash = '';
 
-$payById = null;
+// ---- Upload the bank/counter receipt photo ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['upload_receipt'])) {
+    if (empty($_FILES['slip']) || $_FILES['slip']['error'] !== UPLOAD_ERR_OK) {
+        $err = 'Choose a photo of your receipt.';
+    } else {
+        $r = citizen_api_upload('payments.php?id=' . $id . '&receipt=1',
+            $_FILES['slip']['tmp_name'], $_FILES['slip']['name'], $_FILES['slip']['type'], $token, 'slip');
+        if (!empty($r['ok'])) {
+            $flash = 'Receipt uploaded. An officer will verify it.';
+        } else {
+            $err = citizen_error($r);
+        }
+    }
+}
+
+// Find this payment among the citizen's own payments (API enforces ownership)
+$payments = citizen_data(citizen_api('GET', 'payments.php', null, $token))['payments'] ?? [];
+$payment = null;
 foreach ($payments as $p) {
-    if ((int)$p['id'] === $id) { $payById = $p; break; }
+    if ((int)$p['id'] === $id) { $payment = $p; break; }
 }
-$payment = $payById;
+if (!$payment) {
+    $err = $err ?: 'Payment not found.';
+}
 
-$parcel = [];
-if ($payment && !empty($payment['parcel_id'])) {
-    $ch = curl_init($api_base . '/parcels.php?id=' . $payment['parcel_id']);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $resp = curl_exec($ch); curl_close($ch);
-    $d = json_decode($resp, true);
-    $parcel = $d['data']['parcels'][0] ?? [];
+// Obligation context for rate / due date
+$ob = null;
+if ($payment && !empty($payment['obligation_id'])) {
+    foreach (citizen_data(citizen_api('GET', 'my_parcels.php', null, $token))['parcels'] ?? [] as $mp) {
+        foreach ($mp['obligations'] ?? [] as $o) {
+            if ((int)$o['id'] === (int)$payment['obligation_id']) { $ob = $o; break 2; }
+        }
+    }
 }
+
+$qrPayload = (string)($payment['slip_qr'] ?? '');
+$qrUrl = $qrPayload !== ''
+    ? 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . urlencode($qrPayload)
+    : '';
+$pill = ['ISSUED' => 'pending', 'PAID' => 'paid', 'REJECTED' => 'rej', 'REFUNDED' => 'rej'][$payment['status'] ?? ''] ?? 'pending';
 ?>
-<div class="app">
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slip — Savannakhet Land Fee</title>
+<?php require __DIR__ . '/style.php'; ?>
+</head>
+<body>
+<div class="app" style="padding-bottom:24px;">
   <header class="app-header">
-    <div class="title">ການຊຳລະ</div>
-    <div class="sub">Payment #<?= e($payment['slip_no'] ?? 'N/A') ?></div>
+    <div class="title">ບິນຊຳລະ</div>
+    <div class="sub"><?= $payment ? e($payment['reference_no']) : '' ?></div>
   </header>
   <main>
-    <div class="card">
-      <?php if ($payment && !$parcel): ?>
-        <div style="color:#1b5e20; background:#eaf4ea; padding:10px; border-radius:6px; margin-bottom:12px;">
-          ✅ Payment <?= e($payment['status']) ?> · <?= number_format((float)$payment['fee_total'], 0) ?> kip
-        </div>
-      <?php endif; ?>
+    <?php if ($flash): ?><div class="alert ok"><?= e($flash) ?></div><?php endif; ?>
+    <?php if ($err): ?><div class="alert err"><?= e($err) ?></div><?php endif; ?>
 
-      <?php if ($parcel): ?>
-        <div class="card" style="border-color:#1b5e20; background:#f8faf7;">
-          <p class="sub" style="margin-top:0;"><strong>Parcel details</strong> — <?= e($parcel['parcel_no']) ?></p>
-          <p class="sub">District: <?= e($parcel['district_name'] ?? '') ?> · Village: <?= e($parcel['village_name'] ?? '') ?></p>
-          <p class="sub">Area: <?= number_format((float)$parcel['area_sqm'] ?? 0, 2) ?> m² · Road: <?= e(ucfirst($parcel['road_category'] ?? '')) ?></p>
+    <?php if (!$payment): ?>
+      <div class="card"><p class="empty">Payment not found.</p></div>
+    <?php else: ?>
+      <div class="card">
+        <div style="text-align:center;padding:6px 0 12px;">
+          <span class="pill pill-<?= e($pill) ?>"><?= e($payment['status']) ?></span>
         </div>
-      <?php endif; ?>
 
-      <?php if ($payment): ?>
-        <div class="card">
-          <h3>Payment details</h3>
-          <table class="slip-table">
-            <tr><td>Status</td><td><span class="pill pill-<?= e($payment['status']) ?>"><?= e(ucfirst($payment['status'])) ?></span></td></tr>
-            <tr><td>Slip number</td><td><?= e($payment['slip_no'] ?? 'N/A') ?></td></tr>
-            <tr><td>District</td><td><?= e($parcel['district_name'] ?? $payment['district_id'] ?? 'N/A') ?></td></tr>
-            <tr><td>Village</td><td><?= e($parcel['village_name'] ?? 'N/A') ?></td></tr>
-            <tr><td>Parcel</td><td><?= e($parcel['parcel_no'] ?? 'N/A') ?></td></tr>
-            <tr><td>Area</td><td><?= number_format((float)($payment['area_sqm'] ?? $parcel['area_sqm'] ?? 0), 2) ?> m²</td></tr>
-            <tr><td>Rate</td><td><?= number_format((float)($payment['zone_rate'] ?? 0), 0) ?> kip/m²</td></tr>
-            <tr class="amount"><td>Total</td><td><?= number_format((float)$payment['fee_total'], 0) ?> kip</td></tr>
-          </table>
-          <?php if (!empty($payment['slip_path'])): ?>
-            <h4>Bank/Counter receipt (uploaded)</h4>
-            <img src="<?= e($payment['slip_path']) ?>" style="max-width:200px; border-radius:6px; background:#fff;" alt="slip">
-          <?php else: ?>
-            <div class="qr-box">
-              <?php if ($payment['slip_no']): ?>
-                <p>Slip QR payload:</p>
-                <code style="font-size:12px; word-break:break-all;"><?= e($payment['slip_qr'] ?? 'N/A') ?></code>
-                <p class="sub" style="margin-top:8px;">Print / save this slip to pay at bank or counter.</p>
-              <?php endif; ?>
-            </div>
-          <?php endif; ?>
-        </div>
-      <?php endif; ?>
+        <table class="slip-table">
+          <tr><td>ເລກທີອ້າງອງິງ / Reference</td><td class="ref-box"><?= e($payment['reference_no']) ?></td></tr>
+          <tr><td>ຕອນດິນ / Parcel</td><td><?= e($payment['parcel_no']) ?></td></tr>
+          <tr><td>District / Village</td><td><?= e($payment['district_name']) ?> / <?= e($payment['village_name']) ?></td></tr>
+          <tr><td>Fee year</td><td><?= e($payment['fee_year']) ?></td></tr>
+          <tr><td>Area</td><td><?= number_format((float)$payment['area_sqm'], 2) ?> m²</td></tr>
+          <tr><td>ວິທີຊຳລະ / Method</td><td><?= e(ucfirst((string)$payment['method'])) ?></td></tr>
+          <?php if ($ob): ?><tr><td>Due date</td><td><?= e($ob['due_date'] ?? '—') ?></td></tr><?php endif; ?>
+          <tr class="amount"><td>Total</td><td><?= kip($payment['amount']) ?></td></tr>
+        </table>
+
+        <?php if ($qrUrl): ?>
+          <div class="qr-box">
+            <p style="text-align:center;">Scan at bank / counter</p>
+            <img src="<?= e($qrUrl) ?>" alt="payment QR">
+          </div>
+        <?php endif; ?>
+
+        <button class="btn btn-block" type="button" onclick="window.print()">Print slip</button>
+      </div>
 
       <div class="card">
         <h3>Tracking</h3>
         <ul class="list">
           <li>
-            <span class="pill pill-<?= e($payment['status']) ?>"><?= e(ucfirst($payment['status'])) ?></span>
-            <span class="name">Created</span>
-            <span style="color:var(--muted);font-size:12px;"><?= e($payment['created_at'] ?? 'N/A') ?></span>
+            <span class="pill pill-<?= e($pill) ?>"><?= e($payment['status']) ?></span>
+            <span class="name">Slip created</span>
+            <span style="color:var(--muted);font-size:12px;"><?= e($payment['created_at'] ?? '') ?></span>
           </li>
           <?php if (!empty($payment['paid_at'])): ?>
           <li>
             <span class="pill pill-paid">PAID</span>
-            <span class="name">Paid at bank/counter</span>
+            <span class="name">Payment recorded</span>
             <span style="color:var(--muted);font-size:12px;"><?= e($payment['paid_at']) ?></span>
+          </li>
+          <?php endif; ?>
+          <?php if (!empty($payment['verify_method'])): ?>
+          <li>
+            <span class="pill pill-issued"><?= e($payment['verify_method']) ?></span>
+            <span class="name">Verified by <?= e($payment['verify_method'] === 'auto_statement' ? 'bank statement match' : 'officer') ?></span>
+            <span style="color:var(--muted);font-size:12px;"><?= e($payment['paid_at'] ?? '') ?></span>
           </li>
           <?php endif; ?>
           <?php if (!empty($payment['verify_note'])): ?>
           <li>
-            <span class="pill pill-rej">Rejected</span>
-            <span class="name">Verification note</span>
-            <span style="color:var(--muted);font-size:12px;"><?= e($payment['verify_note']) ?></span>
+            <span class="pill pill-rej">Note</span>
+            <span class="name"><?= e($payment['verify_note']) ?></span>
+            <span></span>
           </li>
           <?php endif; ?>
         </ul>
       </div>
-    </div>
+
+      <div class="card">
+        <h3>Upload your receipt</h3>
+        <?php if (!empty($payment['slip_path'])): ?>
+          <p class="sub" style="margin-top:0;">Receipt on file:</p>
+          <img src="<?= e($payment['slip_path']) ?>" style="max-width:220px;border-radius:6px;background:#fff;" alt="receipt">
+        <?php endif; ?>
+        <?php if ($payment['status'] !== 'PAID'): ?>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="upload_receipt" value="1">
+          <div class="form-group">
+            <label>Photo of bank/counter receipt</label>
+            <input type="file" name="slip" accept="image/*" required>
+          </div>
+          <button class="btn btn-gold" type="submit">Upload receipt</button>
+        </form>
+        <p class="foot-note">Pay using the reference above, then upload the receipt here.</p>
+        <?php else: ?>
+          <p class="sub" style="margin-bottom:0;">This payment is settled — no receipt needed.</p>
+        <?php endif; ?>
+      </div>
+
+      <p style="text-align:center;"><a href="index.php#payments">← ການຊຳລະຂອງຂ້າຮ່າງ</a></p>
+    <?php endif; ?>
   </main>
 </div>
 </body>
