@@ -1,6 +1,7 @@
 <?php
 // public/admin/common.php — admin shared: session, JWT auth, navbar
 session_start();
+require_once __DIR__ . '/../../lib/auth.php';
 $cfg = require __DIR__ . '/../../lib/config.php';
 $base = $cfg['admin_base'];
 $api_base = $cfg['api_base'];
