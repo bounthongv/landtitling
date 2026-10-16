@@ -17,8 +17,9 @@ if (empty($_SESSION['admin_token'])) {
 
 function admin_user() {
     global $cfg;
-    if (empty($_SESSION['admin_token'])) return null;
-    return auth_current();
+    $token = $_SESSION['admin_token'] ?? '';
+    if ($token === '') return null;
+    return jwt_decode($token, $cfg['jwt_secret']);
 }
 
 $user = admin_user();
