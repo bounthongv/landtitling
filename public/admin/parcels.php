@@ -8,14 +8,14 @@ $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
 $parcel_no = $_GET['parcel_no'] ?? '';
 $status = $_GET['status'] ?? '';
 
-$url = 'api/v1/parcels.php';
+$url = 'parcels.php';
 if ($district_id) { $url .= '?district_id=' . $district_id; }
 if ($parcel_no) { $url .= ($district_id ? '&' : '?') . 'parcel_no=' . urlencode($parcel_no); }
 if ($status) { $url .= ($district_id || $parcel_no ? '&' : '?') . 'status=' . $status; }
 
 $parcels = [];
 $count = 0;
-$ch = curl_init('http://localhost/' . $url);
+$ch = curl_init($api_base . '/' . $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $resp = curl_exec($ch); curl_close($ch);
 $d = json_decode($resp, true);
@@ -23,7 +23,7 @@ if (!empty($d['ok'])) { $parcels = $d['data']['parcels'] ?? []; $count = $d['dat
 
 // districts for filter
 $districts = [];
-$ch = curl_init('http://localhost/api/v1/districts.php');
+$ch = curl_init($api_base . '/districts.php');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $resp = curl_exec($ch); curl_close($ch);
 $districts = json_decode($resp, true)['data'] ?? [];

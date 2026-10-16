@@ -1,8 +1,9 @@
 <?php
 // public/admin/common.php — admin shared: session, JWT auth, navbar
 session_start();
-$base = '/LandTitling/public/admin';
 $cfg = require __DIR__ . '/../../lib/config.php';
+$base = $cfg['admin_base'];
+$api_base = $cfg['api_base'];
 
 // Resolve JWT from session (set after login)
 if (empty($_SESSION['admin_token'])) {

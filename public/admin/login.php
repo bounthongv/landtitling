@@ -1,11 +1,12 @@
 <?php
 // public/admin/login.php — officer login via JWT
+$cfg = require __DIR__ . '/../../lib/config.php';
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = ['action' => 'login'];
     $body['username'] = $_POST['username'] ?? '';
     $body['password'] = $_POST['password'] ?? '';
-    $ch = curl_init('http://localhost/api/v1/auth.php');
+    $ch = curl_init($cfg['api_base'] . '/auth.php');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
@@ -18,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         session_start();
         $_SESSION['admin_token'] = $data['data']['token'];
         $_SESSION['admin_user'] = $data['data']['user'];
-        header('Location: /LandTitling/public/admin/index.php');
+        header('Location: ' . $cfg['admin_base'] . '/index.php');
         exit;
     } else {
         $error = $data['error']['message'] ?? 'Login failed';

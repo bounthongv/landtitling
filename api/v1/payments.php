@@ -112,7 +112,7 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
         json_error('Failed to save receipt', 500, 'upload_failed');
     }
     $stmt = $pdo->prepare("UPDATE payments SET slip_path = :p, status = 'ISSUED' WHERE id = :id RETURNING id, status");
-    $stmt->execute([':p' => '/uploads/' . $filename, ':id' => $id]);
+    $stmt->execute([':p' => '/public/uploads/' . $filename, ':id' => $id]);
     $updated = $stmt->fetch();
     if (!$updated) {
         json_error('Payment not found', 404, 'not_found');

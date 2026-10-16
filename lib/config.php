@@ -16,6 +16,15 @@ if (is_file($envFile)) {
     }
 }
 
+// Build a usable base URL from the incoming request (works in local dev and prod).
+function base_url() {
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['SERVER_PORT'] ?? '') === '443';
+    $scheme = $https ? 'https' : 'http';
+    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host;
+}
+
 return [
     'pgsql_host'   => getenv('PGHOST') ?: 'localhost',
     'pgsql_port'   => (int)(getenv('PGPORT') ?: 5432),
@@ -28,4 +37,8 @@ return [
     'jwt_ttl'      => 86400, // seconds (24h)
     // Schema name for the landfee tables
     'pgsql_schema' => getenv('PG_SCHEMA') ?: 'landfee',
+    // API base (same origin as this app, /api/v1) — dynamic so it works locally + prod.
+    'api_base'     => base_url() . '/api/v1',
+    // Admin public base path.
+    'admin_base'   => '/public/admin',
 ];

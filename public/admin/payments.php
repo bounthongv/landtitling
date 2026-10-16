@@ -8,14 +8,14 @@ $status = $_GET['status'] ?? 'ISSUED';
 $filter = $status;
 
 $payments = [];
-$ch = curl_init('http://localhost/api/v1/payments.php?status=' . $status);
+$ch = curl_init($api_base . '/payments.php?status=' . $status);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $resp = curl_exec($ch); curl_close($ch);
 $d = json_decode($resp, true);
 if (!empty($d['ok'])) { $payments = $d['data'] ?? []; }
 
 $districts = [];
-$ch = curl_init('http://localhost/api/v1/districts.php');
+$ch = curl_init($api_base . '/districts.php');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $resp = curl_exec($ch); curl_close($ch);
 $districts = json_decode($resp, true)['data'] ?? [];
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
     $id = (int)($_POST['payment_id'] ?? 0);
     $action = $_POST['do_action'];
     $postBody = $action === 'reject' ? ['reason' => $_POST['reason'] ?? 'Rejected'] : [];
-    $ch = curl_init('http://localhost/api/v1/payments.php?id=' . $id . '&' . ($action === 'verify' ? 'verify' : 'reject'));
+    $ch = curl_init($api_base . '/payments.php?id=' . $id . '&' . ($action === 'verify' ? 'verify' : 'reject'));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postBody));
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
           <p><b>QR payload:</b> <?= e($p['slip_qr'] ?? 'N/A') ?></p>
           <?php if (!empty($p['slip_path'])): ?>
             <p><b>Receipt image:</b></p>
-            <img src="/LandTitling/<?= e($p['slip_path']) ?>" style="max-width:200px; border-radius:4px; background:#fff;" alt="slip">
+            <img src="<?= e($p['slip_path']) ?>" style="max-width:200px; border-radius:4px; background:#fff;" alt="slip">
           <?php endif; ?>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">

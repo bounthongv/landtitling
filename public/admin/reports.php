@@ -16,13 +16,13 @@ if ($from) { $params .= ($params ? '&' : '') . 'from=' . $from; }
 if ($to) { $params .= ($params ? '&' : '') . 'to=' . $to; }
 if ($format) { $params .= ($params ? '&' : '') . 'format=' . $format; }
 
-$ch = curl_init('http://localhost/api/v1/reports.php' . ($params ? '?' . $params : ''));
+$ch = curl_init($api_base . '/reports.php' . ($params ? '?' . $params : ''));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $resp = curl_exec($ch); curl_close($ch);
 $d = json_decode($resp, true);
 
 $districts = [];
-$ch = curl_init('http://localhost/api/v1/districts.php');
+$ch = curl_init($api_base . '/districts.php');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $resp = curl_exec($ch); curl_close($ch);
 $districts = json_decode($resp, true)['data'] ?? [];

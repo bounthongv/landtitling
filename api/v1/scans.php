@@ -54,6 +54,7 @@ if ($method === 'POST') {
     if (isset($ocrResult['error'])) {
         json_error('OCR failed: ' . $ocrResult['error'], 500, 'ocr_failed');
     }
+    $webPath = '/public/uploads/' . $filename;
     $text = trim($ocrResult['text'] ?? '');
     $ocr_extracted = [];
     if ($text !== '') {
@@ -64,7 +65,7 @@ if ($method === 'POST') {
     $stmt = $pdo->prepare("INSERT INTO title_scans (parcel_id, image_path, ocr_raw, ocr_extracted, created_by)
         VALUES (NULL, :p, :raw, :ext, :u) RETURNING id, image_path, ocr_extracted");
     $stmt->execute([
-        ':p' => $destPath,
+        ':p' => $webPath,
         ':raw' => $ocr_raw ?? '',
         ':ext' => $ocr_extracted,
         ':u' => $me['sub'],

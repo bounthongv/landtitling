@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel'])) {
             'status' => $_POST['status'] ?? 'confirmed',
         ],
     ];
-    $ch = curl_init('http://localhost/api/v1/scans/' . $editId . '/confirm.php');
+    $ch = curl_init($api_base . '/scans/' . $editId . '/confirm.php');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel'])) {
 
 // --- Load the scan data for the form ---
 if ($editId > 0) {
-    $ch = curl_init('http://localhost/api/v1/scans/' . $editId . '/confirm.php');
+    $ch = curl_init($api_base . '/scans/' . $editId . '/confirm.php');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $_SESSION['admin_token']]);
     $resp = curl_exec($ch);
@@ -57,11 +57,11 @@ if ($editId > 0) {
 // --- Fetch districts/villages ---
 $districts = $villages = [];
 if ($editId > 0 && !empty($scan['district_id'])) {
-    $ch = curl_init('http://localhost/api/v1/districts.php');
+    $ch = curl_init($api_base . '/districts.php');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $resp = curl_exec($ch); curl_close($ch);
     $districts = json_decode($resp, true)['data'] ?? [];
-    $ch = curl_init('http://localhost/api/v1/villages.php?district_id=' . $scan['district_id']);
+    $ch = curl_init($api_base . '/villages.php?district_id=' . $scan['district_id']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $resp = curl_exec($ch); curl_close($ch);
     $villages = json_decode($resp, true)['data'] ?? [];
