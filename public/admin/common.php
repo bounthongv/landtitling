@@ -29,6 +29,7 @@ $role = $user['role'] ?? null;
 function e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
 function admin_nav($role) {
+    global $base;
     $links = [];
     if ($role === 'admin') {
         $links[] = '<li><a href="' . $base . '/index.php">Dashboard</a></li>';
