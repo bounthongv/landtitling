@@ -11,7 +11,7 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 | Front-end | URL | Purpose |
 |-----------|-----|---------|
 | **Citizen PWA** | `https://landfee.apis.com.la/public/citizen/` | Mobile-first: phone-OTP login → parcel lookup → fee quote → create payment → print slip → upload slip photo → track status |
-| **Officer Back-Office** | `https://landfee.apis.com.la/public/admin/` | **THIS IS WHAT WE BUILD NOW** — page by page, test through real web UI |
+| **Officer Back-Office** | `https://landfee.apis.com.la/` (root → admin) | **THIS IS WHAT WE BUILD NOW** — page by page, test through real web UI |
 | **JSON API** | `https://landfee.apis.com.la/api/v1/` | Powers both front-ends (already built) |
 
 **Fee model (locked):** `fee = zone_rate(district, road_category) × area_sqm` — flat, location-only.
@@ -22,8 +22,8 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 
 | What | URL | Expected |
 |------|-----|----------|
+| **Admin login (root)** | `https://landfee.apis.com.la/` | 302 → login (root now redirects to admin) |
 | **API health** | `https://landfee.apis.com.la/api/v1/districts.php` | 200 + JSON |
-| **Officer Back-Office** | `https://landfee.apis.com.la/public/admin/` | 302 → login |
 | **Citizen PWA** | `https://landfee.apis.com.la/public/citizen/` | 302 → login |
 | HTTP → HTTPS | `http://landfee.apis.com.la/` | 301 → HTTPS |
 
@@ -38,7 +38,7 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 
 ---
 
-## 3. Current Back-Office Pages (already exist, need review/build)
+## 3.1 Current Back-Office Pages (already exist, need review/build)
 
 | Page | File | URL | Status |
 |------|------|-----|--------|
@@ -174,10 +174,10 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 
 ## 8. Next Action
 
-**Open the live back-office and start with Page 1 (Login):**
+**Open the live back-office at the root URL:**
 
 ```
-https://landfee.apis.com.la/public/admin/
+https://landfee.apis.com.la/
 ```
 
 **Credentials:** `sav_officer` / `demo1234`
