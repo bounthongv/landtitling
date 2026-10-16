@@ -1,137 +1,167 @@
 <?php
-// API v1: payments — create (ISSUED), list, slip, receipt, verify, reject
+// API v1: payments — a settlement against an annual fee obligation (schema v2).
+// Roles: officer/admin act on the queue; citizens may create + view their own slip.
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/validate.php';
 require_once __DIR__ . '/../../lib/slip.php';
+require_once __DIR__ . '/../../lib/fee.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
 $pdo = db_connect();
+$method = $_SERVER['REQUEST_METHOD'];
 
-// ---- CREATE payment (citizen) ----
-if ($method === 'POST' && empty($_GET['id'])) {
-    $me = require_auth(['citizen', 'officer']);
-    $body = read_json_body();
-
-    $parcel_id = $body['parcel_id'] ?? null;
-    $district_id = $body['district_id'] ?? null;
-    $area_sqm = $body['area_sqm'] ?? null;
-    $err = collect_errors([
-        'parcel_id'   => validate_required($parcel_id, 'parcel') ?: validate_int($parcel_id, 'parcel'),
-        'district_id' => validate_required($district_id, 'district') ?: validate_int($district_id, 'district'),
-        'area_sqm'    => validate_required($area_sqm, 'area') ?: validate_positive($area_sqm, 'area'),
-    ]);
-    reject_on_errors($err);
-
-    // Fetch the parcel to get road_category
-    $stmt = $pdo->prepare("SELECT p.*, v.name_lo AS village_name, d.name_lo AS district_name
-        FROM parcels p
-        JOIN villages v ON p.village_id = v.id
-        JOIN districts d ON p.district_id = d.id
+/** Obligation + parcel + owner context for a payment. */
+function payment_context(PDO $pdo, array $payment): array {
+    $out = ['obligation' => null, 'parcel' => null, 'owners' => []];
+    if (!empty($payment['obligation_id'])) {
+        $st = $pdo->prepare("SELECT o.*, d.name_lo AS district_name FROM fee_obligations o
+            JOIN districts d ON d.id = o.district_id WHERE o.id = :id");
+        $st->execute([':id' => (int)$payment['obligation_id']]);
+        $out['obligation'] = $st->fetch() ?: null;
+    }
+    $st = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name
+        FROM parcels p JOIN districts d ON d.id = p.district_id JOIN villages v ON v.id = p.village_id
         WHERE p.id = :id");
-    $stmt->execute([':id' => (int)$parcel_id]);
-    $parcel = $stmt->fetch();
-    if (!$parcel) {
-        json_error('Parcel not found', 404, 'not_found');
-    }
-
-    // Fetch zone rate (effective)
-    $stmt = $pdo->prepare("SELECT rate_per_sqm FROM zones_rates
-        WHERE district_id = :d AND road_category = :rc AND valid_from <= CURRENT_DATE
-        ORDER BY valid_from DESC LIMIT 1");
-    $stmt->execute([':d' => (int)$district_id, ':rc' => $parcel['road_category']]);
-    $rate = $stmt->fetchColumn();
-    if ($rate === false) {
-        json_error('Zone rate not found', 404, 'rate_not_found');
-    }
-    $rate = (float)$rate;
-    $fee_total = round($rate * (float)$area_sqm, 2);
-    $slip_no = slip_generate_no($pdo);
-
-    // Create payment (ISSUED)
-    $stmt = $pdo->prepare("INSERT INTO payments
-        (parcel_id, citizen_id, district_id, area_sqm, zone_rate, fee_total, status, slip_no, slip_qr)
-        VALUES (:parcel_id, :citizen_id, :district_id, :area_sqm, :zone_rate, :fee_total, 'ISSUED', :slip_no, :slip_qr)
-        RETURNING id, slip_no, fee_total, status, created_at");
-    $qr = slip_qr_payload($slip_no, $fee_total);
-    $stmt->execute([
-        ':parcel_id'   => (int)$parcel_id,
-        ':citizen_id'  => isset($body['citizen_id']) ? (int)$body['citizen_id'] : null,
-        ':district_id' => (int)$district_id,
-        ':area_sqm'    => (float)$area_sqm,
-        ':zone_rate'   => $rate,
-        ':fee_total'   => $fee_total,
-        ':slip_no'     => $slip_no,
-        ':slip_qr'     => $qr,
-    ]);
-    $payment = $stmt->fetch();
-    $payment['road_category'] = $parcel['road_category'];
-    $payment['due_date'] = date('Y-m-d', strtotime($payment['created_at'] . ' + 30 days'));
-    json_ok($payment, 201);
+    $st->execute([':id' => (int)$payment['parcel_id']]);
+    $out['parcel'] = $st->fetch() ?: null;
+    $st = $pdo->prepare("SELECT o.*, po.role, po.share_pct FROM parcel_owners po
+        JOIN owners o ON o.id = po.owner_id WHERE po.parcel_id = :pid ORDER BY o.id");
+    $st->execute([':pid' => (int)$payment['parcel_id']]);
+    $out['owners'] = $st->fetchAll();
+    return $out;
 }
 
-// ---- GET slip (citizen) ----
-if ($method === 'GET' && isset($_GET['id']) && isset($_GET['slip'])) {
-    $me = require_auth(['citizen', 'officer']);
-    $id = (int)$_GET['id'];
-    $stmt = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
-    $stmt->execute([':id' => $id]);
-    $payment = $stmt->fetch();
-    if (!$payment) {
-        json_error('Payment not found', 404, 'not_found');
+// ---- CREATE a payment (settlement) against an obligation ----
+if ($method === 'POST' && !isset($_GET['id'])) {
+    $me = require_auth(['citizen', 'officer', 'admin']);
+    $body = read_json_body();
+
+    $obligationId = (int)($body['obligation_id'] ?? 0);
+    if (!$obligationId) {
+        // Allow parcel_id + fee_year and resolve/assess the obligation first.
+        $parcelId = (int)($body['parcel_id'] ?? 0);
+        $feeYear  = (int)($body['fee_year'] ?? date('Y'));
+        if ($parcelId > 0) {
+            $ob = fee_upsert_obligation($pdo, $parcelId, $feeYear);
+            if ($ob) { $obligationId = (int)$ob['id']; }
+        }
     }
-    $stmt = $pdo->prepare("SELECT p.*, v.name_lo AS village_name, d.name_lo AS district_name
-        FROM parcels p JOIN villages v ON p.village_id = v.id JOIN districts d ON p.district_id = d.id
-        WHERE p.id = :id");
-    $stmt->execute([':id' => (int)$payment['parcel_id']]);
-    $parcel = $stmt->fetch();
-    $payment['road_category'] = $parcel['road_category'] ?? null;
-    $payment['due_date'] = date('Y-m-d', strtotime($payment['created_at'] . ' + 30 days'));
-    $qr_url = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . urlencode($payment['slip_qr']);
+    if ($obligationId <= 0) {
+        json_error('obligation_id (or parcel_id) is required', 400, 'missing_obligation');
+    }
+
+    $st = $pdo->prepare("SELECT o.*, p.parcel_no FROM fee_obligations o
+        JOIN parcels p ON p.id = o.parcel_id WHERE o.id = :id");
+    $st->execute([':id' => $obligationId]);
+    $ob = $st->fetch();
+    if (!$ob) { json_error('Obligation not found', 404, 'obligation_not_found'); }
+
+    // Settle against what is still outstanding.
+    $outstanding = round(((float)$ob['amount_due'] + (float)$ob['penalty']) - (float)$ob['amount_paid'], 2);
+    if ($outstanding <= 0) {
+        json_error('Obligation is already settled', 409, 'already_settled');
+    }
+
+    $method_ = $body['method'] ?? 'counter';
+    if (!in_array($method_, ['counter', 'bank_transfer', 'mobile', 'cash'], true)) {
+        json_error('Invalid payment method', 400, 'invalid_method');
+    }
+    $payerOwnerId = !empty($body['payer_owner_id']) ? (int)$body['payer_owner_id'] : null;
+    $amount = isset($body['amount']) && $body['amount'] !== '' ? (float)$body['amount'] : $outstanding;
+    if ($amount <= 0) { json_error('amount must be positive', 400, 'invalid_amount'); }
+    $amount = min(round($amount, 2), $outstanding);
+
+    $reference = slip_generate_no($pdo);
+    $qr = slip_qr_payload($reference, $amount);
+
+    $st = $pdo->prepare("INSERT INTO payments
+        (obligation_id, parcel_id, fee_year, payer_owner_id, method, amount, reference_no, slip_qr, status)
+        VALUES (:oid, :pid, :fy, :poid, :m, :amt, :ref, :qr, 'ISSUED') RETURNING id");
+    $st->execute([
+        ':oid' => $obligationId, ':pid' => (int)$ob['parcel_id'], ':fy' => (int)$ob['fee_year'],
+        ':poid' => $payerOwnerId, ':m' => $method_, ':amt' => $amount, ':ref' => $reference, ':qr' => $qr,
+    ]);
+    $paymentId = (int)$st->fetch()['id'];
+    fee_audit($pdo, $me['sub'] ?? null, 'payment_issue', 'payment', $paymentId, [
+        'obligation_id' => $obligationId, 'amount' => $amount, 'reference_no' => $reference, 'method' => $method_,
+    ]);
+    json_ok(['id' => $paymentId, 'reference_no' => $reference, 'amount' => $amount,
+        'slip_qr' => $qr, 'status' => 'ISSUED', 'due_date' => $ob['due_date']], 201);
+}
+
+// ---- Printable slip ----
+if ($method === 'GET' && isset($_GET['id']) && isset($_GET['slip'])) {
+    $me = require_auth(['citizen', 'officer', 'admin']);
+    $id = (int)$_GET['id'];
+    $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
+    $st->execute([':id' => $id]);
+    $payment = $st->fetch();
+    if (!$payment) { json_error('Payment not found', 404, 'not_found'); }
+    if ($me['role'] === 'citizen') {
+        $owns = (int)$pdo->query("SELECT COUNT(*) FROM parcel_owners po JOIN owners o ON o.id = po.owner_id
+            WHERE o.citizen_user_id = " . (int)$me['sub'] . " AND po.parcel_id = " . (int)$payment['parcel_id'])->fetchColumn();
+        if (!$owns) {
+            json_error('Forbidden', 403, 'forbidden');
+        }
+    }
+    $ctx = payment_context($pdo, $payment);
+    $slip = $payment;
+    $slip['amount']        = (float)$payment['amount'];
+    $slip['rate_per_sqm']  = (float)($ctx['obligation']['rate_per_sqm'] ?? 0);
+    $slip['due_date']      = $ctx['obligation']['due_date'] ?? '';
+    $qr_url = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . urlencode((string)$payment['slip_qr']);
     header('Content-Type: text/html; charset=UTF-8');
-    echo slip_render_html($payment, $parcel, $parcel['district_name'], $parcel['village_name'], $qr_url);
+    echo slip_render_html($slip, $ctx['parcel'] ?? [], $ctx['parcel']['district_name'] ?? '', $ctx['parcel']['village_name'] ?? '', $qr_url);
     exit;
 }
 
-// ---- UPLOAD receipt (citizen) ----
+// ---- Upload the paid slip photo ----
 if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
-    $me = require_auth(['citizen', 'officer']);
+    $me = require_auth(['citizen', 'officer', 'admin']);
     $id = (int)$_GET['id'];
-    if (!isset($_FILES['receipt']) || $_FILES['receipt']['error'] !== UPLOAD_ERR_OK) {
-        json_error('No receipt file uploaded', 400, 'no_file');
+    if (!isset($_FILES['slip']) || $_FILES['slip']['error'] !== UPLOAD_ERR_OK) {
+        json_error('No slip file uploaded', 400, 'no_file');
     }
+    $st = $pdo->prepare("SELECT id FROM payments WHERE id = :id");
+    $st->execute([':id' => $id]);
+    if (!$st->fetch()) { json_error('Payment not found', 404, 'not_found'); }
+
     $cfg = require __DIR__ . '/../../lib/config.php';
     $uploadDir = $cfg['uploads'];
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
+    if (!is_dir($uploadDir)) { @mkdir($uploadDir, 0755, true); }
+    $ext = strtolower(pathinfo($_FILES['slip']['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'pdf', 'webp'], true)) {
+        json_error('Unsupported file type', 400, 'bad_type');
     }
-    $ext = strtolower(pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION));
-    $filename = uniqid('rcpt_', true) . '.' . $ext;
-    $dest = $uploadDir . $filename;
-    if (!move_uploaded_file($_FILES['receipt']['tmp_name'], $dest)) {
-        json_error('Failed to save receipt', 500, 'upload_failed');
+    $filename = uniqid('slip_', true) . '.' . $ext;
+    if (!move_uploaded_file($_FILES['slip']['tmp_name'], $uploadDir . $filename)) {
+        json_error('Failed to save slip', 500, 'upload_failed');
     }
-    $stmt = $pdo->prepare("UPDATE payments SET slip_path = :p, status = 'ISSUED' WHERE id = :id RETURNING id, status");
-    $stmt->execute([':p' => '/public/uploads/' . $filename, ':id' => $id]);
-    $updated = $stmt->fetch();
-    if (!$updated) {
-        json_error('Payment not found', 404, 'not_found');
-    }
-    json_ok($updated);
+    $pdo->prepare("UPDATE payments SET slip_path = :p WHERE id = :id")
+        ->execute([':p' => '/public/uploads/' . $filename, ':id' => $id]);
+    json_ok(['id' => $id, 'slip_path' => '/public/uploads/' . $filename]);
 }
 
 // ---- VERIFY (officer) ----
 if ($method === 'POST' && isset($_GET['id']) && isset($_GET['verify'])) {
     $me = require_auth(['officer', 'admin']);
     $id = (int)$_GET['id'];
-    $stmt = $pdo->prepare("UPDATE payments SET status='PAID', paid_at=CURRENT_TIMESTAMP, verified_by=:v
-        WHERE id=:id AND status='ISSUED' RETURNING id, status");
-    $stmt->execute([':v' => $me['sub'], ':id' => $id]);
-    $updated = $stmt->fetch();
-    if (!$updated) {
-        json_error('Payment not found or not in ISSUED state', 409, 'bad_state');
-    }
-    json_ok($updated);
+    $body = read_json_body();
+    $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
+    $st->execute([':id' => $id]);
+    $payment = $st->fetch();
+    if (!$payment) { json_error('Payment not found', 404, 'not_found'); }
+    if ($payment['status'] === 'PAID') { json_error('Already paid', 409, 'already_paid'); }
+    if ($payment['status'] === 'REJECTED') { json_error('Payment was rejected', 409, 'rejected'); }
+
+    $pdo->prepare("UPDATE payments SET status='PAID', paid_at=CURRENT_TIMESTAMP, verified_by=:v,
+        verify_method='manual', verify_note=:n WHERE id=:id")
+        ->execute([':v' => $me['sub'], ':n' => $body['note'] ?? null, ':id' => $id]);
+    $obligation = !empty($payment['obligation_id']) ? fee_settle_obligation($pdo, (int)$payment['obligation_id']) : null;
+    fee_audit($pdo, $me['sub'] ?? null, 'payment_verify', 'payment', $id, [
+        'reference_no' => $payment['reference_no'], 'amount' => (float)$payment['amount'], 'method' => 'manual',
+    ]);
+    json_ok(['id' => $id, 'status' => 'PAID', 'obligation' => $obligation]);
 }
 
 // ---- REJECT (officer) ----
@@ -139,35 +169,77 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['reject'])) {
     $me = require_auth(['officer', 'admin']);
     $id = (int)$_GET['id'];
     $body = read_json_body();
-    $stmt = $pdo->prepare("UPDATE payments SET status='REJECTED', verify_note=:n, verified_by=:v
-        WHERE id=:id AND status='ISSUED' RETURNING id, status");
-    $stmt->execute([':n' => $body['reason'] ?? null, ':v' => $me['sub'], ':id' => $id]);
-    $updated = $stmt->fetch();
-    if (!$updated) {
-        json_error('Payment not found or not in ISSUED state', 409, 'bad_state');
-    }
-    json_ok($updated);
+    $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
+    $st->execute([':id' => $id]);
+    $payment = $st->fetch();
+    if (!$payment) { json_error('Payment not found', 404, 'not_found'); }
+    if ($payment['status'] !== 'ISSUED') { json_error('Payment is not in ISSUED state', 409, 'bad_state'); }
+
+    $pdo->prepare("UPDATE payments SET status='REJECTED', verified_by=:v, verify_method='manual',
+        verify_note=:n WHERE id=:id")
+        ->execute([':v' => $me['sub'], ':n' => $body['reason'] ?? null, ':id' => $id]);
+    $obligation = !empty($payment['obligation_id']) ? fee_settle_obligation($pdo, (int)$payment['obligation_id']) : null;
+    fee_audit($pdo, $me['sub'] ?? null, 'payment_reject', 'payment', $id, [
+        'reference_no' => $payment['reference_no'], 'reason' => $body['reason'] ?? null,
+    ]);
+    json_ok(['id' => $id, 'status' => 'REJECTED', 'obligation' => $obligation]);
 }
 
-// ---- LIST (citizen: mine; officer: queue) ----
+// ---- WAIVE the obligation behind a payment (officer) ----
+if ($method === 'POST' && isset($_GET['id']) && isset($_GET['waive'])) {
+    $me = require_auth(['officer', 'admin']);
+    $id = (int)$_GET['id'];
+    $body = read_json_body();
+    $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
+    $st->execute([':id' => $id]);
+    $payment = $st->fetch();
+    if (!$payment) { json_error('Payment not found', 404, 'not_found'); }
+    if (empty($payment['obligation_id'])) { json_error('Payment has no obligation', 409, 'no_obligation'); }
+
+    $pdo->prepare("UPDATE fee_obligations SET status='WAIVED', updated_at=now() WHERE id=:id")
+        ->execute([':id' => (int)$payment['obligation_id']]);
+    fee_audit($pdo, $me['sub'] ?? null, 'obligation_waive', 'obligation', (int)$payment['obligation_id'], [
+        'reason' => $body['reason'] ?? null, 'reference_no' => $payment['reference_no'],
+    ]);
+    json_ok(['id' => $id, 'obligation_id' => (int)$payment['obligation_id'], 'status' => 'WAIVED']);
+}
+
+// ---- LIST ----
 if ($method === 'GET') {
-    $me = require_auth();
-    $status = $_GET['status'] ?? null;
+    $me = require_auth(['citizen', 'officer', 'admin']);
+    $status   = $_GET['status'] ?? null;
+    $feeYear  = isset($_GET['fee_year']) ? (int)$_GET['fee_year'] : 0;
+    $district = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
+
+    $where = [];
+    $params = [];
+    if ($status !== null && $status !== '') { $where[] = 'pay.status = :s'; $params[':s'] = $status; }
+    if ($feeYear)  { $where[] = 'pay.fee_year = :fy'; $params[':fy'] = $feeYear; }
+    if ($district) { $where[] = 'par.district_id = :did'; $params[':did'] = $district; }
     if ($me['role'] === 'citizen') {
-        $sql = "SELECT * FROM payments WHERE citizen_id = :c";
-        $params = [':c' => $me['sub']];
-    } else {
-        $sql = "SELECT * FROM payments";
-        $params = [];
+        // A citizen sees payments only for parcels they own (owners.citizen_user_id).
+        // Note payer_owner_id points at owners.id, NOT users.id — it cannot be used to
+        // scope citizens directly.
+        $where[] = 'pay.parcel_id IN (SELECT po.parcel_id FROM parcel_owners po
+                    JOIN owners o ON o.id = po.owner_id WHERE o.citizen_user_id = :me)';
+        $params[':me'] = $me['sub'];
     }
-    if ($status) {
-        $sql .= " AND status = :s";
-        $params[':s'] = $status;
-    }
-    $sql .= " ORDER BY created_at DESC";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    json_ok($stmt->fetchAll());
+    $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+    $sql = "SELECT pay.*, par.parcel_no, par.area_sqm, d.name_lo AS district_name, v.name_lo AS village_name,
+            o.full_name AS payer_name, ob.status AS obligation_status
+        FROM payments pay
+        JOIN parcels par ON par.id = pay.parcel_id
+        JOIN districts d ON d.id = par.district_id
+        JOIN villages v ON v.id = par.village_id
+        LEFT JOIN owners o ON o.id = pay.payer_owner_id
+        LEFT JOIN fee_obligations ob ON ob.id = pay.obligation_id
+        $whereSql
+        ORDER BY pay.created_at DESC LIMIT 300";
+    $st = $pdo->prepare($sql);
+    $st->execute($params);
+    $rows = $st->fetchAll();
+    json_ok(['payments' => $rows, 'count' => count($rows)]);
 }
 
 json_error('Not found', 404, 'not_found');

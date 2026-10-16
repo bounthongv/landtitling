@@ -36,8 +36,10 @@ function admin_nav($role) {
     }
     $links[] = '<li><a href="' . $base . '/scans.php">Scan Review</a></li>';
     $links[] = '<li><a href="' . $base . '/parcels.php">Parcels</a></li>';
+    $links[] = '<li><a href="' . $base . '/obligations.php">Obligations</a></li>';
     $links[] = '<li><a href="' . $base . '/rates.php">Zone Rates</a></li>';
     $links[] = '<li><a href="' . $base . '/payments.php">Payment Verify</a></li>';
+    $links[] = '<li><a href="' . $base . '/bank_imports.php">Bank Import</a></li>';
     if ($role === 'admin') {
         $links[] = '<li><a href="' . $base . '/reports.php">Reports</a></li>';
     }
@@ -58,6 +60,72 @@ function api_call($method, $path, $body = null, $token = '') {
     if ($token !== '') { $headers[] = 'Authorization: Bearer ' . $token; }
     if ($body !== null) { curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body)); }
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $resp = curl_exec($ch);
+    curl_close($ch);
+    return json_decode($resp, true);
+}
+
+// api_upload(path, tmpPath, fileName, mime, token, field) — multipart POST to the JSON API.
+function api_upload($path, $tmpPath, $fileName, $mime, $token = '', $field = 'image') {
+    global $api_base;
+    $url = $api_base . '/' . ltrim($path, '/');
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => [$field => new CURLFile($tmpPath, $mime ?: 'application/octet-stream', $fileName)],
+        CURLOPT_HTTPHEADER => $token !== '' ? ['Authorization: Bearer ' . $token] : [],
+    ]);
+    $resp = curl_exec($ch);
+    curl_close($ch);
+    return json_decode($resp, true);
+}
+
+// api_fetch_raw(method, path, token) — returns the response body as a string.
+// Use for non-JSON responses (e.g. CSV exports), which api_call() cannot decode.
+function api_fetch_raw($method, $path, $token = '') {
+    global $api_base;
+    $url = $api_base . '/' . ltrim($path, '/');
+    $ch = curl_init($url);
+    $headers = [];
+    if ($token !== '') { $headers[] = 'Authorization: Bearer ' . $token; }
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0,
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_HTTPHEADER => $headers,
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ['code' => $code, 'body' => (string)$resp];
+}
+
+// api_upload_multipart(path, fileArr, fieldNames, postArr, token, fileField) — multipart POST
+// that also forwards selected plain form fields alongside the uploaded file.
+function api_upload_multipart($path, array $fileArr, array $fieldNames, array $postArr, $token = '', $fileField = 'file') {
+    global $api_base;
+    $url = $api_base . '/' . ltrim($path, '/');
+    $fields = [];
+    foreach ($fieldNames as $n) {
+        if (isset($postArr[$n])) { $fields[$n] = (string)$postArr[$n]; }
+    }
+    $fields[$fileField] = new CURLFile($fileArr['tmp_name'], $fileArr['type'] ?: 'text/csv', $fileArr['name']);
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $fields,
+        CURLOPT_HTTPHEADER => $token !== '' ? ['Authorization: Bearer ' . $token] : [],
+    ]);
     $resp = curl_exec($ch);
     curl_close($ch);
     return json_decode($resp, true);
