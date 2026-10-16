@@ -33,6 +33,15 @@
   .pill-paid { background: #d4edda; color: #155724; }
   .pill-rej { background: #f8d7da; color: #721c24; }
   .pill-pending { background: #e8f0fe; color: #1565c0; }
+  .pill-unpaid { background: #f8d7da; color: #721c24; }
+  .pill-partial { background: #fff3cd; color: #856404; }
+  .pill-overpaid { background: #e1f5fe; color: #01579b; }
+  .pill-waived, .pill-refunded, .pill-disputed { background: #eceff1; color: #546e7a; }
+  .pill-confirmed, .pill-active { background: #d4edda; color: #155724; }
+  .pill-draft { background: #eceff1; color: #607d8b; }
+  .flash { padding: 10px 14px; border-radius: 4px; font-size: 13px; margin-bottom: 14px; }
+  .flash.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  .flash.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
   .form-box { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 18px; margin-bottom: 18px; }
   .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
   .form-group { margin-bottom: 14px; }
@@ -45,6 +54,15 @@
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
   .empty { color: var(--muted); text-align: center; padding: 24px 0; }
   .conf-badge { background: #d4edda; color: #155724; border-radius: 999px; font-size: 12px; padding: 2px 8px; }
+  .conf { display: inline-block; border-radius: 999px; font-size: 11px; padding: 1px 7px; font-weight: 600; }
+  .conf-high { background: #d4edda; color: #155724; }
+  .conf-mid  { background: #fff3cd; color: #856404; }
+  .conf-low  { background: #f8d7da; color: #721c24; }
+  .conf-none { background: #eceff1; color: #607d8b; }
+  .parsed-table td { padding: 5px 8px; font-size: 13px; }
+  .parsed-table td:first-child { color: var(--muted); white-space: nowrap; }
+  .owner-row { display: grid; grid-template-columns: 2fr 1.2fr 2fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+  .owner-row .form-group { margin-bottom: 0; }
   .ocr-box { background: #f4f4f4; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 220px; overflow: auto; }
   @media (max-width: 720px) { .side { width: 60px; } .side .brand, .side-nav a span, .side-foot { display: none; } .side { padding: 8px 0; } .main { padding: 16px; } }
 </style>

@@ -1,8 +1,11 @@
 <?php
-// API v1: scans/{id}/confirm — officer confirms/edits, creates or updates parcel
-require_once __DIR__ . '/../../lib/db.php';
-require_once __DIR__ . '/../../lib/auth.php';
-require_once __DIR__ . '/../../lib/validate.php';
+// API v1: scans/confirm.php?id={id} — officer confirms/edits a scan, creating or updating the
+// parcel (full title content) plus its owner(s). Nothing is auto-committed: this is the only
+// write path from a scan to a parcel.
+require_once __DIR__ . '/../../../lib/db.php';
+require_once __DIR__ . '/../../../lib/auth.php';
+require_once __DIR__ . '/../../../lib/validate.php';
+require_once __DIR__ . '/../../../lib/fee.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -11,83 +14,168 @@ $me = require_auth(['officer', 'admin']);
 $id = (int)($_GET['id'] ?? '0');
 if (!$id) { json_error('Scan id required', 400, 'missing_id'); }
 
-// Fetch the scan
-$stmt = $pdo->prepare("SELECT ts.*, p.parcel_no, p.area_sqm, p.road_category, p.village_id, p.district_id
-    FROM title_scans ts
-    LEFT JOIN parcels p ON p.id = ts.parcel_id
-    WHERE ts.id = :id");
+$stmt = $pdo->prepare("SELECT id, parcel_id FROM title_scans WHERE id = :id");
 $stmt->execute([':id' => $id]);
 $scan = $stmt->fetch();
 if (!$scan) { json_error('Scan not found', 404, 'not_found'); }
 
-// Build existing parcel data into the payload for the form
-$payload = [
-    'id' => $scan['id'],
-    'ocr_extracted' => $scan['ocr_extracted'] ?? null,
-    'ocr_text' => $scan['ocr_raw'] ?? null,
-    'parcel' => [
-        'id' => $scan['parcel_id'] ?? null,
-        'parcel_no' => $scan['parcel_no'] ?? '',
-        'sub_parcel_no' => $scan['sub_parcel_no'] ?? '',
-        'area_sqm' => $scan['area_sqm'] ?? '',
-        'road_category' => $scan['road_category'] ?? '',
-        'village_id' => $scan['village_id'] ?? '',
-        'district_id' => $scan['district_id'] ?? '',
-        'status' => $scan['parcel_status'] ?? 'confirmed',
-    ],
-    'district_id' => $scan['district_id'] ?? '',
-    'village_id' => $scan['village_id'] ?? '',
+if ($method !== 'POST') { json_error('Method not allowed', 405, 'method_not_allowed'); }
+
+/** Only set a reference code if it actually exists in the lookup table (guards the FK). */
+function ref_code_exists(PDO $pdo, string $table, $code): bool {
+    if ($code === null || $code === '') return false;
+    $allowed = ['title_types', 'land_use_classes', 'road_categories'];
+    if (!in_array($table, $allowed, true)) return false;
+    $st = $pdo->prepare("SELECT 1 FROM $table WHERE code = :c");
+    $st->execute([':c' => $code]);
+    return (bool)$st->fetchColumn();
+}
+
+$body = read_json_body();
+$parcel = $body['parcel'] ?? [];
+$owners = is_array($body['owners'] ?? null) ? $body['owners'] : [];
+
+$parcelNo = trim((string)($parcel['parcel_no'] ?? ''));
+$area     = $parcel['area_sqm'] ?? '';
+$road     = $parcel['road_category'] ?? '';
+$village  = $parcel['village_id'] ?? '';
+$district = $parcel['district_id'] ?? '';
+$status   = $parcel['status'] ?? 'confirmed';
+$subPar   = trim((string)($parcel['sub_parcel_no'] ?? '')) ?: null;
+
+$errors = collect_errors([
+    'parcel_no'     => validate_required($parcelNo, 'parcel no'),
+    'area_sqm'      => validate_required($area, 'area') ?: validate_positive($area, 'area'),
+    'road_category' => validate_required($road, 'road category')
+        ?: validate_enum($road, ['main', 'branch', 'alley', 'none'], 'road category'),
+    'village_id'    => validate_required($village, 'village') ?: validate_int($village, 'village'),
+    'district_id'   => validate_required($district, 'district') ?: validate_int($district, 'district'),
+    'status'        => validate_enum($status, ['draft', 'scanned', 'confirmed', 'active', 'archived'], 'status'),
+]);
+reject_on_errors($errors);
+
+$districtId = (int)$district;
+$villageId  = (int)$village;
+
+$st = $pdo->prepare("SELECT id FROM villages WHERE id = :id AND district_id = :did");
+$st->execute([':id' => $villageId, ':did' => $districtId]);
+if (!$st->fetch()) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
+
+// Optional title metadata (blank -> NULL). Reference codes are FK-checked.
+$province  = trim((string)($parcel['province'] ?? '')) ?: 'Savannakhet';
+$titleNo   = trim((string)($parcel['title_no'] ?? '')) ?: null;
+$titleType = ref_code_exists($pdo, 'title_types', trim((string)($parcel['title_type'] ?? '')))
+    ? trim((string)$parcel['title_type']) : null;
+$bookNo    = trim((string)($parcel['book_no'] ?? '')) ?: null;
+$volumeNo  = trim((string)($parcel['volume_no'] ?? '')) ?: null;
+$pageNo    = trim((string)($parcel['page_no'] ?? '')) ?: null;
+$landUse   = ref_code_exists($pdo, 'land_use_classes', trim((string)($parcel['land_use_class'] ?? '')))
+    ? trim((string)$parcel['land_use_class']) : null;
+$issuedDate = null;
+if (($d = trim((string)($parcel['issued_date'] ?? ''))) !== '') {
+    $dt = DateTime::createFromFormat('Y-m-d', $d);
+    if ($dt && $dt->format('Y-m-d') === $d) $issuedDate = $d;
+}
+
+$cols = [
+    ':pn'  => $parcelNo, ':spn' => $subPar, ':prov' => $province, ':vid' => $villageId,
+    ':did' => $districtId, ':a' => (float)$area, ':rc' => $road, ':tn' => $titleNo,
+    ':tt'  => $titleType, ':bn' => $bookNo, ':von' => $volumeNo, ':pg' => $pageNo,
+    ':lu'  => $landUse, ':idate' => $issuedDate, ':st' => $status,
 ];
 
-// ---- POST: confirm form ----//
-if ($method === 'POST') {
-    $body = read_json_body();
-    $parcel = $body['parcel'] ?? [];
-    $parcel_no = trim($parcel['parcel_no'] ?? '');
-    $area = $parcel['area_sqm'] ?? '';
-    $road = $parcel['road_category'] ?? '';
-    $village = $parcel['village_id'] ?? '';
-    $district = $parcel['district_id'] ?? '';
-    $status = $parcel['status'] ?? 'confirmed';
-
-    $err = collect_errors([
-        'parcel_no' => validate_required($parcel_no, 'parcel no'),
-        'area_sqm' => validate_required($area, 'area') ?: validate_positive($area, 'area'),
-        'road_category' => validate_required($road, 'road category')
-            ?: validate_enum($road, ['main','branch','alley','none'], 'road category'),
-        'village_id' => validate_required($village, 'village') ?: validate_int($village, 'village'),
-        'district_id' => validate_required($district, 'district') ?: validate_int($district, 'district'),
-    ]);
-    reject_on_errors($err);
-
-    $districtId = (int)$district;
-    $villageId = (int)$village;
-
-    // Check village belongs to selected district
-    $stmt = $pdo->prepare("SELECT id FROM villages WHERE id = :id AND district_id = :did");
-    $stmt->execute([':id' => $villageId, ':did' => $districtId]);
-    if (!$stmt->fetch()) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
-
-    // Find or update parcel
-    if ($parcel['id']) {
-        $stmt = $pdo->prepare("UPDATE parcels SET parcel_no = :pn, sub_parcel_no = :spn, area_sqm = :a, road_category = :rc,
-            village_id = :vid, district_id = :did, status = :st, scanned_at = CURRENT_TIMESTAMP, ocr_confidence = 0
-            WHERE id = :id");
-        $stmt->execute([':pn' => $parcel_no, ':spn' => $parcel['sub_parcel_no'] ?? null, ':a' => (float)$area,
-            ':rc' => $road, ':vid' => $villageId, ':did' => $districtId, ':st' => $status, ':id' => $parcel['id']]);
-        $parcelId = $parcel['id'];
+try {
+    if (!empty($scan['parcel_id'])) {
+        $cols[':id'] = (int)$scan['parcel_id'];
+        $sql = "UPDATE parcels SET parcel_no=:pn, sub_parcel_no=:spn, province=:prov, village_id=:vid,
+                district_id=:did, area_sqm=:a, road_category=:rc, title_no=:tn, title_type=:tt,
+                book_no=:bn, volume_no=:von, page_no=:pg, land_use_class=:lu, issued_date=:idate,
+                status=:st, scanned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP, ocr_confidence=0
+                WHERE id=:id";
+        $pdo->prepare($sql)->execute($cols);
+        $parcelId = (int)$scan['parcel_id'];
     } else {
-        $stmt = $pdo->prepare("INSERT INTO parcels (parcel_no, sub_parcel_no, village_id, district_id, area_sqm, road_category, status, scanned_at, ocr_confidence)
-            VALUES (:pn, :spn, :vid, :did, :a, :rc, :st, CURRENT_TIMESTAMP, 0) RETURNING id");
-        $stmt->execute([':pn' => $parcel_no, ':spn' => $parcel['sub_parcel_no'] ?? null,
-            ':vid' => $villageId, ':did' => $districtId, ':a' => (float)$area, ':rc' => $road, ':st' => $status]);
-        $parcelId = (int)$stmt->fetch()['id'];
+        $sql = "INSERT INTO parcels (parcel_no, sub_parcel_no, province, village_id, district_id, area_sqm,
+                road_category, title_no, title_type, book_no, volume_no, page_no, land_use_class, issued_date,
+                status, scanned_at, ocr_confidence)
+                VALUES (:pn, :spn, :prov, :vid, :did, :a, :rc, :tn, :tt, :bn, :von, :pg, :lu, :idate,
+                :st, CURRENT_TIMESTAMP, 0) RETURNING id";
+        $st = $pdo->prepare($sql);
+        $st->execute($cols);
+        $parcelId = (int)$st->fetch()['id'];
     }
-
-    // Link the title scan to the parcel and mark confirmed
-    $stmt = $pdo->prepare("UPDATE title_scans SET parcel_id = :pid, verified_by = :v, verified_at = CURRENT_TIMESTAMP WHERE id = :id");
-    $stmt->execute([':pid' => $parcelId, ':v' => $me['sub'], ':id' => $id]);
-
-    json_ok(['parcel_id' => $parcelId, 'status' => 'confirmed'], 200);
+} catch (PDOException $e) {
+    if ($e->getCode() === '23505') {
+        json_error('A parcel with this number already exists in this village', 409, 'duplicate_parcel');
+    }
+    json_error('Failed to save parcel: ' . $e->getMessage(), 500, 'parcel_failed');
 }
-json_error('Method not allowed', 405, 'method_not_allowed');
+
+// ---- Owners: replace the parcel's owner set with the provided list ----
+$ownerIds = [];
+$pdo->prepare("DELETE FROM parcel_owners WHERE parcel_id = :pid")->execute([':pid' => $parcelId]);
+foreach ($owners as $o) {
+    $fullName = trim((string)($o['full_name'] ?? ''));
+    if ($fullName === '') continue;
+    $idNumber = trim((string)($o['id_number'] ?? '')) ?: null;
+    $idType   = trim((string)($o['id_type'] ?? '')) ?: null;
+    $phone    = trim((string)($o['phone'] ?? '')) ?: null;
+    $address  = trim((string)($o['address'] ?? '')) ?: null;
+    $oVillage = !empty($o['village_id']) ? (int)$o['village_id'] : $villageId;
+    $oDistrict = !empty($o['district_id']) ? (int)$o['district_id'] : $districtId;
+    $ownerType = in_array($o['owner_type'] ?? '', ['individual', 'organization', 'joint'], true)
+        ? $o['owner_type'] : 'individual';
+    $role = in_array($o['role'] ?? '', ['owner', 'co_owner', 'representative'], true)
+        ? $o['role'] : 'owner';
+    $share = (isset($o['share_pct']) && $o['share_pct'] !== '') ? (float)$o['share_pct'] : null;
+
+    $existingId = !empty($o['id']) ? (int)$o['id'] : 0;
+    if ($existingId) {
+        $pdo->prepare("UPDATE owners SET full_name=:fn, id_number=:idn, id_type=:idt, phone=:ph,
+            address=:ad, village_id=:vid, district_id=:did, owner_type=:ot, updated_at=CURRENT_TIMESTAMP
+            WHERE id=:id")->execute([
+            ':fn' => $fullName, ':idn' => $idNumber, ':idt' => $idType, ':ph' => $phone,
+            ':ad' => $address, ':vid' => $oVillage, ':did' => $oDistrict, ':ot' => $ownerType,
+            ':id' => $existingId,
+        ]);
+        $ownerId = $existingId;
+    } else {
+        $st = $pdo->prepare("INSERT INTO owners (full_name, id_number, id_type, phone, address, village_id, district_id, owner_type)
+            VALUES (:fn, :idn, :idt, :ph, :ad, :vid, :did, :ot) RETURNING id");
+        $st->execute([
+            ':fn' => $fullName, ':idn' => $idNumber, ':idt' => $idType, ':ph' => $phone,
+            ':ad' => $address, ':vid' => $oVillage, ':did' => $oDistrict, ':ot' => $ownerType,
+        ]);
+        $ownerId = (int)$st->fetch()['id'];
+    }
+    $pdo->prepare("INSERT INTO parcel_owners (parcel_id, owner_id, share_pct, role)
+        VALUES (:pid, :oid, :sh, :role)
+        ON CONFLICT (parcel_id, owner_id) DO UPDATE SET share_pct = EXCLUDED.share_pct, role = EXCLUDED.role")
+        ->execute([':pid' => $parcelId, ':oid' => $ownerId, ':sh' => $share, ':role' => $role]);
+    $ownerIds[] = $ownerId;
+}
+
+// ---- Link the scan to the parcel and mark it confirmed ----
+$pdo->prepare("UPDATE title_scans SET parcel_id=:pid, status='confirmed', verified_by=:v,
+    verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=:id")
+    ->execute([':pid' => $parcelId, ':v' => $me['sub'], ':id' => $id]);
+
+// ---- Assess the current-year obligation so the fee is visible immediately ----
+$obligationId = null;
+if ($status === 'confirmed' || $status === 'active') {
+    try {
+        $ob = fee_upsert_obligation($pdo, $parcelId, (int)date('Y'));
+        if ($ob) {
+            $obligationId = (int)$ob['id'];
+        }
+    } catch (\Throwable $e) {
+        // never fail the confirm because of the fee layer
+    }
+}
+
+json_ok([
+    'parcel_id'    => $parcelId,
+    'owner_ids'    => $ownerIds,
+    'obligation_id' => $obligationId,
+    'status'       => 'confirmed',
+], 200);
