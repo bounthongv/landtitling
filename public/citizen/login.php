@@ -1,14 +1,14 @@
 <?php
 // public/citizen/login.php — phone OTP login
-session_start();
+require __DIR__ . '/common.php';
 $error = '';
 $statusMessage = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_request'])) {
     $phone = $_POST['phone'] ?? '';
     if (!preg_match('/^\+?[0-9]{8,15}$/', $phone)) {
-        $error = 'Enter a valid Lao phone number (e.g. +856205579999)';
+        $error = 'Enter a valid Lao phone number (e.g. +856****9999)';
     } else {
-        $ch = curl_init('http://localhost/api/v1/auth.php');
+        $ch = curl_init($api_base . '/auth.php');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['action' => 'otp/request', 'phone' => $phone]));
@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_verify'])) {
     } elseif (time() - ($_SESSION['citizen_otp_sent'] ?? 0) > 300) {
         $error = 'OTP has expired. Request a new code.';
     } else {
-        $ch = curl_init('http://localhost/api/v1/auth.php');
+        $ch = curl_init($api_base . '/auth.php');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['action' => 'otp/verify', 'phone' => $phone, 'code' => $code]));
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_verify'])) {
         if (!empty($d['ok']) && !empty($d['data']['token'])) {
             $_SESSION['citizen_token'] = $d['data']['token'];
             $_SESSION['citizen_user'] = $d['data']['user'] ?? ['id' => 0, 'role' => 'citizen'];
-            header('Location: /LandTitling/public/citizen/index.php');
+            header('Location: ' . $citizen_base . '/index.php');
             exit;
         } else {
             $error = $d['error']['message'] ?? 'Invalid code';

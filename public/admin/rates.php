@@ -5,18 +5,12 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 
 $rates = [];
-$ch = curl_init($api_base . '/rates.php');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$resp = curl_exec($ch); curl_close($ch);
-$d = json_decode($resp, true);
+$d = api_call('GET', 'rates.php');
 if (!empty($d['ok'])) { $rates = $d['data']['rates'] ?? []; }
 
 // districts for the editor list
 $districts = [];
-$ch = curl_init($api_base . '/districts.php');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$resp = curl_exec($ch); curl_close($ch);
-$districts = json_decode($resp, true)['data'] ?? [];
+$districts = api_call('GET', 'districts.php')['data'] ?? [];
 
 // build lookup by district_id
 $ratesByDistrict = [];
@@ -33,13 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
         'rate_per_sqm' => (float)($_POST['rate_per_sqm'] ?? 0),
         'note' => $_POST['note'] ?? '',
     ];
-    $ch = curl_init($api_base . '/rates.php?id=' . $editId);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Authorization: Bearer ' . $_SESSION['admin_token']]);
-    $resp = curl_exec($ch); curl_close($ch);
-    $d = json_decode($resp, true);
+    $d = api_call('PUT', 'rates.php?id=' . $editId, $body, $_SESSION['admin_token']);
     if (!empty($d['ok'])) {
         $msg = 'Rate saved: ' . $body['rate_per_sqm'] . ' kip/m²';
         $editId = 0; $editDistrict = 0; $editCategory = ''; $editRate = 0;

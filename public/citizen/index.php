@@ -1,6 +1,6 @@
 <?php
 // public/citizen/index.php — citizen app shell
-session_start();
+require __DIR__ . '/common.php';
 $token = $_SESSION['citizen_token'] ?? '';
 $user = $_SESSION['citizen_user'] ?? null;
 if (!$token) { header('Location: login.php'); exit; }
@@ -8,7 +8,7 @@ if (!$token) { header('Location: login.php'); exit; }
 // Fetch user name
 $name = 'Citizen';
 if (!empty($user['id'])) {
-    $ch = curl_init('http://localhost/api/v1/auth.php');
+    $ch = curl_init($api_base . '/auth.php');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     // Use a server-side bootstrap to get user name via a new endpoint is not done here;
     // we'll accept the token and show the user id/role.

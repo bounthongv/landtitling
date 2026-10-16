@@ -4,7 +4,7 @@ $results = [];
 $parcelNo = $_GET['parcel_no'] ?? '';
 $count = 0;
 if ($parcelNo !== '') {
-    $ch = curl_init('http://localhost/api/v1/parcels.php?parcel_no=' . urlencode($parcelNo));
+    $ch = curl_init($api_base . '/parcels.php?parcel_no=' . urlencode($parcelNo));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $resp = curl_exec($ch); curl_close($ch);
     $d = json_decode($resp, true);
@@ -24,7 +24,7 @@ if ($parcelNo !== '') {
     </div>
     <button class="btn" type="submit">ຄົ້ນຫາ</button>
   </form>
-  <p class="sub" style="margin-bottom:0;">No parcel number yet? Scan a title photo in <a href="/LandTitling/public/admin/scans.php" style="color:var(--green);">Officer Review</a> to register it.</p>
+  <p class="sub" style="margin-bottom:0;">No parcel number yet? Scan a title photo in <a href="/public/admin/scans.php" style="color:var(--green);">Officer Review</a> to register it.</p>
 
   <?php if ($count === 0): ?>
     <p class="empty">No parcel found with that number.</p>

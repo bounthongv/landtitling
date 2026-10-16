@@ -15,18 +15,12 @@ if ($status) { $url .= ($district_id || $parcel_no ? '&' : '?') . 'status=' . $s
 
 $parcels = [];
 $count = 0;
-$ch = curl_init($api_base . '/' . $url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$resp = curl_exec($ch); curl_close($ch);
-$d = json_decode($resp, true);
+$d = api_call('GET', $url);
 if (!empty($d['ok'])) { $parcels = $d['data']['parcels'] ?? []; $count = $d['data']['count'] ?? 0; }
 
 // districts for filter
 $districts = [];
-$ch = curl_init($api_base . '/districts.php');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$resp = curl_exec($ch); curl_close($ch);
-$districts = json_decode($resp, true)['data'] ?? [];
+$districts = api_call('GET', 'districts.php')['data'] ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="lo">

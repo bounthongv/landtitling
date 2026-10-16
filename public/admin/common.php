@@ -40,3 +40,22 @@ function admin_nav($role) {
     }
     return '<ul class="nav">' . implode('', $links) . '</ul>';
 }
+
+// api_call(method, path, body, token) — helper for server-side calls to the JSON API.
+function api_call($method, $path, $body = null, $token = '') {
+    global $api_base;
+    $url = $api_base . '/' . ltrim($path, '/');
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    $headers = ['Content-Type: application/json'];
+    if ($token !== '') { $headers[] = 'Authorization: Bearer ' . $token; }
+    if ($body !== null) { curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body)); }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $resp = curl_exec($ch);
+    curl_close($ch);
+    return json_decode($resp, true);
+}

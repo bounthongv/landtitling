@@ -1,6 +1,6 @@
 <?php
 // public/citizen/quote.php — fee quote + create payment
-session_start();
+require __DIR__ . '/common.php';
 $token = $_SESSION['citizen_token'] ?? '';
 if (!$token) { header('Location: login.php'); exit; }
 
@@ -9,7 +9,7 @@ $parcel = [];
 $parcelNo = $_GET['parcel_no'] ?? '';
 $statusMsg = '';
 if ($parcelNo !== '') {
-    $ch = curl_init('http://localhost/api/v1/parcels.php?parcel_no=' . urlencode($parcelNo));
+    $ch = curl_init($api_base . '/parcels.php?parcel_no=' . urlencode($parcelNo));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $resp = curl_exec($ch); curl_close($ch);
     $d = json_decode($resp, true);
@@ -22,7 +22,7 @@ $quoteDistrict = $_POST['district_id'] ?? ($_GET['district_id'] ?? '');
 $quoteCategory = $_POST['road_category'] ?? '';
 $quoteArea = $_POST['area_sqm'] ?? '';
 if ($quoteDistrict && $quoteCategory && $quoteArea > 0) {
-    $ch = curl_init('http://localhost/api/v1/fee/quote.php');
+    $ch = curl_init($api_base . '/fee/quote.php');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['submit_payment'])) {
     $districtId = $_POST['district_id'] ?? null;
     $area = $_POST['area_sqm'] ?? null;
     if ($parcelId && $districtId && $area > 0) {
-        $ch = curl_init('http://localhost/api/v1/payments.php');
+        $ch = curl_init($api_base . '/payments.php');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['submit_payment'])) {
         <select name="district_id" id="quote-district">
           <option value="">-- select --</option>
           <?php
-          $ch = curl_init('http://localhost/api/v1/districts.php');
+          $ch = curl_init($api_base . '/districts.php');
           curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
           $resp = curl_exec($ch); curl_close($ch);
           $districts = json_decode($resp, true)['data'] ?? [];

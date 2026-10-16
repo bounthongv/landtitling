@@ -1,6 +1,6 @@
 <?php
 // public/citizen/payment-view.php — printable slip + tracking
-session_start();
+require __DIR__ . '/common.php';
 $token = $_SESSION['citizen_token'] ?? '';
 if (!$token) { header('Location: login.php'); exit; }
 
@@ -8,7 +8,7 @@ $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if (!$id) { header('Location: payments.php'); exit; }
 
 $payments = [];
-$ch = curl_init('http://localhost/api/v1/payments.php');
+$ch = curl_init($api_base . '/payments.php');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $resp = curl_exec($ch); curl_close($ch);
 $d = json_decode($resp, true);
@@ -22,7 +22,7 @@ $payment = $payById;
 
 $parcel = [];
 if ($payment && !empty($payment['parcel_id'])) {
-    $ch = curl_init('http://localhost/api/v1/parcels.php?id=' . $payment['parcel_id']);
+    $ch = curl_init($api_base . '/parcels.php?id=' . $payment['parcel_id']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $resp = curl_exec($ch); curl_close($ch);
     $d = json_decode($resp, true);
@@ -65,7 +65,7 @@ if ($payment && !empty($payment['parcel_id'])) {
           </table>
           <?php if (!empty($payment['slip_path'])): ?>
             <h4>Bank/Counter receipt (uploaded)</h4>
-            <img src="/LandTitling/<?= e($payment['slip_path']) ?>" style="max-width:200px; border-radius:6px; background:#fff;" alt="slip">
+            <img src="<?= e($payment['slip_path']) ?>" style="max-width:200px; border-radius:6px; background:#fff;" alt="slip">
           <?php else: ?>
             <div class="qr-box">
               <?php if ($payment['slip_no']): ?>

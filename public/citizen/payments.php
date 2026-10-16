@@ -1,11 +1,11 @@
 <?php
 // public/citizen/payments.php — list of my payments (track status)
-session_start();
+require __DIR__ . '/common.php';
 $token = $_SESSION['citizen_token'] ?? '';
 if (!$token) { header('Location: login.php'); exit; }
 
 $payments = [];
-$ch = curl_init('http://localhost/api/v1/payments.php');
+$ch = curl_init($api_base . '/payments.php');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $resp = curl_exec($ch); curl_close($ch);
 $d = json_decode($resp, true);
@@ -14,7 +14,7 @@ $payments = $d['data'] ?? [];
 // Fetch parcel details for each payment
 foreach ($payments as $i => $p) {
     if (!empty($p['parcel_id'])) {
-        $ch = curl_init('http://localhost/api/v1/parcels.php?id=' . $p['parcel_id']);
+        $ch = curl_init($api_base . '/parcels.php?id=' . $p['parcel_id']);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $resp = curl_exec($ch); curl_close($ch);
         $d = json_decode($resp, true);
@@ -50,7 +50,7 @@ foreach ($payments as $i => $p) {
           <div class="amount" style="font-size:18px;"><?= number_format((float)$p['fee_total'], 0) ?> kip</div>
         </div>
         <div style="margin-top:6px; display:flex; gap:8px;">
-          <a class="btn btn-gold btn-sm" style="width:auto;padding:6px 12px;" href="/LandTitling/public/citizen/payment-view.php?id=<?= $p['id'] ?>">View →</a>
+          <a class="btn btn-gold btn-sm" style="width:auto;padding:6px 12px;" href="/payment-view.php?id=<?= $p['id'] ?>">View →</a>
         </div>
       </li>
       <?php endforeach; ?>

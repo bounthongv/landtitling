@@ -8,17 +8,11 @@ $status = $_GET['status'] ?? 'ISSUED';
 $filter = $status;
 
 $payments = [];
-$ch = curl_init($api_base . '/payments.php?status=' . $status);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$resp = curl_exec($ch); curl_close($ch);
-$d = json_decode($resp, true);
+$d = api_call('GET', 'payments.php?status=' . $status);
 if (!empty($d['ok'])) { $payments = $d['data'] ?? []; }
 
 $districts = [];
-$ch = curl_init($api_base . '/districts.php');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$resp = curl_exec($ch); curl_close($ch);
-$districts = json_decode($resp, true)['data'] ?? [];
+$districts = api_call('GET', 'districts.php')['data'] ?? [];
 $districtMap = [];
 foreach ($districts as $d) { $districtMap[$d['id']] = $d['name_lo']; }
 
@@ -28,14 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
     $id = (int)($_POST['payment_id'] ?? 0);
     $action = $_POST['do_action'];
     $postBody = $action === 'reject' ? ['reason' => $_POST['reason'] ?? 'Rejected'] : [];
-    $ch = curl_init($api_base . '/payments.php?id=' . $id . '&' . ($action === 'verify' ? 'verify' : 'reject'));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postBody));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Authorization: Bearer ' . $_SESSION['admin_token']]);
-    $resp = curl_exec($ch); curl_close($ch);
-    $d = json_decode($resp, true);
-    if (!empty($d['ok'])) {
+        $d = api_call('POST', 'payments.php?id=' . $id . '&' . ($action === 'verify' ? 'verify' : 'reject'), $postBody, $_SESSION['admin_token']);
+        if (!empty($d['ok'])) {
         $msg = ($action === 'verify' ? 'Payment verified (PAID).' : 'Payment rejected.') . ' ' . $id;
     } else {
         $msg = $d['error']['message'] ?? 'Action failed';

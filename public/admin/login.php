@@ -1,6 +1,7 @@
 <?php
 // public/admin/login.php — officer login via JWT
 $cfg = require __DIR__ . '/../../lib/config.php';
+function e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = ['action' => 'login'];
@@ -9,6 +10,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ch = curl_init($cfg['api_base'] . '/auth.php');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     $resp = curl_exec($ch);
