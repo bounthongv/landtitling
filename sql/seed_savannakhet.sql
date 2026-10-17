@@ -8,22 +8,34 @@ SET search_path = landfee;
 -- Idempotent: clear tables in FK order before reloading
 TRUNCATE zones_rates, villages, districts RESTART IDENTITY CASCADE;
 
+-- Province (basic data; admin-maintainable).
+-- DO NOTHING, not DO UPDATE: once the province has been renamed in Basic Data,
+-- re-running the seed must not silently revert it.
+INSERT INTO provinces (code, name_lo, name_en) VALUES ('SVK', 'ສະຫວັນນະເຂດ', 'Savannakhet')
+ON CONFLICT (code) DO NOTHING;
+
 -- Districts
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1301', 'ນະຄອນໄກສອນພົມວິຫານ', 'Kaysone Phomvihane');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1302', 'ອຸທຸມພອນ', 'Outhoumphone');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1303', 'ອາດສະພັງທອງ', 'Atsaphangthong');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1304', 'ພີນ', 'Phine');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1305', 'ເຊໂປນ', 'Sepon');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1306', 'ນອງ', 'Nong');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1307', 'ທ່າປາງທອງ', 'Thaphalanxay');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1308', 'ສອງຄອນ', 'Songkhone');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1309', 'ຈຳພອນ', 'Champhone');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1310', 'ຊົນນະບູລີ', 'Xonboury');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1311', 'ໄຊບູລີ', 'Xayphouthong');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1312', 'ວິລະບູລີ', 'Phalanxay');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1313', 'ອາດສະພອນ', 'Vilaboury');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1314', 'ໄຊພູທອງ', 'Assaphone');
-INSERT INTO districts (code, name_lo, name_en) VALUES ('1315', 'ພະລານໄຊ', 'Thapangthong');
+INSERT INTO districts (province_id, code, name_lo, name_en) SELECT p.id, v.code, v.name_lo, v.name_en
+  FROM (VALUES
+    ('1301', 'ນະຄອນໄກສອນພົມວິຫານ', 'Kaysone Phomvihane'),
+    ('1302', 'ອຸທຸມພອນ', 'Outhoumphone'),
+    ('1303', 'ອາດສະພັງທອງ', 'Atsaphangthong'),
+    ('1304', 'ພີນ', 'Phine'),
+    ('1305', 'ເຊໂປນ', 'Sepon'),
+    ('1306', 'ນອງ', 'Nong'),
+    ('1307', 'ທ່າປາງທອງ', 'Thaphalanxay'),
+    ('1308', 'ສອງຄອນ', 'Songkhone'),
+    ('1309', 'ຈຳພອນ', 'Champhone'),
+    ('1310', 'ຊົນນະບູລີ', 'Xonboury'),
+    ('1311', 'ໄຊບູລີ', 'Xayphouthong'),
+    ('1312', 'ວິລະບູລີ', 'Phalanxay'),
+    ('1313', 'ອາດສະພອນ', 'Vilaboury'),
+    ('1314', 'ໄຊພູທອງ', 'Assaphone'),
+    ('1315', 'ພະລານໄຊ', 'Thapangthong')
+  ) AS v(code, name_lo, name_en), provinces p
+ WHERE p.code = 'SVK'
+ON CONFLICT (code) DO UPDATE
+  SET name_lo = EXCLUDED.name_lo, name_en = EXCLUDED.name_en, province_id = EXCLUDED.province_id;
 
 -- Villages
 INSERT INTO villages (code, name_lo, name_en, district_id) VALUES ('1301001', 'ທ່າຫົວຊ້າງ', 'THAHOUAXANG', (SELECT id FROM districts WHERE code = '1301'));

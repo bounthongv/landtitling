@@ -63,12 +63,25 @@ INSERT INTO land_use_classes (code, name_lo, name_en) VALUES
 -- Reference geography
 -- =========================================================================
 
+CREATE TABLE provinces (
+  id SERIAL PRIMARY KEY,
+  code VARCHAR(20) NOT NULL UNIQUE,
+  name_lo VARCHAR(100) NOT NULL,
+  name_en VARCHAR(100),
+  note TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE districts (
   id SERIAL PRIMARY KEY,
+  province_id INT NOT NULL REFERENCES provinces(id),
   code VARCHAR(20) UNIQUE NOT NULL,
   name_lo VARCHAR(100) NOT NULL,
   name_en VARCHAR(100)
 );
+CREATE INDEX idx_districts_province ON districts (province_id);
 
 CREATE TABLE villages (
   id SERIAL PRIMARY KEY,
@@ -118,10 +131,12 @@ CREATE TABLE users (
   role VARCHAR(20) NOT NULL DEFAULT 'citizen' CHECK (role IN ('admin','officer','citizen')),
   username VARCHAR(50) UNIQUE,
   phone VARCHAR(20) UNIQUE NOT NULL,
+  email VARCHAR(190),                          -- OTP login channel (no SMS gateway)
   password_hash VARCHAR(255),
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE UNIQUE INDEX idx_users_email_unique ON users (lower(email)) WHERE email IS NOT NULL;
 
 -- =========================================================================
 -- Owners (residence + identity), linked to parcels and citizen logins

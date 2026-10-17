@@ -42,4 +42,7 @@ return [
     // Dev-only: echo the OTP back in the API response so the login screen can show it.
     // MUST be unset/false in production, otherwise any caller can read the code.
     'otp_debug'    => (getenv('OTP_DEBUG') ?: '0') === '1',
+    // Outbound email (OTP channel). Requires a system MTA on the host (e.g. Postfix).
+    'mail_from'      => getenv('MAIL_FROM') ?: '',
+    'mail_from_name' => getenv('MAIL_FROM_NAME') ?: 'Land Fee Savannakhet',
 ];

@@ -4,35 +4,35 @@ require __DIR__ . '/common.php';
 $error = '';
 $statusMessage = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_request'])) {
-    $phone = $_POST['phone'] ?? '';
-    if (!preg_match('/^\+?[0-9]{8,15}$/', $phone)) {
-        $error = 'Enter a valid Lao phone number (e.g. +856****9999)';
+    $email = trim($_POST['email'] ?? '');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'Enter a valid email address';
     } else {
-        $d = citizen_api('POST', 'auth.php', ['action' => 'otp/request', 'phone' => $phone], '');
+        $d = citizen_api('POST', 'auth.php', ['action' => 'otp/request', 'email' => $email], '');
         if (!empty($d['ok'])) {
-            $_SESSION['citizen_phone'] = $phone;
+            $_SESSION['citizen_email'] = $email;
             // The OTP token is stateless and signed by the API — carry it through verify.
             $_SESSION['citizen_otp_token'] = $d['data']['otp_token'] ?? '';
             $_SESSION['citizen_otp_sent'] = time();
-            $statusMessage = 'OTP code sent.';
+            $statusMessage = !empty($d['data']['debug_code'])
+                ? 'OTP code sent (development mode).'
+                : 'OTP code sent — check your email.';
             $statusCode = $d['data']['debug_code'] ?? '';   // only present when OTP_DEBUG=1
         } else {
-            $error = citizen_error($d) ?: 'Failed to request OTP';
+            $error = citizen_error($d) ?: 'Failed to send the code';
         }
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_verify'])) {
-    $phone = $_POST['phone'] ?? ($_SESSION['citizen_phone'] ?? '');
+    $email = $_SESSION['citizen_email'] ?? '';
     $code  = $_POST['code'] ?? '';
     $otp   = $_SESSION['citizen_otp_token'] ?? '';
-    if ($phone !== ($_SESSION['citizen_phone'] ?? '')) {
-        $error = 'This OTP was sent to a different number. Please sign in again.';
-    } elseif (time() - ($_SESSION['citizen_otp_sent'] ?? 0) > 300) {
+    if (time() - ($_SESSION['citizen_otp_sent'] ?? 0) > 300) {
         $error = 'OTP has expired. Request a new code.';
     } else {
         $d = citizen_api('POST', 'auth.php', [
-            'action' => 'otp/verify', 'phone' => $phone, 'code' => $code, 'otp_token' => $otp,
+            'action' => 'otp/verify', 'email' => $email, 'code' => $code, 'otp_token' => $otp,
         ], '');
         if (!empty($d['ok']) && !empty($d['data']['token'])) {
             $_SESSION['citizen_token'] = $d['data']['token'];
@@ -71,21 +71,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['otp_verify'])) {
     <?php if (empty($_SESSION['citizen_otp_token'])): ?>
       <form method="post">
         <div class="form-group">
-          <label>Phone number (+856 Lao)</label>
-          <input name="phone" placeholder="+856 20 557 9999" value="+856205579999" required>
+          <label>Email address</label>
+          <input type="email" name="email" placeholder="you@example.com" value="<?= e($_SESSION['citizen_email'] ?? '') ?>" required>
         </div>
         <button type="submit" name="otp_request" class="btn">Request OTP</button>
       </form>
     <?php else: ?>
       <form method="post">
         <div class="form-group">
-          <label>Enter your 6-digit OTP (sent via SMS)</label>
+          <label>Enter your 6-digit OTP (sent via email)</label>
           <input name="code" placeholder="••••••" inputmode="numeric" maxlength="6" required autocomplete="one-time-code">
         </div>
         <button type="submit" name="otp_verify" class="btn">Verify OTP</button>
       </form>
     <?php endif; ?>
-    <p class="foot-note" style="text-align:center;margin-top:12px;">SMS gateway not yet wired — see <code>otp_send_sms()</code> in <code>lib/otp.php</code>.</p>
+    <p class="foot-note" style="text-align:center;margin-top:12px;">Codes are emailed; delivery needs a working mail server (MAIL_FROM + system MTA).</p>
   </div>
 </div>
 </body>

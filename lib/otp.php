@@ -9,6 +9,9 @@
  * request and need no shared storage.
  *
  * token = base64url(phone|expires_at|code) . '.' . hmac_sha256(payload)
+ *
+ * The token is now keyed on the email address rather than a phone number, since
+ * SMS was dropped for lack of a gateway.
  */
 
 function otp_issue(string $phone, string $secret, int $ttl = 300): array
@@ -25,14 +28,22 @@ function otp_issue(string $phone, string $secret, int $ttl = 300): array
 }
 
 /**
- * Deliver an OTP by SMS. This is the seam where the real gateway goes (BCEL/LaoTel/etc).
- * Until one is configured it records nothing and silently no-ops — which means
- * otp/request will not actually reach a handset. That is intentional and loud in the
- * docs: a real SMS provider is required before production use.
+ * Deliver an OTP by email (the SMS channel was dropped: no gateway available).
+ * Sending goes through mail_send(), which needs a system MTA and MAIL_FROM set.
  */
-function otp_send_sms(string $phone, string $message): void
+function otp_send_email(string $email, string $code): bool
 {
-    // TODO: plug in the provider SDK here. Never log OTPs to the application log.
+    require_once __DIR__ . '/mail.php';
+    $body = '<p>' . e_mail('Your land fee sign-in code') . '</p>'
+          . '<p style="font-size:26px;font-weight:bold;letter-spacing:2px;">' . e_mail($code) . '</p>'
+          . '<p>' . e_mail('This code expires in 5 minutes. If you did not request it, ignore this message.') . '</p>';
+    return mail_send($email, 'Land Fee sign-in code', $body);
+}
+
+/** Local HTML escaper (keeps this lib free of the admin pages' e() helper). */
+function e_mail($v): string
+{
+    return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 }
 
 /**
