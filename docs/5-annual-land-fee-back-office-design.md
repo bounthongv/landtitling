@@ -499,8 +499,8 @@ MOF CSV stays, re-based on `payments` + `fee_obligations`.
 - **Critical fix — OTP login never worked.** The code was stored in the API's PHP session, but the
   citizen pages call the API server-side (no cookie round-trip), so `otp/request` and `otp/verify`
   landed in different sessions and verification failed every time. Replaced with stateless
-  HMAC-signed tokens (`lib/otp.php`): `base64url(phone|expires_at|code).hmac`, verified by
-  signature before anything else. `otp_send_sms()` is the seam where the real gateway goes.
+  HMAC-signed tokens (`lib/otp.php`), verified by signature before anything else. (Channel moved from
+  SMS to email in Phase G.)
 - **Security fix — OTP leaked in the response body.** `debug_code` was always returned. It is now
   gated behind `OTP_DEBUG=1` (default off). Verified: no `debug_code` in the response without it.
   **`OTP_DEBUG` must be unset in production** — anyone could otherwise read the code.
@@ -522,18 +522,53 @@ MOF CSV stays, re-based on `payments` + `fee_obligations`.
 - **Verified end-to-end:** OTP login → my parcels (18,000,000 outstanding) → create slip
   `LFE-2026-000006` → officer verify → citizen sees PAID; plus receipt upload, settled-year state,
   and cross-citizen isolation (a second citizen sees no parcels and cannot open another's slip).
-- **Known gap:** OTP codes are replayable within their 5-minute window until an SMS gateway and a
-  used-token store land. Acceptable for MVP, not for production.
+- **Known gap:** OTP codes are replayable within their 5-minute window until a used-token store lands.
 
 ---
+
+### Phase G — Basic data, user management, email OTP
+Decision: the fee values shipped in `zones_rates` are **placeholders**. The province owns the numbers
+and revises them through Basic Data; nothing here should be read as an approved tariff.
+
+- **G1 — Email OTP (SMS dropped).** No SMS gateway is available, so citizen login moved to email
+  (`users.email`, nullable + case-insensitive unique index). `otp_issue()`/`otp_verify()` are
+  unchanged; delivery is now `otp_send_email()` → `lib/mail.php` → PHP `mail()`, which needs a system
+  MTA plus `MAIL_FROM` in `.env`. Without them `otp/request` still returns a token but
+  `data.sent === false`. Deactivated citizens can no longer obtain a code. `debug_code` still only
+  appears when `OTP_DEBUG=1`.
+- **G2 — Basic data.** `provinces` table (single configurable province) with `districts.province_id`
+  (migration 002, additive + idempotent, backfills all existing districts). `public/admin/basic_data.php`
+  maintains province, districts, villages, road categories, title types, land use, zone rates and
+  fee years. `api/v1/refdata.php` handles the lookup tables with an explicit whitelist (table names
+  are never interpolated from the request). Deletes that are still referenced are refused with the
+  usage counts rather than a raw FK error.
+- **G3 — User management.** `api/v1/users.php` + `public/admin/users.php` (admin-only): create/edit
+  staff, reset passwords, activate/deactivate, and link a citizen login to an owner record
+  (`owners.citizen_user_id`) — the link without which a citizen sees nothing. Guards: an admin cannot
+  deactivate their own account, and the last active admin cannot be demoted or disabled.
+  Candidate-owner search matches owner name, ID number, phone **and parcel number**, because officers
+  usually know the parcel.
+- **Verified:** fresh `schema.sql` + seed (15 districts / 1,029 villages / 60 rates, idempotent);
+  the real server upgrade path v1 → 001 → 002 with existing districts, villages and a user preserved;
+  email OTP login end-to-end; CRUD and in-use refusals for all four lookup tables, districts and
+  villages; staff create/reset/deactivate + last-admin and role guards; officer is refused (403) on
+  both admin pages; link citizen → owner → citizen sees their parcel.
+- **Seed caveat:** the province insert is `DO NOTHING` so an admin rename survives re-seeding, but the
+  seed still truncates and reloads districts/villages, which does overwrite edits to those names.
 
 ## 9. Open items / assumptions
 
 1. **Lao label dictionary** (§3.2) must be verified against real titles with officers.
 2. **`pg_trgm`** needs an extension install (DB privileges); PHP fuzzy fallback documented.
-3. **Bank CSV format** unknown → make column mapping configurable.
-4. **Live DB migration**: additive vs re-create — assume no real parcel/payment data yet; confirm.
+3. **Bank CSV format** unknown → column mapping is configurable, but confirm against a real statement.
+4. **Live DB migration**: 001 and 002 are additive, but 001 drops/recreates `parcels`, `payments`
+   and `title_scans` — confirm those are empty before applying. Migration order is 001 then 002.
 5. **Penalty/interest policy** for late annual payment (field exists, policy undefined).
 6. **Multi-owner payer**: who is the `payer_owner_id` when a parcel has co-owners?
 7. **District Lao-name misalignment 1311–1315** (pre-existing) — confirm with PERN.
 8. **Officer local login**: seed creates no users — insert an officer manually for local testing.
+9. **MOF export format** (§E3) is a placeholder column set — obtain the real Ministry template.
+10. **Fee values are placeholders**; the province revises them via Basic Data.
+11. **Email OTP needs a system MTA + `MAIL_FROM`**; without them no code is ever delivered.
+12. **OTP replay** is possible within the 5-minute window until a used-token store is added.
+13. **No `updated_at` trigger** — every write path sets it in code, so a new write path can forget.
