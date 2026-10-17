@@ -3,6 +3,8 @@
 > **Savannakhet Province.** | **Status:** live on `https://landfee.apis.com.la/` | **Approach:** Build back-office web page by page, test through real web UI
 >
 > **v3 design (annual fee + title parsing + auto-verify):** see `docs/5-annual-land-fee-back-office-design.md`. It supersedes the fee/payment parts of this plan.
+>
+> **Admin scope (basic data + user management + email OTP auth):** see `docs/6-admin-basic-data-users-auth.md`.
 
 ---
 
