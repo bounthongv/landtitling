@@ -42,8 +42,29 @@ function admin_nav($role) {
     $links[] = '<li><a href="' . $base . '/bank_imports.php">Bank Import</a></li>';
     if ($role === 'admin') {
         $links[] = '<li><a href="' . $base . '/reports.php">Reports</a></li>';
+        $links[] = '<li><a href="' . $base . '/basic_data.php">Basic Data</a></li>';
+        $links[] = '<li><a href="' . $base . '/users.php">Users</a></li>';
     }
     return '<ul class="nav">' . implode('', $links) . '</ul>';
+}
+
+/** Active province name (basic data), falling back to the seeded default. */
+function admin_province_name() {
+    global $api_base;
+    static $name = null;
+    if ($name !== null) {
+        return $name;
+    }
+    $name = 'Savannakhet';
+    try {
+        $r = api_call('GET', 'refdata.php?table=provinces');
+        if (!empty($r['ok']) && !empty($r['data'][0]['name_en'])) {
+            $name = $r['data'][0]['name_en'];
+        }
+    } catch (\Throwable $e) {
+        // keep the default
+    }
+    return $name;
 }
 
 // api_call(method, path, body, token) — helper for server-side calls to the JSON API.

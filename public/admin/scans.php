@@ -133,7 +133,7 @@ $landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultur
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: Savannakhet</div>
+    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
   </aside>
   <main class="main">
     <h1>Scan Review</h1>

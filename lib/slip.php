@@ -53,6 +53,8 @@ function slip_render_html(array $payment, array $parcel, $district_name, $villag
     $district_name = $h($district_name);
     $village_name  = $h($village_name);
     $parcel_no     = $h($parcel['parcel_no'] ?? '');
+    // Province comes from the parcel record when available, else the seeded default.
+    $province = $h($parcel['province'] ?? 'Savannakhet');
     return <<<HTML
 <!DOCTYPE html>
 <html lang="lo">
@@ -75,7 +77,7 @@ function slip_render_html(array $payment, array $parcel, $district_name, $villag
     <p>Land Fee Payment Slip — {$year}</p>
   </div>
   <div class="row"><span class="label">ເລກທີອ້າງອງິງ / Reference</span><span>{$ref}</span></div>
-  <div class="row"><span class="label">ແຂວງ / Province</span><span>ສະຫວັນນະເຂດ (Savannakhet)</span></div>
+  <div class="row"><span class="label">ແຂວງ / Province</span><span>{$province}</span></div>
   <div class="row"><span class="label">ເມືອງ / District</span><span>{$district_name}</span></div>
   <div class="row"><span class="label">ບ້ານ / Village</span><span>{$village_name}</span></div>
   <div class="row"><span class="label">ຕອນດິນ / Parcel No.</span><span>{$parcel_no}</span></div>

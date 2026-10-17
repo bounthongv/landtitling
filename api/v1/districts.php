@@ -1,9 +1,132 @@
 <?php
-// API v1: districts reference (public)
+// API v1: districts — public GET (dropdowns) + admin-only create/update/delete.
+// Fees and parcels depend on districts, so deletes are guarded: rather than relying
+// on the FK error we check usage and report counts, which an officer can act on.
 require_once __DIR__ . '/../../lib/db.php';
-require_method('GET');
+require_once __DIR__ . '/../../lib/auth.php';
+require_once __DIR__ . '/../../lib/validate.php';
 
 $pdo = db_connect();
-$stmt = $pdo->query("SELECT id, code, name_lo, name_en FROM districts ORDER BY name_lo");
-$districts = $stmt->fetchAll();
-json_ok($districts);
+$method = $_SERVER['REQUEST_METHOD'];
+
+// ---- GET: list (public) ----
+if ($method === 'GET') {
+    $stmt = $pdo->query("SELECT d.id, d.code, d.name_lo, d.name_en, d.province_id,
+            pr.name_lo AS province_name,
+            (SELECT COUNT(*) FROM villages v WHERE v.district_id = d.id) AS village_count,
+            (SELECT COUNT(*) FROM parcels p WHERE p.district_id = d.id)  AS parcel_count
+        FROM districts d
+        LEFT JOIN provinces pr ON pr.id = d.province_id
+        ORDER BY d.name_lo");
+    json_ok($stmt->fetchAll());
+}
+
+// ---- Writes: admin only ----
+$me = require_auth(['admin']);
+
+/** Usage counts, so a refused delete explains itself. */
+function district_usage(PDO $pdo, int $id): array {
+    $st = $pdo->prepare("SELECT
+        (SELECT COUNT(*) FROM villages v WHERE v.district_id = :a) AS villages,
+        (SELECT COUNT(*) FROM parcels p WHERE p.district_id = :a) AS parcels,
+        (SELECT COUNT(*) FROM zones_rates z WHERE z.district_id = :a) AS rates");
+    $st->execute([':a' => $id]);
+    return $st->fetch() ?: ['villages' => 0, 'parcels' => 0, 'rates' => 0];
+}
+
+if ($method === 'POST' && !isset($_GET['id'])) {
+    $body = read_json_body();
+    $code     = trim((string)($body['code'] ?? ''));
+    $nameLo   = trim((string)($body['name_lo'] ?? ''));
+    $nameEn   = trim((string)($body['name_en'] ?? ''));
+    $provinceId = !empty($body['province_id']) ? (int)$body['province_id'] : 0;
+
+    $err = collect_errors([
+        'code'        => validate_required($code, 'code'),
+        'name_lo'     => validate_required($nameLo, 'Lao name'),
+        'province_id' => validate_required($provinceId, 'province') ?: validate_int($provinceId, 'province'),
+    ]);
+    reject_on_errors($err);
+
+    $st = $pdo->prepare("SELECT 1 FROM provinces WHERE id = :id");
+    $st->execute([':id' => $provinceId]);
+    if (!$st->fetch()) {
+        json_error('Province not found', 422, 'bad_province');
+    }
+
+    try {
+        $st = $pdo->prepare("INSERT INTO districts (province_id, code, name_lo, name_en)
+            VALUES (:pid, :code, :nlo, :nen) RETURNING id, code, name_lo, name_en, province_id");
+        $st->execute([':pid' => $provinceId, ':code' => $code, ':nlo' => $nameLo, ':nen' => $nameEn ?: null]);
+        json_ok($st->fetch(), 201);
+    } catch (PDOException $e) {
+        if ($e->getCode() === '23505') {
+            json_error('District code ' . $code . ' already exists', 409, 'duplicate_code');
+        }
+        json_error('Create failed: ' . $e->getMessage(), 500, 'create_failed');
+    }
+}
+
+if ($method === 'PUT') {
+    $id = (int)($_GET['id'] ?? 0);
+    if (!$id) {
+        json_error('id is required', 400, 'missing_id');
+    }
+    $body = read_json_body();
+    $sets = [];
+    $params = [':id' => $id];
+    foreach (['code' => 'code', 'name_lo' => 'nlo', 'name_en' => 'nen'] as $field => $p) {
+        if (array_key_exists($field, $body)) {
+            $sets[] = "$field = :$p";
+            $params[':' . $p] = trim((string)$body[$field]) ?: null;
+        }
+    }
+    if (array_key_exists('province_id', $body) && (int)$body['province_id'] > 0) {
+        $sets[] = 'province_id = :pid';
+        $params[':pid'] = (int)$body['province_id'];
+    }
+    if (!$sets) {
+        json_error('Nothing to update', 400, 'nothing_to_update');
+    }
+    try {
+        $st = $pdo->prepare("UPDATE districts SET " . implode(', ', $sets) . " WHERE id = :id
+            RETURNING id, code, name_lo, name_en, province_id");
+        $st->execute($params);
+        $row = $st->fetch();
+        if (!$row) {
+            json_error('District not found', 404, 'not_found');
+        }
+        json_ok($row);
+    } catch (PDOException $e) {
+        if ($e->getCode() === '23505') {
+            json_error('District code already exists', 409, 'duplicate_code');
+        }
+        json_error('Update failed: ' . $e->getMessage(), 500, 'update_failed');
+    }
+}
+
+if ($method === 'POST' && isset($_GET['id'])) {
+    $id = (int)$_GET['id'];
+    $st = $pdo->prepare("SELECT id, name_lo FROM districts WHERE id = :id");
+    $st->execute([':id' => $id]);
+    $district = $st->fetch();
+    if (!$district) {
+        json_error('District not found', 404, 'not_found');
+    }
+    $usage = district_usage($pdo, $id);
+    $blockers = array_filter($usage, fn($n) => (int)$n > 0);
+    if ($blockers) {
+        $parts = [];
+        foreach ($blockers as $what => $n) {
+            $parts[] = $n . ' ' . $what;
+        }
+        json_error(
+            'Cannot delete ' . $district['name_lo'] . ': still used by ' . implode(', ', $parts) . '.',
+            409, 'in_use', $usage
+        );
+    }
+    $pdo->prepare("DELETE FROM districts WHERE id = :id")->execute([':id' => $id]);
+    json_ok(['deleted' => $district]);
+}
+
+json_error('Method not allowed', 405, 'method_not_allowed');

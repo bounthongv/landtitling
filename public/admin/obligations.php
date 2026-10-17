@@ -68,7 +68,7 @@ $msg = $_GET['msg'] ?? '';
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: Savannakhet</div>
+    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
   </aside>
   <main class="main">
     <?php if ($msg === 'generated'): ?><p class="flash ok">Generated obligations for <?= (int)($_GET['fee_year'] ?? 0) ?> — <?= (int)($_GET['n'] ?? 0) ?> parcel(s).</p><?php endif; ?>
