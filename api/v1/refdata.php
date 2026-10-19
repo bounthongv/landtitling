@@ -18,12 +18,6 @@ $tables = [
         'required' => ['code', 'name_lo'],
         'order' => 'name_lo',
     ],
-    'road_categories' => [
-        'label' => 'Road category',
-        'columns' => ['code', 'name_lo', 'name_en', 'sort_order'],
-        'required' => ['code', 'name_lo', 'name_en'],
-        'order' => 'sort_order, code',
-    ],
     'title_types' => [
         'label' => 'Title type',
         'columns' => ['code', 'name_lo', 'name_en'],
