@@ -9,6 +9,13 @@
   .side-nav li { border-bottom: 1px solid rgba(255,255,255,.18); }
   .side-nav a { display: block; padding: 11px 20px; color: #d8e6d2; text-decoration: none; font-size: 14px; }
   .side-nav a:hover { background: rgba(255,255,255,.15); color: #fff; }
+  .side-nav li.has-sub > a { font-weight: 600; color: #fff; }
+  /* Nested submenu (e.g. Basic Data -> Province / District / Village / Zone) */
+  .side-nav .sub-nav { list-style: none; margin: 0; padding: 0 0 6px; background: rgba(0,0,0,.12); }
+  .side-nav .sub-nav li { border-bottom: none; }
+  .side-nav .sub-nav a { padding: 8px 20px 8px 34px; font-size: 13px; color: #bcd4b8; border-left: 3px solid transparent; }
+  .side-nav .sub-nav a:hover { background: rgba(255,255,255,.12); }
+  .side-nav .sub-nav a.active { background: rgba(255,255,255,.18); color: #fff; border-left-color: #ffd54f; font-weight: 600; }
   .side-foot { margin-top: auto; padding: 14px 20px; font-size: 12px; color: #bfd6c2; }
   .main { flex: 1; padding: 24px 28px; overflow: auto; }
   h1 { font-size: 22px; margin: 0 0 6px; }

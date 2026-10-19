@@ -28,8 +28,25 @@ $role = $user['role'] ?? null;
 
 function e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
+/**
+ * Sidebar navigation. Basic Data is a parent with a submenu, and the current page is
+ * highlighted. Only one zone-rate editor is linked: "Zone Rates" and Basic Data -> Zone
+ * edit the same table, so they were pointing at different screens.
+ */
 function admin_nav($role) {
     global $base;
+    $page = basename($_SERVER['SCRIPT_NAME'] ?? '');
+    $tab  = $_GET['tab'] ?? '';
+
+    $basicDataItems = [
+        'province' => 'Province',
+        'districts'=> 'District',
+        'villages' => 'Village',
+        'zones'    => 'Zone rates',
+        'years'    => 'Fee years',
+        'refdata'  => 'Lookups',
+    ];
+
     $links = [];
     if ($role === 'admin') {
         $links[] = '<li><a href="' . $base . '/index.php">Dashboard</a></li>';
@@ -37,12 +54,22 @@ function admin_nav($role) {
     $links[] = '<li><a href="' . $base . '/scans.php">Scan Review</a></li>';
     $links[] = '<li><a href="' . $base . '/parcels.php">Parcels</a></li>';
     $links[] = '<li><a href="' . $base . '/obligations.php">Obligations</a></li>';
-    $links[] = '<li><a href="' . $base . '/rates.php">Zone Rates</a></li>';
     $links[] = '<li><a href="' . $base . '/payments.php">Payment Verify</a></li>';
     $links[] = '<li><a href="' . $base . '/bank_imports.php">Bank Import</a></li>';
+
     if ($role === 'admin') {
+        $onBasicData = ($page === 'basic_data.php');
         $links[] = '<li><a href="' . $base . '/reports.php">Reports</a></li>';
-        $links[] = '<li><a href="' . $base . '/basic_data.php">Basic Data</a></li>';
+        $links[] = '<li class="has-sub"><a href="' . $base . '/basic_data.php' . ($onBasicData ? '?tab=' . urlencode($tab ?: 'province') : '') . '">Basic Data</a>';
+        if ($onBasicData) {
+            $links[] = '<ul class="sub-nav">';
+            foreach ($basicDataItems as $k => $label) {
+                $active = ((string)$tab === $k) ? ' class="active"' : '';
+                $links[] = '<li><a' . $active . ' href="' . $base . '/basic_data.php?tab=' . $k . '">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</a></li>';
+            }
+            $links[] = '</ul>';
+        }
+        $links[] = '</li>';
         $links[] = '<li><a href="' . $base . '/users.php">Users</a></li>';
     }
     return '<ul class="nav">' . implode('', $links) . '</ul>';

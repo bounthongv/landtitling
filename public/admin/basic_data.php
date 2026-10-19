@@ -120,13 +120,14 @@ $vDistrict   = (int)($_GET['district_id'] ?? 0);
 $vQuery      = trim((string)($_GET['q'] ?? ''));
 $villages    = [];
 if ($tab === 'villages') {
-    $u = 'villages.php?limit=500';
+    // 200 keeps the page usable; narrow it with the district filter or search.
+    $u = 'villages.php?limit=200';
     if ($vDistrict) { $u .= '&district_id=' . $vDistrict; }
     if ($vQuery !== '') { $u .= '&q=' . urlencode($vQuery); }
     $villages = api_call('GET', $u, null, $token)['data'] ?? [];
 }
 
-$tabs = [
+$tabLabels = [
     'province' => 'Province',
     'districts'=> 'Districts',
     'villages' => 'Villages',
@@ -134,12 +135,16 @@ $tabs = [
     'years'    => 'Fee years',
     'refdata'  => 'Lookups (road / title / land use)',
 ];
+// Submenu lives in the sidebar (admin_nav); guard against an unknown tab.
+if (!isset($tabLabels[$tab])) {
+    $tab = 'province';
+}
 ?>
 <!DOCTYPE html>
 <html lang="lo">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Basic Data — Land Fee MVP</title>
+<title><?= e($tabLabels[$tab]) ?> — Basic Data — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -150,21 +155,9 @@ $tabs = [
     <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
   </aside>
   <main class="main">
-    <h1>Basic Data</h1>
+    <h1><?= e($tabLabels[$tab]) ?></h1>
     <p class="sub">Province, districts, villages, lookups, zone rates (the fee) and fee years.
       Fee values are placeholders — set them to whatever the province decides.</p>
-
-    <div class="form-box" style="padding:0; overflow-x:auto;">
-      <table>
-        <tbody><tr>
-          <?php foreach ($tabs as $k => $label): ?>
-            <td style="border:none;padding:0">
-              <a class="btn <?= $tab === $k ? 'btn-green' : '' ?> btn-sm" href="?tab=<?= $k ?>"><?= e($label) ?></a>
-            </td>
-          <?php endforeach; ?>
-        </tr></tbody>
-      </table>
-    </div>
 
     <?php if ($msg): ?><p class="flash <?= e($msgType) ?>"><?= e($msg) ?></p><?php endif; ?>
 
@@ -251,7 +244,7 @@ $tabs = [
         <div class="form-group"><label>Search</label><input name="q" value="<?= e($vQuery) ?>"></div>
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Filter</button></div>
       </form>
-      <p class="sub"><?= count($villages) ?> village(s) shown.</p>
+      <p class="sub"><?= count($villages) ?> village(s) shown<?= count($villages) >= 200 ? ' (first 200 — narrow with the district filter or search)' : '' ?>.</p>
       <table style="margin-bottom:14px;">
         <thead><tr><th>Code</th><th>Lao</th><th>English</th><th>District</th><th>Parcels</th><th></th></tr></thead>
         <tbody>
