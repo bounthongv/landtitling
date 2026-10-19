@@ -44,6 +44,7 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Two front-ends over one PHP
 - **Zone rates are history-tracked** (`zones_rates.valid_from`); "current" is the newest row per (district, road_category).
 - **Citizens are scoped by `owners.citizen_user_id`** (not `payments.payer_owner_id`, which is an `owners.id`). A parcel links a citizen only when that column is set — officer scan-confirm never sets it, so new parcels are invisible to citizens until linked.
 - **Windows PHP built-in server is single-threaded** (`PHP_CLI_SERVER_WORKERS` is Unix-only). Admin pages that call the API server-side deadlock if both share one process. For testing run the API on one port and the UI on another with `API_BASE` pointing at the API.
+- **Production PHP runs under mod_php, not FPM.** The shared `php8.3-fpm` pool has `disable_functions` including `proc_open`/`exec`, which breaks `lib/ocr.php` (Tesseract is launched via `proc_open`). The `landfee.apis.com.la` vhost therefore serves `.php` via `SetHandler "application/x-httpd-php"` (mod_php) so OCR works; the server-wide FPM ini must NOT be edited to un-disable `proc_open` (other apps depend on it). If scan uploads 500 with an empty body, first confirm the landfee vhost is still on mod_php.
 
 ## Local Dev
 - PHP 8.3+ built-in server from repo root: `php -S localhost:8080` with `PGHOST=localhost PGPORT=5432 PGDATABASE=landfee PGUSER=postgres PGPASSWORD=test1234 PG_SCHEMA=landfee`.
