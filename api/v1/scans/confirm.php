@@ -37,7 +37,8 @@ $owners = is_array($body['owners'] ?? null) ? $body['owners'] : [];
 
 $parcelNo = trim((string)($parcel['parcel_no'] ?? ''));
 $area     = $parcel['area_sqm'] ?? '';
-$road     = $parcel['road_category'] ?? '';
+$zone     = trim((string)($parcel['zone_code'] ?? ''));
+$road     = $parcel['road_category'] ?? ''; // optional legacy display field
 $village  = $parcel['village_id'] ?? '';
 $district = $parcel['district_id'] ?? '';
 $status   = $parcel['status'] ?? 'confirmed';
@@ -46,8 +47,7 @@ $subPar   = trim((string)($parcel['sub_parcel_no'] ?? '')) ?: null;
 $errors = collect_errors([
     'parcel_no'     => validate_required($parcelNo, 'parcel no'),
     'area_sqm'      => validate_required($area, 'area') ?: validate_positive($area, 'area'),
-    'road_category' => validate_required($road, 'road category')
-        ?: validate_enum($road, ['main', 'branch', 'alley', 'none'], 'road category'),
+    'zone_code'     => validate_required($zone, 'zone code'),
     'village_id'    => validate_required($village, 'village') ?: validate_int($village, 'village'),
     'district_id'   => validate_required($district, 'district') ?: validate_int($district, 'district'),
     'status'        => validate_enum($status, ['draft', 'scanned', 'confirmed', 'active', 'archived'], 'status'),
@@ -79,7 +79,7 @@ if (($d = trim((string)($parcel['issued_date'] ?? ''))) !== '') {
 
 $cols = [
     ':pn'  => $parcelNo, ':spn' => $subPar, ':prov' => $province, ':vid' => $villageId,
-    ':did' => $districtId, ':a' => (float)$area, ':rc' => $road, ':tn' => $titleNo,
+    ':did' => $districtId, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road ?: null, ':tn' => $titleNo,
     ':tt'  => $titleType, ':bn' => $bookNo, ':von' => $volumeNo, ':pg' => $pageNo,
     ':lu'  => $landUse, ':idate' => $issuedDate, ':st' => $status,
 ];
@@ -88,7 +88,7 @@ try {
     if (!empty($scan['parcel_id'])) {
         $cols[':id'] = (int)$scan['parcel_id'];
         $sql = "UPDATE parcels SET parcel_no=:pn, sub_parcel_no=:spn, province=:prov, village_id=:vid,
-                district_id=:did, area_sqm=:a, road_category=:rc, title_no=:tn, title_type=:tt,
+                district_id=:did, area_sqm=:a, zone_code=:zc, road_category=:rc, title_no=:tn, title_type=:tt,
                 book_no=:bn, volume_no=:von, page_no=:pg, land_use_class=:lu, issued_date=:idate,
                 status=:st, scanned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP, ocr_confidence=0
                 WHERE id=:id";
@@ -96,9 +96,9 @@ try {
         $parcelId = (int)$scan['parcel_id'];
     } else {
         $sql = "INSERT INTO parcels (parcel_no, sub_parcel_no, province, village_id, district_id, area_sqm,
-                road_category, title_no, title_type, book_no, volume_no, page_no, land_use_class, issued_date,
+                zone_code, road_category, title_no, title_type, book_no, volume_no, page_no, land_use_class, issued_date,
                 status, scanned_at, ocr_confidence)
-                VALUES (:pn, :spn, :prov, :vid, :did, :a, :rc, :tn, :tt, :bn, :von, :pg, :lu, :idate,
+                VALUES (:pn, :spn, :prov, :vid, :did, :a, :zc, :rc, :tn, :tt, :bn, :von, :pg, :lu, :idate,
                 :st, CURRENT_TIMESTAMP, 0) RETURNING id";
         $st = $pdo->prepare($sql);
         $st->execute($cols);

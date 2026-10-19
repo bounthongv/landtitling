@@ -38,7 +38,7 @@ function district_usage(PDO $pdo, int $id): array {
     $st = $pdo->prepare("SELECT
         (SELECT COUNT(*) FROM villages v WHERE v.district_id = :a) AS villages,
         (SELECT COUNT(*) FROM parcels p WHERE p.district_id = :a) AS parcels,
-        (SELECT COUNT(*) FROM zones_rates z WHERE z.district_id = :a) AS rates");
+        (SELECT COUNT(DISTINCT zone_code) FROM parcels p WHERE p.district_id = :a AND zone_code IS NOT NULL) AS zones");
     $st->execute([':a' => $id]);
     return $st->fetch() ?: ['villages' => 0, 'parcels' => 0, 'rates' => 0];
 }

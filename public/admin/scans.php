@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel']) &&
             'sub_parcel_no'  => $_POST['sub_parcel_no'] ?? '',
             'area_sqm'       => $_POST['area_sqm'] ?? '',
             'road_category'  => $_POST['road_category'] ?? '',
+            'zone_code'      => $_POST['zone_code'] ?? '',
             'village_id'     => $_POST['village_id'] ?? '',
             'district_id'    => $_POST['district_id'] ?? '',
             'status'         => $_POST['status'] ?? 'confirmed',
@@ -107,6 +108,7 @@ function conf_badge($c) {
 // --- Data for the page ---
 $districts = api_call('GET', 'districts.php')['data'] ?? [];
 $villages = $district_id ? (api_call('GET', 'villages.php?district_id=' . $district_id)['data'] ?? []) : [];
+$zones = api_call('GET', 'rates.php')['data']['zones'] ?? [];
 $pending = api_call('GET', 'scans.php?status=pending', null, $token)['data']['scans'] ?? [];
 
 $parsedLabels = [
@@ -233,11 +235,11 @@ $landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultur
               <input name="area_sqm" type="number" step="0.01" value="<?= e($val('area_sqm')) ?>">
             </div>
             <div class="form-group">
-              <label>Road category</label>
-              <select name="road_category">
+              <label>Zone (fee rate)</label>
+              <select name="zone_code">
                 <option value="">-- select --</option>
-                <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $v => $lbl): ?>
-                <option value="<?= $v ?>" <?= ($val('road_category')) === $v ? 'selected' : '' ?>><?= $lbl ?></option>
+                <?php foreach ($zones as $z): ?>
+                <option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?> — <?= number_format((float)$z['rate_per_sqm'], 0) ?> kip/m²</option>
                 <?php endforeach; ?>
               </select>
             </div>

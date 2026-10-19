@@ -79,22 +79,23 @@ if ($method === 'POST') {
     $body = read_json_body();
     $parcel_no = trim($body['parcel_no'] ?? '');
     $area = $body['area_sqm'] ?? 0;
-    $road = $body['road_category'] ?? '';
+    $zone = trim($body['zone_code'] ?? '');
+    $road = $body['road_category'] ?? ''; // optional legacy field, kept for display
     $village = $body['village_id'] ?? null;
     $district = $body['district_id'] ?? null;
 
     $err = collect_errors([
         'parcel_no' => validate_required($parcel_no, 'parcel no'),
         'area_sqm' => validate_positive($area, 'area'),
-        'road_category' => validate_enum($road, ['main','branch','alley','none'], 'road category'),
+        'zone_code' => validate_required($zone, 'zone code'),
         'village_id' => validate_int($village, 'village'),
         'district_id' => validate_int($district, 'district'),
     ]);
     reject_on_errors($err);
 
-    $stmt = $pdo->prepare("INSERT INTO parcels (parcel_no, area_sqm, road_category, village_id, district_id, status, scanned_at, ocr_confidence)
-        VALUES (:pn, :a, :rc, :vid, :did, 'confirmed', CURRENT_TIMESTAMP, 0) RETURNING id");
-    $stmt->execute([':pn' => $parcel_no, ':a' => (float)$area, ':rc' => $road, ':vid' => (int)$village, ':did' => (int)$district]);
+    $stmt = $pdo->prepare("INSERT INTO parcels (parcel_no, area_sqm, zone_code, road_category, village_id, district_id, status, scanned_at, ocr_confidence)
+        VALUES (:pn, :a, :zc, :rc, :vid, :did, 'confirmed', CURRENT_TIMESTAMP, 0) RETURNING id");
+    $stmt->execute([':pn' => $parcel_no, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road ?: null, ':vid' => (int)$village, ':did' => (int)$district]);
     $id = (int)$stmt->fetch()['id'];
     json_ok(['id' => $id], 201);
 }

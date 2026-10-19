@@ -75,15 +75,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
 
-    // Zone rates (fee per m²)
-    if ($do === 'rate_save') {
-        $r = api_call('PUT', 'rates.php', [
-            'district_id'    => (int)($_POST['district_id'] ?? 0),
-            'road_category'  => $_POST['road_category'] ?? '',
-            'rate_per_sqm'   => (float)($_POST['rate_per_sqm'] ?? 0),
-            'note'           => $_POST['note'] ?? null,
+    // Zone rates (fee per m²) — zone codes, not district+road
+    if ($do === 'zone_save') {
+        $code   = trim((string)($_POST['code'] ?? ''));
+        $rate   = (float)($_POST['rate_per_sqm'] ?? 0);
+        $nameLo = trim((string)($_POST['name_lo'] ?? ''));
+        if ($code === '' || $rate <= 0 || $nameLo === '') {
+            $msg = 'Zone code, Lao name and a positive rate are required.';
+            $msgType = 'err';
+        } else {
+            $r = api_call('PUT', 'rates.php?code=' . urlencode($code), [
+                'rate_per_sqm' => $rate,
+                'name_lo'      => $nameLo,
+                'name_en'      => $_POST['name_en'] ?? null,
+                'note'         => $_POST['note'] ?? null,
+            ], $token);
+            $msg = !empty($r['ok']) ? 'Zone ' . $code . ' updated.' : ($r['error']['message'] ?? 'Update failed');
+            $msgType = !empty($r['ok']) ? 'ok' : 'err';
+        }
+    }
+    if ($do === 'zone_add') {
+        $r = api_call('POST', 'rates.php', [
+            'code'         => trim((string)($_POST['code'] ?? '')),
+            'name_lo'      => trim((string)($_POST['name_lo'] ?? '')),
+            'name_en'      => $_POST['name_en'] ?? null,
+            'rate_per_sqm' => (float)($_POST['rate_per_sqm'] ?? 0),
+            'note'         => $_POST['note'] ?? null,
         ], $token);
-        $msg = !empty($r['ok']) ? 'Zone rate saved.' : ($r['error']['message'] ?? 'Save failed');
+        $msg = !empty($r['ok']) ? 'Zone ' . e(($_POST['code'] ?? '')) . ' added.' : ($r['error']['message'] ?? 'Add failed');
+        $msgType = !empty($r['ok']) ? 'ok' : 'err';
+    }
+    if ($do === 'zone_delete') {
+        $r = api_call('POST', 'rates.php?code=' . urlencode((string)($_POST['code'] ?? '')), [], $token);
+        $msg = !empty($r['ok']) ? 'Zone deleted.' : ($r['error']['message'] ?? 'Delete failed');
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
 
@@ -113,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $provinces   = api_call('GET', 'refdata.php?table=provinces', null, $token)['data'] ?? [];
 $districts   = api_call('GET', 'districts.php', null, $token)['data'] ?? [];
 $refdata     = api_call('GET', 'refdata.php', null, $token)['data'] ?? [];
-$rates       = api_call('GET', 'rates.php', null, $token)['data']['rates'] ?? [];
+$zones       = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
 $years       = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
 
 $vProvince  = (int)($_GET['province_id'] ?? 0);
@@ -343,36 +367,61 @@ if (!isset($tabLabels[$tab])) {
 <?php elseif ($tab === 'zones'): ?>
     <div class="form-box">
       <h2>Zone rates — the fee per m²</h2>
-      <p class="sub">Fee = rate × area. These numbers are placeholders; the province can revise them
-        at any time, and past revisions are kept (<code>valid_from</code>).</p>
+      <p class="sub">Fee = zone rate × area. A zone is a valuation area code (e.g. G17, A7, C7, C8)
+        like in the land office system. Add zones, then set each rate in kip/m².
+        These start as placeholders; revise them when you get the official figures
+        from the Land Department or MOF.</p>
       <table style="margin-bottom:14px;">
-        <thead><tr><th>District</th><th>Road</th><th>Rate (kip/m²)</th><th>Valid from</th><th>Note</th></tr></thead>
+        <thead><tr><th>Code</th><th>Name (Lao)</th><th>Name (EN)</th><th>Rate (kip/m²)</th><th>Active</th><th>Note</th><th style="width:130px">Actions</th></tr></thead>
         <tbody>
-        <?php foreach ($rates as $r): ?>
+        <?php foreach ($zones as $z): ?>
           <tr>
-            <td><?= e($r['district_name']) ?></td>
-            <td><?= e($r['road_category']) ?></td>
-            <td><?= number_format((float)$r['rate_per_sqm'], 0) ?></td>
-            <td><?= e($r['valid_from']) ?></td>
-            <td><?= e($r['note'] ?? '') ?></td>
+            <td><strong><?= e($z['code']) ?></strong></td>
+            <td><?= e($z['name_lo']) ?></td>
+            <td><?= e($z['name_en'] ?? '') ?></td>
+            <td><?= number_format((float)$z['rate_per_sqm'], 0) ?></td>
+            <td><?= $z['is_active'] ? 'yes' : 'no' ?></td>
+            <td><?= e($z['note'] ?? '') ?></td>
+            <td>
+              <div style="display:inline-flex; gap:6px;">
+                <button class="btn btn-blue btn-sm" type="button"
+                  onclick="editZone('<?= e($z['code']) ?>','<?= e($z['name_lo']) ?>','<?= e($z['name_en'] ?? '') ?>','<?= (float)$z['rate_per_sqm'] ?>','<?= e($z['note'] ?? '') ?>')">Edit</button>
+                <form method="post" style="display:inline">
+                  <input type="hidden" name="do_action" value="zone_delete"><input type="hidden" name="code" value="<?= e($z['code']) ?>">
+                  <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
           </tr>
         <?php endforeach; ?>
+        <?php if (!$zones): ?>
+          <tr><td colspan="7" class="muted">No zones yet — add one below.</td></tr>
+        <?php endif; ?>
         </tbody>
       </table>
-      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
-        <input type="hidden" name="do_action" value="rate_save">
-        <div class="form-group"><label>District</label>
-          <select name="district_id" required><?php foreach ($districts as $d): ?>
-            <option value="<?= (int)$d['id'] ?>"><?= e($d['name_lo']) ?></option><?php endforeach; ?></select>
-        </div>
-        <div class="form-group"><label>Road category</label>
-          <select name="road_category" required><?php foreach (($refdata['road_categories'] ?? []) as $rc): ?>
-            <option value="<?= e($rc['code']) ?>"><?= e($rc['name_lo']) ?></option><?php endforeach; ?></select>
-        </div>
-        <div class="form-group"><label>Rate (kip/m²)</label><input name="rate_per_sqm" type="number" min="0" step="1" required></div>
-        <div class="form-group"><label>Note</label><input name="note"></div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Save rate</button></div>
+
+      <h3 style="margin-top:6px;">Add zone</h3>
+      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;" id="zone-form">
+        <input type="hidden" name="do_action" id="zone-action" value="zone_add">
+        <div class="form-group"><label>Code</label><input name="code" id="zone-code" required placeholder="e.g. B3"></div>
+        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" id="zone-name-lo" required></div>
+        <div class="form-group"><label>Name (EN)</label><input name="name_en" id="zone-name-en"></div>
+        <div class="form-group"><label>Rate (kip/m²)</label><input name="rate_per_sqm" id="zone-rate" type="number" min="0" step="1" required></div>
+        <div class="form-group"><label>Note</label><input name="note" id="zone-note"></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="zone-submit">Add zone</button></div>
       </form>
+      <script>
+      function editZone(code, nameLo, nameEn, rate, note) {
+        document.getElementById('zone-code').value = code;
+        document.getElementById('zone-name-lo').value = nameLo;
+        document.getElementById('zone-name-en').value = nameEn;
+        document.getElementById('zone-rate').value = rate;
+        document.getElementById('zone-note').value = note;
+        document.getElementById('zone-action').value = 'zone_save';
+        document.getElementById('zone-submit').textContent = 'Update zone';
+        document.getElementById('zone-form').scrollIntoView({behavior:'smooth'});
+      }
+      </script>
     </div>
 
 <?php elseif ($tab === 'years'): ?>

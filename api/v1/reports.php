@@ -227,21 +227,16 @@ case 'bank': {
     break;
 }
 
-// ---- Rate schedule (current + historical) ----
+// ---- Rate schedule (current zones) ----
 case 'rates': {
-    $rows = $pdo->query("SELECT d.name_lo AS district, z.road_category, rc.name_lo AS road_name,
-            z.rate_per_sqm, z.valid_from, z.note, z.updated_at,
-            CASE WHEN z.valid_from = (SELECT MAX(z2.valid_from) FROM zones_rates z2
-                                       WHERE z2.district_id = z.district_id AND z2.road_category = z.road_category)
-                 THEN 'current' ELSE 'historical' END AS currency
-        FROM zones_rates z
-        JOIN districts d ON d.id = z.district_id
-        LEFT JOIN road_categories rc ON rc.code = z.road_category
-        ORDER BY d.name_lo, z.road_category, z.valid_from DESC")->fetchAll();
+    $rows = $pdo->query("SELECT code AS zone_code, name_lo, name_en, rate_per_sqm, valid_from, note, updated_at,
+            CASE WHEN is_active THEN 'current' ELSE 'inactive' END AS currency
+        FROM zones
+        ORDER BY is_active DESC, code")->fetchAll();
     $result = [
-        'columns' => ['District', 'Road', 'Road name', 'Rate (kip/m²)', 'Valid from', 'Current', 'Note', 'Updated'],
+        'columns' => ['Zone', 'Name (Lao)', 'Name (EN)', 'Rate (kip/m²)', 'Valid from', 'Status', 'Note', 'Updated'],
         'rows'    => $rows,
-        'summary' => ['rates' => count($rows)],
+        'summary' => ['zones' => count($rows)],
     ];
     break;
 }

@@ -9,50 +9,110 @@ $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $me = require_auth(['officer', 'admin']);
 
-// ---- GET: list rates ----//
+// ---- GET: list zones (active first) ----
 if ($method === 'GET') {
-    $stmt = $pdo->query("SELECT z.*, d.name_lo AS district_name
-          FROM zones_rates z JOIN districts d ON d.id = z.district_id
-          ORDER BY d.name_lo, z.road_category");
-    $rates = $stmt->fetchAll();
-    json_ok(['rates' => $rates]);
+    $stmt = $pdo->query("SELECT code, name_lo, name_en, rate_per_sqm, valid_from,
+            is_active, note, updated_at
+        FROM zones
+        ORDER BY is_active DESC, code");
+    $zones = $stmt->fetchAll();
+    json_ok(['zones' => $zones]);
 }
 
-// ---- PUT: upsert rate by (district_id, road_category) — no row id needed ----//
-if ($method === 'PUT') {
+// ---- POST (no ?code): create a zone ----
+if ($method === 'POST' && !isset($_GET['code'])) {
     $body = read_json_body();
-    $rate = $body['rate_per_sqm'] ?? null;
-    $note = $body['note'] ?? null;
+    $code   = trim((string)($body['code'] ?? ''));
+    $nameLo = trim((string)($body['name_lo'] ?? ''));
+    $nameEn = trim((string)($body['name_en'] ?? ''));
+    $rate   = $body['rate_per_sqm'] ?? null;
 
     $err = collect_errors([
+        'code'         => validate_required($code, 'zone code'),
+        'name_lo'      => validate_required($nameLo, 'Lao name'),
         'rate_per_sqm' => validate_required($rate, 'rate') ?: validate_positive($rate, 'rate'),
-        'district_id' => validate_required($body['district_id'] ?? null, 'district') ?: validate_int($body['district_id'] ?? null, 'district'),
-        'road_category' => validate_required($body['road_category'] ?? null, 'road') ?: validate_enum($body['road_category'] ?? null, ['main','branch','alley','none'], 'road'),
     ]);
     reject_on_errors($err);
 
-    $districtId = (int)$body['district_id'];
-    $rc = $body['road_category'];
-
-    // Ensure district exists
-    $stmt = $pdo->prepare("SELECT id FROM districts WHERE id = :id");
-    $stmt->execute([':id' => $districtId]);
-    if (!$stmt->fetch()) { json_error('District not found', 404, 'district_not_found'); }
-
-    // Update the latest existing row, else insert a new one
-    $stmt = $pdo->prepare("UPDATE zones_rates SET rate_per_sqm = :rate, note = :note, updated_at = CURRENT_TIMESTAMP
-        WHERE id = (
-            SELECT id FROM zones_rates
-            WHERE district_id = :did AND road_category = :rc
-            ORDER BY valid_from DESC, id DESC
-            LIMIT 1
-        )");
-    $stmt->execute([':rate' => (float)$rate, ':note' => $note, ':did' => $districtId, ':rc' => $rc]);
-    if ($stmt->rowCount() === 0) {
-        $stmt = $pdo->prepare("INSERT INTO zones_rates (district_id, road_category, rate_per_sqm, note, updated_at)
-            VALUES (:did, :rc, :rate, :note, CURRENT_TIMESTAMP)");
-        $stmt->execute([':did' => $districtId, ':rc' => $rc, ':rate' => (float)$rate, ':note' => $note]);
+    try {
+        $stmt = $pdo->prepare("INSERT INTO zones (code, name_lo, name_en, rate_per_sqm, note, valid_from)
+            VALUES (:code, :nlo, :nen, :rate, :note, CURRENT_DATE)
+            RETURNING code, name_lo, name_en, rate_per_sqm");
+        $stmt->execute([
+            ':code' => $code,
+            ':nlo'  => $nameLo,
+            ':nen'  => $nameEn ?: null,
+            ':rate' => (float)$rate,
+            ':note' => $body['note'] ?? null,
+        ]);
+        json_ok($stmt->fetch(), 201);
+    } catch (PDOException $e) {
+        if ($e->getCode() === '23505') {
+            json_error('Zone ' . $code . ' already exists', 409, 'duplicate_code');
+        }
+        json_error('Create failed: ' . $e->getMessage(), 500, 'create_failed');
     }
-    json_ok(['district_id' => $districtId, 'road_category' => $rc, 'rate_per_sqm' => (float)$rate], 200);
 }
+
+// ---- PUT ?code=: update a zone's rate / names / active ----
+if ($method === 'PUT') {
+    $code = trim((string)($_GET['code'] ?? ''));
+    if ($code === '') {
+        json_error('zone code is required', 400, 'missing_code');
+    }
+    $body = read_json_body();
+    $sets = [];
+    $params = [':code' => $code];
+    foreach (['name_lo' => 'nlo', 'name_en' => 'nen', 'note' => 'note'] as $f => $p) {
+        if (array_key_exists($f, $body)) {
+            $sets[] = "$f = :$p";
+            $params[':' . $p] = trim((string)$body[$f]) ?: null;
+        }
+    }
+    if (array_key_exists('rate_per_sqm', $body)) {
+        $sets[] = 'rate_per_sqm = :rate';
+        $params[':rate'] = (float)$body['rate_per_sqm'];
+    }
+    if (array_key_exists('is_active', $body)) {
+        $sets[] = 'is_active = :act';
+        $params[':act'] = $body['is_active'] ? true : false;
+    }
+    if (!$sets) {
+        json_error('Nothing to update', 400, 'nothing_to_update');
+    }
+    $sets[] = 'updated_at = CURRENT_TIMESTAMP';
+    try {
+        $stmt = $pdo->prepare("UPDATE zones SET " . implode(', ', $sets) . " WHERE code = :code
+            RETURNING code, name_lo, name_en, rate_per_sqm, is_active, note");
+        $stmt->execute($params);
+        $row = $stmt->fetch();
+        if (!$row) {
+            json_error('Zone not found', 404, 'not_found');
+        }
+        json_ok($row);
+    } catch (PDOException $e) {
+        json_error('Update failed: ' . $e->getMessage(), 500, 'update_failed');
+    }
+}
+
+// ---- POST ?code=: delete a zone ----
+if ($method === 'POST' && isset($_GET['code'])) {
+    $code = trim((string)$_GET['code']);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM parcels WHERE zone_code = :c");
+    $stmt->execute([':c' => $code]);
+    $parcels = (int)$stmt->fetchColumn();
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM fee_obligations WHERE zone_code = :c");
+    $stmt->execute([':c' => $code]);
+    $obls = (int)$stmt->fetchColumn();
+    if ($parcels > 0 || $obls > 0) {
+        json_error(
+            'Cannot delete zone ' . $code . ': still used by ' . $parcels . ' parcel(s) and '
+                . $obls . ' obligation(s).',
+            409, 'in_use', ['parcels' => $parcels, 'obligations' => $obls]
+        );
+    }
+    $pdo->prepare("DELETE FROM zones WHERE code = :code")->execute([':code' => $code]);
+    json_ok(['deleted' => $code]);
+}
+
 json_error('Method not allowed', 405, 'method_not_allowed');

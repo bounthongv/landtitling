@@ -80,7 +80,7 @@ if ($obligationId) {
       <div style="font-size:12px;color:var(--muted);margin-top:6px;">
         <?= e($parcel['district_name']) ?> / <?= e($parcel['village_name']) ?> ·
         <?= number_format((float)$parcel['area_sqm'], 2) ?> m² ·
-        <?= e(ucfirst((string)$parcel['road_category'])) ?>
+        Zone <?= e($parcel['zone_code'] ?? '—') ?>
       </div>
       <table class="slip-table" style="margin-top:12px;">
         <tr><td>Assessed</td><td><?= number_format((float)$ob['amount_due'], 0) ?> ກີບ</td></tr>
