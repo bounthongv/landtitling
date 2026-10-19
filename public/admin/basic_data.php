@@ -116,16 +116,21 @@ $refdata     = api_call('GET', 'refdata.php', null, $token)['data'] ?? [];
 $rates       = api_call('GET', 'rates.php', null, $token)['data']['rates'] ?? [];
 $years       = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
 
-$vDistrict   = (int)($_GET['district_id'] ?? 0);
-$vQuery      = trim((string)($_GET['q'] ?? ''));
-$villages    = [];
+$vProvince  = (int)($_GET['province_id'] ?? 0);
+$vDistrict  = (int)($_GET['district_id'] ?? 0);
+$vQuery     = trim((string)($_GET['q'] ?? ''));
+$villages   = [];
 if ($tab === 'villages') {
-    // 200 keeps the page usable; narrow it with the district filter or search.
+    // 200 keeps the page usable; narrow it with the province/district filter or search.
     $u = 'villages.php?limit=200';
+    if ($vProvince) { $u .= '&province_id=' . $vProvince; }
     if ($vDistrict) { $u .= '&district_id=' . $vDistrict; }
     if ($vQuery !== '') { $u .= '&q=' . urlencode($vQuery); }
     $villages = api_call('GET', $u, null, $token)['data'] ?? [];
 }
+// Districts for the village filter cascade: all of them carry province_id, so the
+// client can hide districts of other provinces without an extra call.
+$allDistricts = $districts;
 
 $tabLabels = [
     'province' => 'Province',
@@ -235,15 +240,42 @@ if (!isset($tabLabels[$tab])) {
       <h2>Villages</h2>
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-bottom:14px;">
         <input type="hidden" name="tab" value="villages">
+        <div class="form-group"><label>Province</label>
+          <select name="province_id" id="v-province"><option value="">-- all --</option>
+            <?php foreach ($provinces as $p): ?>
+            <option value="<?= (int)$p['id'] ?>" <?= $vProvince == $p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?></option>
+            <?php endforeach; ?></select>
+        </div>
         <div class="form-group"><label>District</label>
-          <select name="district_id"><option value="">-- all --</option>
+          <select name="district_id" id="v-district"><option value="">-- all --</option>
             <?php foreach ($districts as $d): ?>
-            <option value="<?= (int)$d['id'] ?>" <?= $vDistrict == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option>
+            <option value="<?= (int)$d['id'] ?>" data-province="<?= (int)$d['province_id'] ?>" <?= $vDistrict == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option>
             <?php endforeach; ?></select>
         </div>
         <div class="form-group"><label>Search</label><input name="q" value="<?= e($vQuery) ?>"></div>
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Filter</button></div>
       </form>
+      <script>
+      // Province -> district cascade: hide districts of other provinces (like tax-ets).
+      (function(){
+        const prov = document.getElementById('v-province');
+        const dist = document.getElementById('v-district');
+        if (!prov || !dist) return;
+        function filterDistricts(){
+          const pid = prov.value;
+          [...dist.options].forEach(o => {
+            if (!o.value) return; // keep the "-- all --" placeholder
+            o.hidden = (pid && o.dataset.province !== pid);
+          });
+          // If the selected district is now hidden, reset to "-- all --".
+          if (dist.value && dist.selectedOptions[0] && dist.selectedOptions[0].hidden) {
+            dist.value = '';
+          }
+        }
+        prov.addEventListener('change', filterDistricts);
+        filterDistricts();
+      })();
+      </script>
       <p class="sub"><?= count($villages) ?> village(s) shown<?= count($villages) >= 200 ? ' (first 200 — narrow with the district filter or search)' : '' ?>.</p>
       <table style="margin-bottom:14px;">
         <thead><tr><th>Code</th><th>Lao</th><th>English</th><th>District</th><th>Parcels</th><th></th></tr></thead>

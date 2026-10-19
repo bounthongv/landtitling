@@ -11,13 +11,22 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // ---- GET: list (public) ----
 if ($method === 'GET') {
-    $stmt = $pdo->query("SELECT d.id, d.code, d.name_lo, d.name_en, d.province_id,
+    $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
+    $where = '';
+    $params = [];
+    if ($province_id) {
+        $where = 'WHERE d.province_id = :pid';
+        $params[':pid'] = $province_id;
+    }
+    $stmt = $pdo->prepare("SELECT d.id, d.code, d.name_lo, d.name_en, d.province_id,
             pr.name_lo AS province_name,
             (SELECT COUNT(*) FROM villages v WHERE v.district_id = d.id) AS village_count,
             (SELECT COUNT(*) FROM parcels p WHERE p.district_id = d.id)  AS parcel_count
         FROM districts d
         LEFT JOIN provinces pr ON pr.id = d.province_id
+        $where
         ORDER BY d.name_lo");
+    $stmt->execute($params);
     json_ok($stmt->fetchAll());
 }
 

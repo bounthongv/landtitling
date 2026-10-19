@@ -11,12 +11,18 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // ---- GET: list (public) ----
 if ($method === 'GET') {
-    $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
+    $district_id  = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
+    $province_id  = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
     $q = trim((string)($_GET['q'] ?? ''));
     $limit = min(500, max(1, (int)($_GET['limit'] ?? 500)));
 
     $where = [];
     $params = [];
+    if ($province_id) {
+        // Narrow by province: districts belong to a province (districts.province_id).
+        $where[] = 'd.province_id = :pid';
+        $params[':pid'] = $province_id;
+    }
     if ($district_id) {
         $where[] = 'v.district_id = :did';
         $params[':did'] = $district_id;
@@ -28,7 +34,7 @@ if ($method === 'GET') {
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     $st = $pdo->prepare("SELECT v.id, v.district_id, v.code, v.name_lo, v.name_en,
-            d.name_lo AS district_name,
+            d.name_lo AS district_name, d.province_id AS province_id,
             (SELECT COUNT(*) FROM parcels p WHERE p.village_id = v.id) AS parcel_count
         FROM villages v JOIN districts d ON d.id = v.district_id
         $w ORDER BY d.name_lo, v.name_lo LIMIT $limit");
