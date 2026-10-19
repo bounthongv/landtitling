@@ -466,7 +466,6 @@ if (!isset($tabLabels[$tab])) {
 <?php elseif ($tab === 'refdata'): ?>
 <?php
 $refGroups = [
-    'road_categories' => 'Road categories',
     'title_types'     => 'Title types',
     'land_use_classes'=> 'Land use classes',
 ];

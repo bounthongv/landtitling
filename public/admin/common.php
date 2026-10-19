@@ -44,7 +44,7 @@ function admin_nav($role) {
         'villages' => 'Village',
         'zones'    => 'Zone rates',
         'years'    => 'Fee years',
-        'refdata'  => 'Lookups',
+        'refdata'  => 'Land Lookups',
     ];
 
     $links = [];
