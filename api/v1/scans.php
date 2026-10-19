@@ -95,7 +95,16 @@ if ($method === 'POST') {
     $filename = uniqid('scan_', true) . '.' . $ext;
     $destPath = $uploadDir . $filename;
     if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-        json_error('Failed to save image', 500, 'upload_failed');
+        // Detailed diagnostics (logged + returned) so we can see why the move fails.
+        $errlog = 'move_uploaded_file FAILED: tmp=' . $file['tmp_name']
+            . ' exists=' . (is_file($file['tmp_name']) ? 'yes' : 'no')
+            . ' is_uploaded=' . (is_uploaded_file($file['tmp_name']) ? 'yes' : 'no')
+            . ' dest=' . $destPath
+            . ' dest_dir_writable=' . (is_writable($uploadDir) ? 'yes' : 'no')
+            . ' file_err=' . ($file['error'] ?? '?')
+            . ' client=' . ($_SERVER['REMOTE_ADDR'] ?? '?');
+        error_log($errlog);
+        json_error('Failed to save image: ' . $errlog, 500, 'upload_failed');
     }
     $ocrResult = ocr_extract_from_image($destPath);
     if (isset($ocrResult['error'])) {
