@@ -213,26 +213,41 @@ if (!isset($tabLabels[$tab])) {
             <td><?= (int)$d['village_count'] ?></td>
             <td><?= (int)$d['parcel_count'] ?></td>
             <td>
-              <form method="post" style="display:inline">
-                <input type="hidden" name="do_action" value="district_delete"><input type="hidden" name="id" value="<?= (int)$d['id'] ?>">
-                <button class="btn btn-red btn-sm" type="submit">Delete</button>
-              </form>
+              <div style="display:inline-flex; gap:6px;">
+                <button class="btn btn-blue btn-sm" type="button" onclick="editDistrict(<?= (int)$d['id'] ?>, '<?= e($d['code']) ?>', '<?= e($d['name_lo']) ?>', '<?= e($d['name_en'] ?? '') ?>', '<?= (int)$d['province_id'] ?>')">Edit</button>
+                <form method="post" style="display:inline">
+                  <input type="hidden" name="do_action" value="district_delete"><input type="hidden" name="id" value="<?= (int)$d['id'] ?>">
+                  <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                </form>
+              </div>
             </td>
           </tr>
         <?php endforeach; ?>
         </tbody>
       </table>
-      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
+      <form method="post" class="form-grid" id="district-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="district_save">
-        <div class="form-group"><label>Code</label><input name="code" required></div>
-        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" required></div>
-        <div class="form-group"><label>Name (EN)</label><input name="name_en"></div>
+        <input type="hidden" name="id" id="district-id" value="0">
+        <div class="form-group"><label>Code</label><input name="code" id="district-code" required></div>
+        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" id="district-name-lo" required></div>
+        <div class="form-group"><label>Name (EN)</label><input name="name_en" id="district-name-en"></div>
         <div class="form-group"><label>Province</label>
-          <select name="province_id" required><?php foreach ($provinces as $p): ?>
+          <select name="province_id" id="district-province" required><?php foreach ($provinces as $p): ?>
             <option value="<?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option><?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Add district</button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="district-submit">Add district</button></div>
       </form>
+      <script>
+      function editDistrict(id, code, nameLo, nameEn, provinceId) {
+        document.getElementById('district-id').value = id;
+        document.getElementById('district-code').value = code;
+        document.getElementById('district-name-lo').value = nameLo;
+        document.getElementById('district-name-en').value = nameEn;
+        document.getElementById('district-province').value = provinceId;
+        document.getElementById('district-submit').textContent = 'Update district';
+        document.getElementById('district-form').scrollIntoView({behavior:'smooth'});
+      }
+      </script>
     </div>
 
 <?php elseif ($tab === 'villages'): ?>
@@ -288,26 +303,41 @@ if (!isset($tabLabels[$tab])) {
             <td><?= e($v['district_name']) ?></td>
             <td><?= (int)$v['parcel_count'] ?></td>
             <td>
-              <form method="post" style="display:inline">
-                <input type="hidden" name="do_action" value="village_delete"><input type="hidden" name="id" value="<?= (int)$v['id'] ?>">
-                <button class="btn btn-red btn-sm" type="submit">Delete</button>
-              </form>
+              <div style="display:inline-flex; gap:6px;">
+                <button class="btn btn-blue btn-sm" type="button" onclick="editVillage(<?= (int)$v['id'] ?>, '<?= e($v['code']) ?>', '<?= e($v['name_lo']) ?>', '<?= e($v['name_en'] ?? '') ?>', '<?= (int)$v['district_id'] ?>')">Edit</button>
+                <form method="post" style="display:inline">
+                  <input type="hidden" name="do_action" value="village_delete"><input type="hidden" name="id" value="<?= (int)$v['id'] ?>">
+                  <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                </form>
+              </div>
             </td>
           </tr>
         <?php endforeach; ?>
         </tbody>
       </table>
-      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
+      <form method="post" class="form-grid" id="village-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="village_save">
-        <div class="form-group"><label>Code</label><input name="code" required></div>
-        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" required></div>
-        <div class="form-group"><label>Name (EN)</label><input name="name_en"></div>
+        <input type="hidden" name="id" id="village-id" value="0">
+        <div class="form-group"><label>Code</label><input name="code" id="village-code" required></div>
+        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" id="village-name-lo" required></div>
+        <div class="form-group"><label>Name (EN)</label><input name="name_en" id="village-name-en"></div>
         <div class="form-group"><label>District</label>
-          <select name="district_id" required><?php foreach ($districts as $d): ?>
+          <select name="district_id" id="village-district" required><?php foreach ($districts as $d): ?>
             <option value="<?= (int)$d['id'] ?>"><?= e($d['name_lo']) ?></option><?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Add village</button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="village-submit">Add village</button></div>
       </form>
+      <script>
+      function editVillage(id, code, nameLo, nameEn, districtId) {
+        document.getElementById('village-id').value = id;
+        document.getElementById('village-code').value = code;
+        document.getElementById('village-name-lo').value = nameLo;
+        document.getElementById('village-name-en').value = nameEn;
+        document.getElementById('village-district').value = districtId;
+        document.getElementById('village-submit').textContent = 'Update village';
+        document.getElementById('village-form').scrollIntoView({behavior:'smooth'});
+      }
+      </script>
     </div>
 
 <?php elseif ($tab === 'zones'): ?>
