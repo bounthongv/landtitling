@@ -121,7 +121,7 @@ $districts = $province_id
     ? array_values(array_filter($allDistricts, fn($d) => (int)$d['province_id'] === $province_id))
     : [];
 $villages = $district_id ? (api_call('GET', 'villages.php?district_id=' . $district_id)['data'] ?? []) : [];
-$zones = api_call('GET', 'rates.php')['data']['zones'] ?? [];
+$zones = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
 $pending = api_call('GET', 'scans.php?status=pending', null, $token)['data']['scans'] ?? [];
 
 $parsedLabels = [
