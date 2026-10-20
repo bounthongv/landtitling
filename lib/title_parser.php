@@ -182,7 +182,12 @@ function roi_extract_value(string $key, $rawLine): array {
             return ['value' => null, 'ok' => false];
 
         case 'title_no':
-            // Serial like 0105.003.17 033.0633 — take the trailing digit run
+            // Serial like "06.001.0017" — may have Lao prefix "ດືນ:" or "ທີ່ຕັ້ງ" or "ທີ່ຕັ້ງຕອນ"
+            // Take the trailing run of digits/dots/spaces
+            if (preg_match('/([0-9][0-9 .,\u{0EC0}-\u{0EC4}]{3,})\s*$/u', $t, $m)) {
+                return ['value' => trim($m[1]), 'ok' => true];
+            }
+            // Fallback: any digit group at end
             if (preg_match('/([0-9][0-9 .,]{3,})\s*$/u', $t, $m)) {
                 return ['value' => trim($m[1]), 'ok' => true];
             }
