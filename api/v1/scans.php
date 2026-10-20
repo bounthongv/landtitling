@@ -163,45 +163,46 @@ if ($method === 'POST') {
     // Read OCR method from form (default: tesseract)
     $ocrMethod = $_POST['ocr_method'] ?? 'tesseract';
 
+    // BOTH engines run through the same path: each returns a structured_fields
+    // array keyed by the canonical field names (the same keys title_parse_text
+    // produces). Tesseract parses its raw text via title_parse_text(); Gemini
+    // maps its JSON output. The OCR "extracted text" box always shows the
+    // structured JSON so the officer can verify what was read.
     if ($ocrMethod === 'gemini') {
-        // Gemini API path
         $ocrResult = ocr_gemini($destPath, $cfg);
         $engineLabel = 'gemini-2.5-flash';
+        $structuredFields = $ocrResult['structured_fields'] ?? [];
+        $rawText = $ocrResult['text'] ?? '';
     } else {
-        // Tesseract path (default)
+        // Tesseract: full-page text -> fuzzy structure (fallback + audit trail)
         $tessdataDir = $cfg['ocr_tessdata_dir'] ?? '';
         $ocrResult = ocr_extract_from_image($destPath, $tessdataDir);
         $engineLabel = 'tesseract-lao-psm3+roi';
+        $rawText = trim($ocrResult['text'] ?? '');
+        $parsed = title_parse_text($rawText, $pdo);
+        $structuredFields = $parsed['fields'] ?? [];
     }
     if (isset($ocrResult['error'])) {
         json_error('OCR failed: ' . $ocrResult['error'], 500, 'ocr_failed');
     }
 
     $webPath = '/public/uploads/' . $filename;
-    $text = trim($ocrResult['text'] ?? '');
-    $words = $ocrResult['words'] ?? [];
-    $structuredFields = $ocrResult['structured_fields'] ?? null;
+    $fields = $structuredFields;
+    $fieldConf = [];
 
-    // Pass 1: full-page text -> fuzzy structure (fallback + audit trail).
-    $parsed = title_parse_text($text, $pdo);
-    $fields = $parsed['fields'];
-    $fieldConf = $parsed['confidence'];
-
-    // If Gemini provided structured fields, merge them (they override pass-1)
-    if ($structuredFields) {
-        foreach ($structuredFields as $key => $value) {
-            // Normalize land_use_class from descriptive text to internal codes
-            if ($key === 'land_use_class' && is_string($value)) {
-                $value = normalize_land_use_class($value);
-            }
-            $fields[$key] = $value;
-            $fieldConf[$key] = 95; // Gemini confidence
+    // Normalize values to canonical form and set per-field confidence.
+    foreach ($fields as $key => $value) {
+        // Normalize land_use_class from descriptive text to internal codes
+        if ($key === 'land_use_class' && is_string($value)) {
+            $fields[$key] = normalize_land_use_class($value);
         }
+        // Gemini provides no per-field confidence; assign a high default.
+        $fieldConf[$key] = $ocrMethod === 'gemini' ? 95 : ($parsed['confidence'][$key] ?? 60);
     }
 
     // Pass 2: position-based ROI read of the standard form layout. Each region is a
     // full "label: value" line; roi_extract_value() pulls just the value out of it.
-    // Where a ROI value came through it overrides the pass-1/structured guess
+    // Where a ROI value came through it overrides the structured guess
     // ONLY if its confidence is higher than the current confidence.
     $roi = ocr_extract_fields($destPath, title_template_regions(), $tessdataDir ?? '');
     if ($roi['error'] === null && !empty($roi['fields'])) {
@@ -244,6 +245,11 @@ if ($method === 'POST') {
 
     $overall = title_overall_confidence($fieldConf);
 
+    // The OCR raw box shows the structured JSON (both engines) so the officer can
+    // verify what was parsed; the full page text is kept for the audit trail.
+    $structuredJson = json_encode($fields, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $fullText = $rawText;
+
     $stmt = $pdo->prepare("
         INSERT INTO title_scans
             (parcel_id, image_path, status, ocr_engine, ocr_raw, ocr_words, parsed_fields, field_confidence, overall_confidence, created_by)
@@ -253,8 +259,8 @@ if ($method === 'POST') {
     $stmt->execute([
         ':p'       => $webPath,
         ':eng'     => $engineLabel,
-        ':raw'     => $text,
-        ':words'   => json_encode($words, JSON_UNESCAPED_UNICODE),
+        ':raw'     => $structuredJson,
+        ':words'   => json_encode([], JSON_UNESCAPED_UNICODE),
         ':fields'  => json_encode($fields, JSON_UNESCAPED_UNICODE),
         ':conf'    => json_encode($fieldConf, JSON_UNESCAPED_UNICODE),
         ':overall' => $overall,

@@ -358,27 +358,26 @@ If a field is not visible, use null. Be precise - extract exactly what you see."
         $mappedText = implode("\n", $parts);
     }
 
-    // Map Gemini field names to our internal field names (including form-expected keys)
+    // Map Gemini field names to our canonical internal names. Only the NAME fields
+    // are set here; the geography gate in scans.php resolves district_id/village_id
+    // from these names the same way it does for Tesseract, so both engines follow
+    // identical logic.
     $fieldMap = [
-        'title_no' => 'title_no',
-        'province' => ['province', 'province_id'],
-        'district' => ['district_name', 'district_id'],
-        'village' => ['village_name', 'village_id'],
-        'owner_name' => 'owner_name',
-        'owner_id' => ['owner_id_number', 'owner_id'],
-        'parcel_no' => 'parcel_no',
-        'area_sqm' => 'area_sqm',
-        'area_ha' => 'area_lan',
-        'land_use' => ['land_use_class', 'land_use'],
+        'title_no'    => 'title_no',
+        'province'    => 'province',
+        'district'    => 'district_name',
+        'village'     => 'village_name',
+        'owner_name'  => 'owner_name',
+        'owner_id'    => 'owner_id_number',
+        'parcel_no'   => 'parcel_no',
+        'area_sqm'    => 'area_sqm',
+        'area_ha'     => 'area_lan',
+        'land_use'    => 'land_use_class',
         'issued_date' => 'issued_date',
-        'raw_text' => 'raw_text',
     ];
-    foreach ($fieldMap as $geminiKey => $internalKeys) {
+    foreach ($fieldMap as $geminiKey => $internalKey) {
         if (isset($parsed[$geminiKey]) && $parsed[$geminiKey] !== null && $parsed[$geminiKey] !== '') {
-            $keys = is_array($internalKeys) ? $internalKeys : [$internalKeys];
-            foreach ($keys as $internalKey) {
-                $structuredFields[$internalKey] = $parsed[$geminiKey];
-            }
+            $structuredFields[$internalKey] = $parsed[$geminiKey];
         }
     }
 
