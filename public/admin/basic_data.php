@@ -17,6 +17,19 @@ function flash_type(string $m): string {
     return 'ok';
 }
 
+/**
+ * Sortable column header. Links to ?tab=&sort=<key>&dir=asc|desc and flips the
+ * direction when that column is already the active sort. The key is whitelisted
+ * here and re-validated by the API against the table's own columns.
+ */
+function th_sort(string $key, string $label, string $sort, string $dir, string $tab): string {
+    $isCurrent = ($sort === $key);
+    $next  = ($isCurrent && $dir === 'asc') ? 'desc' : 'asc';
+    $href  = '?tab=' . urlencode($tab) . '&sort=' . urlencode($key) . '&dir=' . $next;
+    $arrow = $isCurrent ? '<span class="arrow">' . ($dir === 'asc' ? '▲' : '▼') . '</span>' : '';
+    return '<a class="th-sort" href="' . e($href) . '" title="Sort by ' . e($label) . '">' . e($label) . $arrow . '</a>';
+}
+
 // ---- POST handlers ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $do = $_POST['do_action'] ?? '';
@@ -26,7 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($do === 'ref_save') {
         $body = ['code' => $_POST['code'] ?? '', 'name_lo' => $_POST['name_lo'] ?? '',
                  'name_en' => $_POST['name_en'] ?? ''];
-        foreach (['note', 'sort_order'] as $extra) {
+        // Optional columns, only when the tab actually posts them (is_active comes
+        // from the province form; the other lookup tables have no such column).
+        foreach (['note', 'sort_order', 'is_active'] as $extra) {
             if (isset($_POST[$extra])) { $body[$extra] = $_POST[$extra]; }
         }
         $id = (int)($_POST['id'] ?? 0);
@@ -134,7 +149,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$provinces   = api_call('GET', 'refdata.php?table=provinces', null, $token)['data'] ?? [];
+// Province table sorting: default code ascending (the official order); clicking a
+// header toggles asc/desc. Whitelisted, and the API validates against its columns.
+$sortable = ['code', 'name_lo', 'name_en'];
+$sort = (string)($_GET['sort'] ?? 'code');
+$dir  = strtolower((string)($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
+if (!in_array($sort, $sortable, true)) { $sort = 'code'; }
+
+$provinces   = api_call('GET', 'refdata.php?table=provinces&sort=' . urlencode($sort) . '&dir=' . urlencode($dir), null, $token)['data'] ?? [];
 $districts   = api_call('GET', 'districts.php', null, $token)['data'] ?? [];
 $refdata     = api_call('GET', 'refdata.php', null, $token)['data'] ?? [];
 $zones       = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
@@ -194,7 +216,12 @@ if (!isset($tabLabels[$tab])) {
     <div class="form-box">
       <h2>Province</h2>
       <table style="margin-bottom:14px;">
-        <thead><tr><th>Code</th><th>Lao</th><th>English</th><th>Active</th><th></th></tr></thead>
+        <thead><tr>
+          <th><?= th_sort('code', 'Code', $sort, $dir, $tab) ?></th>
+          <th><?= th_sort('name_lo', 'Lao', $sort, $dir, $tab) ?></th>
+          <th><?= th_sort('name_en', 'English', $sort, $dir, $tab) ?></th>
+          <th>Active</th><th></th>
+        </tr></thead>
         <tbody>
         <?php foreach ($provinces as $p): ?>
           <tr>
@@ -203,23 +230,42 @@ if (!isset($tabLabels[$tab])) {
             <td><?= e($p['name_en']) ?></td>
             <td><?= $p['is_active'] ? 'yes' : 'no' ?></td>
             <td>
-              <form method="post" style="display:inline">
-                <input type="hidden" name="do_action" value="ref_delete"><input type="hidden" name="table" value="provinces">
-                <input type="hidden" name="code" value="<?= e($p['code']) ?>">
-                <button class="btn btn-red btn-sm" type="submit">Delete</button>
-              </form>
+              <div style="display:inline-flex; gap:6px;">
+                <button class="btn btn-blue btn-sm" type="button" onclick="editProvince(<?= (int)$p['id'] ?>, '<?= e($p['code']) ?>', '<?= e($p['name_lo']) ?>', '<?= e($p['name_en'] ?? '') ?>', <?= $p['is_active'] ? 1 : 0 ?>)">Edit</button>
+                <form method="post" style="display:inline">
+                  <input type="hidden" name="do_action" value="ref_delete"><input type="hidden" name="table" value="provinces">
+                  <input type="hidden" name="code" value="<?= e($p['code']) ?>">
+                  <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                </form>
+              </div>
             </td>
           </tr>
         <?php endforeach; ?>
         </tbody>
       </table>
-      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
+      <form method="post" id="province-form" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="ref_save"><input type="hidden" name="table" value="provinces">
-        <div class="form-group"><label>Code</label><input name="code" required></div>
-        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" required></div>
-        <div class="form-group"><label>Name (EN)</label><input name="name_en"></div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Add province</button></div>
+        <input type="hidden" name="id" id="province-id" value="0">
+        <div class="form-group"><label>Code</label><input name="code" id="province-code" required></div>
+        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" id="province-name-lo" required></div>
+        <div class="form-group"><label>Name (EN)</label><input name="name_en" id="province-name-en"></div>
+        <div class="form-group"><label>Active</label>
+          <select name="is_active" id="province-active"><option value="1">yes</option><option value="0">no</option></select>
+        </div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="province-submit">Add province</button></div>
       </form>
+      <script>
+      // Fill the form above from a row so the same form creates and updates.
+      function editProvince(id, code, nameLo, nameEn, isActive) {
+        document.getElementById('province-id').value = id;
+        document.getElementById('province-code').value = code;
+        document.getElementById('province-name-lo').value = nameLo;
+        document.getElementById('province-name-en').value = nameEn;
+        document.getElementById('province-active').value = isActive ? '1' : '0';
+        document.getElementById('province-submit').textContent = 'Update province';
+        document.getElementById('province-form').scrollIntoView({behavior:'smooth'});
+      }
+      </script>
     </div>
 
 <?php elseif ($tab === 'districts'): ?>

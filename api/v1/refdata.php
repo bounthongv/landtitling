@@ -33,14 +33,19 @@ $tables = [
 ];
 
 // All codes are also a valid order-by list, so a caller can request one or all.
+// Optional sorting: ?sort=<column>&dir=asc|desc — the column is whitelisted
+// against the table's own column list, so it is never interpolated from the request.
 if ($method === 'GET') {
     $wanted = trim((string)($_GET['table'] ?? ''));
+    $sort   = trim((string)($_GET['sort'] ?? ''));
+    $dir    = strtolower(trim((string)($_GET['dir'] ?? 'asc'))) === 'desc' ? 'DESC' : 'ASC';
     $out = [];
     foreach ($tables as $name => $cfg) {
         if ($wanted !== '' && $wanted !== $name) {
             continue;
         }
-        $stmt = $pdo->query("SELECT * FROM $name ORDER BY {$cfg['order']}");
+        $col  = in_array($sort, $cfg['columns'], true) ? $sort : $cfg['order'];
+        $stmt = $pdo->query("SELECT * FROM $name ORDER BY $col $dir NULLS LAST");
         $out[$name] = $stmt->fetchAll();
     }
     if ($wanted !== '' && !isset($out[$wanted])) {

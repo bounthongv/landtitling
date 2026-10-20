@@ -28,6 +28,10 @@
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
   th { background: #f0f4ee; color: var(--muted); font-weight: 600; }
+  /* Sortable column headers: the whole label is a link that toggles asc/desc. */
+  th a.th-sort { color: inherit; text-decoration: none; white-space: nowrap; }
+  th a.th-sort:hover { color: #1565c0; text-decoration: underline; }
+  th a.th-sort .arrow { color: #1565c0; font-size: 11px; }
   tr:hover { background: #f7faf6; }
   .btn { display: inline-block; padding: 7px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; border: none; text-decoration: none; color: #fff; }
   .btn-green { background: var(--green); } .btn-green:hover { background: #144016; }
