@@ -42,6 +42,10 @@ return [
     // Dev-only: echo the OTP back in the API response so the login screen can show it.
     // MUST be unset/false in production, otherwise any caller can read the code.
     'otp_debug'    => (getenv('OTP_DEBUG') ?: '0') === '1',
+    // Optional dir of improved Tesseract traineddata (e.g. tessdata_best lao model).
+    // When set, ocr.php passes --tessdata-dir so the app uses it without touching the
+    // system model. Empty = use the system default tessdata.
+    'ocr_tessdata_dir' => getenv('OCR_TESSDATA_DIR') ?: '',
     // Outbound email (OTP channel). Requires a system MTA on the host (e.g. Postfix).
     'mail_from'      => getenv('MAIL_FROM') ?: '',
     'mail_from_name' => getenv('MAIL_FROM_NAME') ?: 'Land Fee Savannakhet',

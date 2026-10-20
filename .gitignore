@@ -24,3 +24,6 @@ archive/llr7-spec/audio_download_log.txt
 
 public/uploads
 .env
+
+# scratch / local test files
+tmp/

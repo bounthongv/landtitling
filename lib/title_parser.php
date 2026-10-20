@@ -148,6 +148,71 @@ function title_trim_value($s) {
 }
 
 /**
+ * Extract a clean field VALUE from a raw OCR'd "label: value" line (row crop).
+ *
+ * The row crops in lib/title_template.php OCR the whole line, so the value is
+ * mixed with the label. This pulls just the value using the known shape of each
+ * field. Returns ['value' => string|null, 'ok' => bool] — ok=true only when a
+ * value was actually found, so callers can fall back to the full-page parse.
+ */
+function roi_extract_value(string $key, $rawLine): array {
+    $t = title_normalize_digits(preg_replace('/\s+/u', ' ', trim((string) $rawLine)));
+    $t = trim($t, " \t");
+    if ($t === '') return ['value' => null, 'ok' => false];
+
+    switch ($key) {
+        case 'area_sqm':
+            // Square metres is the largest number on the area line (thans and the
+            // map scale "1/4000" also sit on the line; sqm is the biggest).
+            if (preg_match_all('/\d+(?:[.,]\d+)?/', $t, $m)) {
+                $best = null;
+                foreach ($m[0] as $n) {
+                    $v = title_normalize_number($n);
+                    if ($v !== null && $v > 0 && ($best === null || $v > $best)) $best = $v;
+                }
+                if ($best !== null) return ['value' => (string) $best, 'ok' => true];
+            }
+            return ['value' => null, 'ok' => false];
+
+        case 'parcel_no':
+            // Plot number like A250-016 / K260-014 (optional letter + two number groups)
+            if (preg_match('/[A-Za-z]{0,2}\d{1,4}[-\/.\.:]\d{1,4}/u', $t, $m)) {
+                return ['value' => preg_replace('/\s+/u', '', $m[0]), 'ok' => true];
+            }
+            return ['value' => null, 'ok' => false];
+
+        case 'title_no':
+            // Serial like 0105.003.17 033.0633 — take the trailing digit run
+            if (preg_match('/([0-9][0-9 .,]{3,})\s*$/u', $t, $m)) {
+                return ['value' => trim($m[1]), 'ok' => true];
+            }
+            return ['value' => null, 'ok' => false];
+
+        case 'issued_date':
+            if (preg_match('/\d{1,2}[-\/.\.:]\d{1,2}[-\/.\.:]\d{2,4}/u', $t, $m)) {
+                return ['value' => $m[0], 'ok' => true];
+            }
+            return ['value' => null, 'ok' => false];
+
+        case 'owner_id_number':
+            if (preg_match('/\b(\d{6,13})\b/', $t, $m)) {
+                return ['value' => $m[1], 'ok' => true];
+            }
+            return ['value' => null, 'ok' => false];
+
+        default:
+            // Lao text fields (province, district_name, village_name, owner_name):
+            // value = text after the LAST colon (greedy .* eats up to the last one).
+            $v = $t;
+            if (preg_match('/^.*[:：]\s*(.+)$/u', $v, $m)) {
+                $v = $m[1];
+            }
+            $v = trim(preg_replace('/[_.]{2,}/u', ' ', $v));
+            return ['value' => $v !== '' ? $v : null, 'ok' => $v !== ''];
+    }
+}
+
+/**
  * Main entry point.
  * @param array $ctx optional hints: ['district_id'=>int]
  * @return array{fields:array,confidence:array,overall:int}

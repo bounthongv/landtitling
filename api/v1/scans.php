@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/ocr.php';
 require_once __DIR__ . '/../../lib/title_parser.php';
+require_once __DIR__ . '/../../lib/title_template.php';
 require_once __DIR__ . '/../../lib/auth.php';
 
 $pdo = db_connect();
@@ -106,7 +107,8 @@ if ($method === 'POST') {
         error_log($errlog);
         json_error('Failed to save image: ' . $errlog, 500, 'upload_failed');
     }
-    $ocrResult = ocr_extract_from_image($destPath);
+    $tessdataDir = $cfg['ocr_tessdata_dir'] ?? '';
+    $ocrResult = ocr_extract_from_image($destPath, $tessdataDir);
     if (isset($ocrResult['error'])) {
         json_error('OCR failed: ' . $ocrResult['error'], 500, 'ocr_failed');
     }
@@ -115,11 +117,53 @@ if ($method === 'POST') {
     $text = trim($ocrResult['text'] ?? '');
     $words = $ocrResult['words'] ?? [];
 
-    // Parse the recognised text into structured fields (nothing is auto-committed).
+    // Pass 1: full-page text -> fuzzy structure (fallback + audit trail).
     $parsed = title_parse_text($text, $pdo);
     $fields = $parsed['fields'];
     $fieldConf = $parsed['confidence'];
-    $overall = (int)$parsed['overall'];
+
+    // Pass 2: position-based ROI read of the standard form layout. Each region is a
+    // full "label: value" line; roi_extract_value() pulls just the value out of it.
+    // Where a ROI value came through it overrides the pass-1 guess.
+    $roi = ocr_extract_fields($destPath, title_template_regions(), $tessdataDir);
+    if ($roi['error'] === null && !empty($roi['fields'])) {
+        // Only let a ROI read override the full-page parse when it's actually reliable.
+        // Tesseract's Lao is weak on the thin value cells, so on low-res scans the row
+        // read is often worse than the whole-page pass — gate at confidence 50.
+        foreach ($roi['fields'] as $key => $r) {
+            $raw = trim((string)$r['text']);
+            if ($raw === '') continue;
+            $c = (int)$r['confidence'];
+            if ($c < 50) continue;                       // too noisy to trust
+            $ex = roi_extract_value($key, $raw);
+            if (!$ex['ok'] || $ex['value'] === null || $ex['value'] === '') continue;
+            $fields[$key] = $ex['value'];
+            $fieldConf[$key] = max($fieldConf[$key] ?? 0, $c);
+        }
+    }
+
+    // Final geography gate (runs after both passes): only trust auto-resolved
+    // district/village ids on a NEAR-EXACT match (confidence >= 90). The fuzzy
+    // matcher scores even completely different Lao district names ~70% (shared
+    // consonants), so a 70-ish threshold misattributes parcels; 90 accepts a
+    // 1-char OCR typo (~97%) but rejects unrelated names. Anything below is
+    // nulled so the officer picks it in review instead of a wrong fee.
+    if (!empty($fields['district_name'])) {
+        [$did, $dc] = title_resolve_district($fields['district_name'], $pdo);
+        $fields['district_id'] = ($did && $dc >= 90) ? $did : null;
+        if ($did && $dc >= 90) $fieldConf['district_id'] = max($fieldConf['district_id'] ?? 0, $dc);
+    } else {
+        $fields['district_id'] = null;
+    }
+    if (!empty($fields['village_name'])) {
+        [$vid, $vc] = title_resolve_village($fields['village_name'], $fields['district_id'] ?? null, $pdo);
+        $fields['village_id'] = ($vid && $vc >= 90) ? $vid : null;
+        if ($vid && $vc >= 90) $fieldConf['village_id'] = max($fieldConf['village_id'] ?? 0, $vc);
+    } else {
+        $fields['village_id'] = null;
+    }
+
+    $overall = title_overall_confidence($fieldConf);
 
     $stmt = $pdo->prepare("
         INSERT INTO title_scans
@@ -129,7 +173,7 @@ if ($method === 'POST') {
         RETURNING id, image_path, status, ocr_raw, parsed_fields, field_confidence, overall_confidence, created_at");
     $stmt->execute([
         ':p'       => $webPath,
-        ':eng'     => 'tesseract lao+eng --psm 6',
+        ':eng'     => 'tesseract-lao-psm3+roi',
         ':raw'     => $text,
         ':words'   => json_encode($words, JSON_UNESCAPED_UNICODE),
         ':fields'  => json_encode($fields, JSON_UNESCAPED_UNICODE),
