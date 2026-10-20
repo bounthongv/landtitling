@@ -113,10 +113,17 @@ function api_call($method, $path, $body = null, $token = '') {
     return json_decode($resp, true);
 }
 
-// api_upload(path, tmpPath, fileName, mime, token, field) — multipart POST to the JSON API.
-function api_upload($path, $tmpPath, $fileName, $mime, $token = '', $field = 'image') {
+// api_upload(path, tmpPath, fileName, mime, token, field, extraFields) — multipart POST to the JSON API.
+// extraFields: optional associative array of additional form fields to include in the multipart POST.
+function api_upload($path, $tmpPath, $fileName, $mime, $token = '', $field = 'image', $extraFields = []) {
     global $api_base;
     $url = $api_base . '/' . ltrim($path, '/');
+    $ch = curl_init($url);
+    $fields = [$field => new CURLFile($tmpPath, $mime ?: 'application/octet-stream', $fileName)];
+    // Add any extra fields (e.g., ocr_method)
+    foreach ($extraFields as $k => $v) {
+        $fields[$k] = $v;
+    }
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
@@ -124,7 +131,7 @@ function api_upload($path, $tmpPath, $fileName, $mime, $token = '', $field = 'im
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => 0,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => [$field => new CURLFile($tmpPath, $mime ?: 'application/octet-stream', $fileName)],
+        CURLOPT_POSTFIELDS => $fields,
         CURLOPT_HTTPHEADER => $token !== '' ? ['Authorization: Bearer ' . $token] : [],
     ]);
     $resp = curl_exec($ch);

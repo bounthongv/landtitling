@@ -12,7 +12,8 @@ $errors = []; $success = '';
 
 // --- POST: upload a new scan ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-    $data = api_upload('scans.php', $_FILES['image']['tmp_name'], $_FILES['image']['name'], $_FILES['image']['type'], $token);
+    $ocrMethod = $_POST['ocr_method'] ?? 'tesseract';
+    $data = api_upload('scans.php', $_FILES['image']['tmp_name'], $_FILES['image']['name'], $_FILES['image']['type'], $token, 'image', ['ocr_method' => $ocrMethod]);
     if (!empty($data['ok']) && !empty($data['data']['id'])) {
         header('Location: scans.php?scan_id=' . (int)$data['data']['id']);
         exit;
@@ -158,17 +159,31 @@ $landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultur
     <?php foreach ($errors as $err): ?><div class="form-box" style="border-color:#c62828; background:#fdecea;"><?= e(is_array($err) ? implode('; ', $err) : $err) ?></div><?php endforeach; ?>
 
     <?php if (!$scan): ?>
-      <div class="form-box">
-        <h3>Upload a Land Title Scan</h3>
-        <form method="post" enctype="multipart/form-data" action="scans.php">
-          <div class="form-group">
-            <label>Land title image (JPG/PNG)</label>
-            <input type="file" name="image" accept="image/*" required>
-            <p class="sub" style="font-size:12px;">OCR reads the title text and pre-fills the fields below. You confirm and correct everything.</p>
+          <div class="form-box">
+            <h3>Upload a Land Title Scan</h3>
+            <form method="post" enctype="multipart/form-data" action="scans.php">
+              <div class="form-group">
+                <label>Land title image (JPG/PNG)</label>
+                <input type="file" name="image" accept="image/*" required>
+                <p class="sub" style="font-size:12px;">OCR reads the title text and pre-fills the fields below. You confirm and correct everything.</p>
+              </div>
+              <div class="form-group">
+                <label>OCR Method</label>
+                <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                  <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="radio" name="ocr_method" value="tesseract" checked>
+                    <span>Tesseract (local, free, fast)</span>
+                  </label>
+                  <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="radio" name="ocr_method" value="gemini">
+                    <span>Gemini 2.5 Flash (AI, higher accuracy, requires API key)</span>
+                  </label>
+                </div>
+                <p class="sub" style="font-size:12px;">OCR reads the title text and pre-fills the fields below. You confirm and correct everything.</p>
+              </div>
+              <button type="submit" class="btn btn-green">Upload & Process</button>
+            </form>
           </div>
-          <button type="submit" class="btn btn-green">Upload &amp; Process</button>
-        </form>
-      </div>
 
       <div class="form-box">
         <h3>Pending in queue (<?= count($pending) ?>)</h3>

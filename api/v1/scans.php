@@ -107,8 +107,20 @@ if ($method === 'POST') {
         error_log($errlog);
         json_error('Failed to save image: ' . $errlog, 500, 'upload_failed');
     }
-    $tessdataDir = $cfg['ocr_tessdata_dir'] ?? '';
-    $ocrResult = ocr_extract_from_image($destPath, $tessdataDir);
+
+    // Read OCR method from form (default: tesseract)
+    $ocrMethod = $_POST['ocr_method'] ?? 'tesseract';
+
+    if ($ocrMethod === 'gemini') {
+        // Gemini API path
+        $ocrResult = ocr_gemini($destPath, $cfg);
+        $engineLabel = 'gemini-2.5-flash';
+    } else {
+        // Tesseract path (default)
+        $tessdataDir = $cfg['ocr_tessdata_dir'] ?? '';
+        $ocrResult = ocr_extract_from_image($destPath, $tessdataDir);
+        $engineLabel = 'tesseract-lao-psm3+roi';
+    }
     if (isset($ocrResult['error'])) {
         json_error('OCR failed: ' . $ocrResult['error'], 500, 'ocr_failed');
     }
@@ -125,7 +137,7 @@ if ($method === 'POST') {
     // Pass 2: position-based ROI read of the standard form layout. Each region is a
     // full "label: value" line; roi_extract_value() pulls just the value out of it.
     // Where a ROI value came through it overrides the pass-1 guess.
-    $roi = ocr_extract_fields($destPath, title_template_regions(), $tessdataDir);
+    $roi = ocr_extract_fields($destPath, title_template_regions(), $tessdataDir ?? '');
     if ($roi['error'] === null && !empty($roi['fields'])) {
         // Only let a ROI read override the full-page parse when it's actually reliable.
         // Tesseract's Lao is weak on the thin value cells, so on low-res scans the row
@@ -173,7 +185,7 @@ if ($method === 'POST') {
         RETURNING id, image_path, status, ocr_raw, parsed_fields, field_confidence, overall_confidence, created_at");
     $stmt->execute([
         ':p'       => $webPath,
-        ':eng'     => 'tesseract-lao-psm3+roi',
+        ':eng'     => $engineLabel,
         ':raw'     => $text,
         ':words'   => json_encode($words, JSON_UNESCAPED_UNICODE),
         ':fields'  => json_encode($fields, JSON_UNESCAPED_UNICODE),

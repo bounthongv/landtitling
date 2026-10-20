@@ -46,6 +46,8 @@ return [
     // When set, ocr.php passes --tessdata-dir so the app uses it without touching the
     // system model. Empty = use the system default tessdata.
     'ocr_tessdata_dir' => getenv('OCR_TESSDATA_DIR') ?: '',
+    // Gemini API key for OCR (optional). Can also be set via GEMINI_API_KEY env var.
+    'gemini_api_key' => getenv('GEMINI_API_KEY') ?: '',
     // Outbound email (OTP channel). Requires a system MTA on the host (e.g. Postfix).
     'mail_from'      => getenv('MAIL_FROM') ?: '',
     'mail_from_name' => getenv('MAIL_FROM_NAME') ?: 'Land Fee Savannakhet',
