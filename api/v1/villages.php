@@ -33,11 +33,29 @@ if ($method === 'GET') {
     }
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
+    // Sortable columns, whitelisted to a fixed expression map (the request key is
+    // only ever used as a lookup, never interpolated). With no ?sort= the ordering
+    // is unchanged (district, then village). v.code is a stable tiebreaker.
+    $sortMap = [
+        'code'     => 'v.code',
+        'name_lo'  => 'v.name_lo',
+        'name_en'  => 'v.name_en',
+        'district' => 'd.name_lo',
+        'parcels'  => 'parcel_count',
+    ];
+    $sortKey = trim((string)($_GET['sort'] ?? ''));
+    if (isset($sortMap[$sortKey])) {
+        $dir = strtolower(trim((string)($_GET['dir'] ?? 'asc'))) === 'desc' ? 'DESC' : 'ASC';
+        $orderBy = $sortMap[$sortKey] . ' ' . $dir . ' NULLS LAST, v.code ASC';
+    } else {
+        $orderBy = 'd.name_lo, v.name_lo';
+    }
+
     $st = $pdo->prepare("SELECT v.id, v.district_id, v.code, v.name_lo, v.name_en,
             d.name_lo AS district_name, d.province_id AS province_id,
             (SELECT COUNT(*) FROM parcels p WHERE p.village_id = v.id) AS parcel_count
         FROM villages v JOIN districts d ON d.id = v.district_id
-        $w ORDER BY d.name_lo, v.name_lo LIMIT $limit");
+        $w ORDER BY $orderBy LIMIT $limit");
     $st->execute($params);
     json_ok($st->fetchAll());
 }
