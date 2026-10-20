@@ -18,6 +18,21 @@ if ($method === 'GET') {
         $where = 'WHERE d.province_id = :pid';
         $params[':pid'] = $province_id;
     }
+
+    // Sortable columns, whitelisted to a fixed expression map — the key is never
+    // interpolated into SQL, only the mapped expression is. Default stays name_lo,
+    // matching the previous ordering. `code` is a stable tiebreaker.
+    $sortMap = [
+        'code'     => 'd.code',
+        'name_lo'  => 'd.name_lo',
+        'name_en'  => 'd.name_en',
+        'province' => 'pr.name_lo',
+        'villages' => 'village_count',
+        'parcels'  => 'parcel_count',
+    ];
+    $sortCol = $sortMap[trim((string)($_GET['sort'] ?? ''))] ?? 'd.name_lo';
+    $dir     = strtolower(trim((string)($_GET['dir'] ?? 'asc'))) === 'desc' ? 'DESC' : 'ASC';
+
     $stmt = $pdo->prepare("SELECT d.id, d.code, d.name_lo, d.name_en, d.province_id,
             pr.name_lo AS province_name,
             (SELECT COUNT(*) FROM villages v WHERE v.district_id = d.id) AS village_count,
@@ -25,7 +40,7 @@ if ($method === 'GET') {
         FROM districts d
         LEFT JOIN provinces pr ON pr.id = d.province_id
         $where
-        ORDER BY d.name_lo");
+        ORDER BY $sortCol $dir NULLS LAST, d.code ASC");
     $stmt->execute($params);
     json_ok($stmt->fetchAll());
 }

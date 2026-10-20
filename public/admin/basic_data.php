@@ -22,10 +22,12 @@ function flash_type(string $m): string {
  * direction when that column is already the active sort. The key is whitelisted
  * here and re-validated by the API against the table's own columns.
  */
-function th_sort(string $key, string $label, string $sort, string $dir, string $tab): string {
+function th_sort(string $key, string $label, string $sort, string $dir, string $tab, array $extra = []): string {
     $isCurrent = ($sort === $key);
     $next  = ($isCurrent && $dir === 'asc') ? 'desc' : 'asc';
-    $href  = '?tab=' . urlencode($tab) . '&sort=' . urlencode($key) . '&dir=' . $next;
+    // Extra params (e.g. the active province filter) ride along so sorting a
+    // column never drops the current filter.
+    $href  = '?' . http_build_query(array_merge(['tab' => $tab], $extra, ['sort' => $key, 'dir' => $next]));
     $arrow = $isCurrent ? '<span class="arrow">' . ($dir === 'asc' ? '▲' : '▼') . '</span>' : '';
     return '<a class="th-sort" href="' . e($href) . '" title="Sort by ' . e($label) . '">' . e($label) . $arrow . '</a>';
 }
@@ -156,15 +158,25 @@ $sort = (string)($_GET['sort'] ?? 'code');
 $dir  = strtolower((string)($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
 if (!in_array($sort, $sortable, true)) { $sort = 'code'; }
 
+// Filter params (province_id is shared by the districts and villages tabs).
+$vProvince  = (int)($_GET['province_id'] ?? 0);
+$vDistrict  = (int)($_GET['district_id'] ?? 0);
+$vQuery     = trim((string)($_GET['q'] ?? ''));
+
+// Districts table: sortable headers (default Lao name) + province filter.
+// $dExtra is threaded into the sort links so sorting keeps the filter applied.
+$dSortable = ['code', 'name_lo', 'name_en', 'province', 'villages', 'parcels'];
+$dSort = (string)($_GET['sort'] ?? 'name_lo');
+$dDir  = strtolower((string)($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
+if (!in_array($dSort, $dSortable, true)) { $dSort = 'name_lo'; }
+$dExtra = $vProvince ? ['province_id' => $vProvince] : [];
+
 $provinces   = api_call('GET', 'refdata.php?table=provinces&sort=' . urlencode($sort) . '&dir=' . urlencode($dir), null, $token)['data'] ?? [];
-$districts   = api_call('GET', 'districts.php', null, $token)['data'] ?? [];
+$districts   = api_call('GET', 'districts.php?' . http_build_query(['sort' => $dSort, 'dir' => $dDir] + $dExtra), null, $token)['data'] ?? [];
 $refdata     = api_call('GET', 'refdata.php', null, $token)['data'] ?? [];
 $zones       = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
 $years       = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
 
-$vProvince  = (int)($_GET['province_id'] ?? 0);
-$vDistrict  = (int)($_GET['district_id'] ?? 0);
-$vQuery     = trim((string)($_GET['q'] ?? ''));
 $villages   = [];
 if ($tab === 'villages') {
     // 200 keeps the page usable; narrow it with the province/district filter or search.
@@ -271,8 +283,32 @@ if (!isset($tabLabels[$tab])) {
 <?php elseif ($tab === 'districts'): ?>
     <div class="form-box">
       <h2>Districts</h2>
+      <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:14px;">
+        <input type="hidden" name="tab" value="districts">
+        <input type="hidden" name="sort" value="<?= e($dSort) ?>">
+        <input type="hidden" name="dir" value="<?= e($dDir) ?>">
+        <div class="form-group"><label>Province</label>
+          <select name="province_id"><option value="">-- all provinces --</option>
+            <?php foreach ($provinces as $p): ?>
+            <option value="<?= (int)$p['id'] ?>" <?= $vProvince == $p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?> <?= e($p['name_en'] ?: '') ?></option>
+            <?php endforeach; ?></select>
+        </div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Filter</button></div>
+        <?php if ($vProvince): ?>
+        <div class="form-group"><label>&nbsp;</label><a class="btn btn-gold" href="?tab=districts&amp;sort=<?= e($dSort) ?>&amp;dir=<?= e($dDir) ?>">Clear filter</a></div>
+        <?php endif; ?>
+      </form>
+      <p class="sub"><?= count($districts) ?> district(s) shown<?= $vProvince ? ' — filtered by province' : ' (all provinces)' ?>.</p>
       <table style="margin-bottom:14px;">
-        <thead><tr><th>Code</th><th>Lao</th><th>English</th><th>Province</th><th>Villages</th><th>Parcels</th><th></th></tr></thead>
+        <thead><tr>
+          <th><?= th_sort('code', 'Code', $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('name_lo', 'Lao', $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('name_en', 'English', $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('province', 'Province', $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('villages', 'Villages', $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('parcels', 'Parcels', $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th></th>
+        </tr></thead>
         <tbody>
         <?php foreach ($districts as $d): ?>
           <tr>
