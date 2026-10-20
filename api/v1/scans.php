@@ -10,6 +10,58 @@ $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $me = require_auth(['officer', 'admin']);
 
+/**
+ * Normalize Lao land use description to internal code.
+ * Handles variations in spacing, punctuation, and Lao/English.
+ */
+function normalize_land_use_class(string $raw): string {
+    $raw = mb_strtolower(trim($raw), 'UTF-8');
+    $raw = preg_replace('/\s+/', ' ', $raw); // normalize whitespace
+    
+    // Remove common prefixes/suffixes and punctuation
+    $raw = preg_replace('/^[\.\s]+|[\.\s]+$/', '', $raw);
+    $raw = str_replace(['..', '.', ':', '|'], '', $raw);
+    
+    // Lao keywords mapping
+    $laoMap = [
+        'ກະສິກໍາ' => 'agricultural',
+        'ການຄ້າ' => 'commercial',
+        'ປະເພດທີ່ດິນ' => 'commercial',
+        'ທີ່ຢູ່ອາໄສ' => 'residential',
+        'ການຄ້າ' => 'commercial',
+        'ພານິດ' => 'commercial',
+        'ອາໄສ' => 'residential',
+        'ສະຖານະ' => 'commercial',
+    ];
+    
+    // English keywords mapping
+    $engMap = [
+        'agricultural' => 'agricultural',
+        'farming' => 'agricultural',
+        'commercial' => 'commercial',
+        'business' => 'commercial',
+        'residential' => 'residential',
+        'housing' => 'residential',
+        'industrial' => 'commercial',
+    ];
+    
+    // Try Lao keywords first
+    foreach ($laoMap as $keyword => $code) {
+        if (mb_stripos($raw, $keyword) !== false) {
+            return $code;
+        }
+    }
+    
+    // Try English keywords
+    foreach ($engMap as $keyword => $code) {
+        if (stripos($raw, $keyword) !== false) {
+            return $code;
+        }
+    }
+    
+    return 'residential'; // default fallback
+}
+
 // ---- GET: single scan (for the review form) ----//
 if ($method === 'GET' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
@@ -128,20 +180,31 @@ if ($method === 'POST') {
     $webPath = '/public/uploads/' . $filename;
     $text = trim($ocrResult['text'] ?? '');
     $words = $ocrResult['words'] ?? [];
+    $structuredFields = $ocrResult['structured_fields'] ?? null;
 
     // Pass 1: full-page text -> fuzzy structure (fallback + audit trail).
     $parsed = title_parse_text($text, $pdo);
     $fields = $parsed['fields'];
     $fieldConf = $parsed['confidence'];
 
+    // If Gemini provided structured fields, merge them (they override pass-1)
+    if ($structuredFields) {
+        foreach ($structuredFields as $key => $value) {
+            // Normalize land_use_class from descriptive text to internal codes
+            if ($key === 'land_use_class' && is_string($value)) {
+                $value = normalize_land_use_class($value);
+            }
+            $fields[$key] = $value;
+            $fieldConf[$key] = 95; // Gemini confidence
+        }
+    }
+
     // Pass 2: position-based ROI read of the standard form layout. Each region is a
     // full "label: value" line; roi_extract_value() pulls just the value out of it.
-    // Where a ROI value came through it overrides the pass-1 guess.
+    // Where a ROI value came through it overrides the pass-1/structured guess
+    // ONLY if its confidence is higher than the current confidence.
     $roi = ocr_extract_fields($destPath, title_template_regions(), $tessdataDir ?? '');
     if ($roi['error'] === null && !empty($roi['fields'])) {
-        // Only let a ROI read override the full-page parse when it's actually reliable.
-        // Tesseract's Lao is weak on the thin value cells, so on low-res scans the row
-        // read is often worse than the whole-page pass — gate at confidence 50.
         foreach ($roi['fields'] as $key => $r) {
             $raw = trim((string)$r['text']);
             if ($raw === '') continue;
@@ -149,8 +212,12 @@ if ($method === 'POST') {
             if ($c < 50) continue;                       // too noisy to trust
             $ex = roi_extract_value($key, $raw);
             if (!$ex['ok'] || $ex['value'] === null || $ex['value'] === '') continue;
-            $fields[$key] = $ex['value'];
-            $fieldConf[$key] = max($fieldConf[$key] ?? 0, $c);
+            // Only override if ROI confidence is higher than current confidence
+            $currentConf = $fieldConf[$key] ?? 0;
+            if ($c > $currentConf) {
+                $fields[$key] = $ex['value'];
+                $fieldConf[$key] = $c;
+            }
         }
     }
 
@@ -182,7 +249,7 @@ if ($method === 'POST') {
             (parcel_id, image_path, status, ocr_engine, ocr_raw, ocr_words, parsed_fields, field_confidence, overall_confidence, created_by)
         VALUES
             (NULL, :p, 'parsed', :eng, :raw, :words::jsonb, :fields::jsonb, :conf::jsonb, :overall, :u)
-        RETURNING id, image_path, status, ocr_raw, parsed_fields, field_confidence, overall_confidence, created_at");
+        RETURNING id, image_path, status, ocr_engine, ocr_raw, parsed_fields, field_confidence, overall_confidence, created_at");
     $stmt->execute([
         ':p'       => $webPath,
         ':eng'     => $engineLabel,

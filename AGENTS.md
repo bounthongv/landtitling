@@ -1,8 +1,9 @@
 # Land Fee Payment MVP — AGENTS.md
 
 ## What is this?
-Land Fee Payment MVP for Savannakhet Province (Lao). Two front-ends over one PHP JSON API and a PostgreSQL DB:
+Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one PHP JSON API and a PostgreSQL DB:
 - **Citizen PWA** (`public/citizen/`) — mobile-first, installable: phone-OTP login, fee quote, payment slip, tracking
+- **Citizen Flutter app** (`mobile/`) — the native Android/iOS client for paying the land tax (same JSON API; plan in `docs/8-citizen-flutter-app-plan.md`)
 - **Officer Back-Office** (`public/admin/`) — scan-upload + OCR review, parcel registry, zone-rate editor, verify/reject payments, MOF reports
 
 ## Key Files
@@ -26,6 +27,7 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Two front-ends over one PHP
 | `api/v1/*.php` | **The live** versioned JSON API (auth, fee, payments, districts, villages, rates, parcels, scans, reports) |
 | `public/admin/*.php` | Officer back-office screens |
 | `public/citizen/*.php` | Citizen PWA screens + manifest + service worker |
+| `mobile/` | Citizen Flutter app (`lib/` app code, `tool/smoke_test.dart` API contract check) |
 | `.github/workflows/deploy.yml` | CI/CD → apis.com.la on push to main (code only) |
 | `docs/` | Current plan/SRS/architecture. `archive/` = legacy, **not live** |
 

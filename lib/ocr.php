@@ -337,12 +337,14 @@ If a field is not visible, use null. Be precise - extract exactly what you see."
         return [
             'text' => $text,
             'words' => [],
-            'mean_confidence' => 95, // Gemini is generally high confidence
+            'mean_confidence' => 95,
+            'structured_fields' => null,
         ];
     }
 
     // Map Gemini's field names to our internal names
     $mappedText = '';
+    $structuredFields = [];
     if (isset($parsed['raw_text'])) {
         $mappedText = $parsed['raw_text'];
     } else {
@@ -356,9 +358,31 @@ If a field is not visible, use null. Be precise - extract exactly what you see."
         $mappedText = implode("\n", $parts);
     }
 
+    // Map Gemini field names to our internal field names
+    $fieldMap = [
+        'title_no' => 'title_no',
+        'province' => 'province',
+        'district' => 'district_name',
+        'village' => 'village_name',
+        'owner_name' => 'owner_name',
+        'owner_id' => 'owner_id_number',
+        'parcel_no' => 'parcel_no',
+        'area_sqm' => 'area_sqm',
+        'area_ha' => 'area_lan',
+        'land_use' => 'land_use_class',
+        'issued_date' => 'issued_date',
+        'raw_text' => 'raw_text',
+    ];
+    foreach ($fieldMap as $geminiKey => $internalKey) {
+        if (isset($parsed[$geminiKey]) && $parsed[$geminiKey] !== null && $parsed[$geminiKey] !== '') {
+            $structuredFields[$internalKey] = $parsed[$geminiKey];
+        }
+    }
+
     return [
         'text' => $mappedText,
         'words' => [],
         'mean_confidence' => 95,
+        'structured_fields' => $structuredFields,
     ];
 }
