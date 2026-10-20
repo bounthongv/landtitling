@@ -9,6 +9,7 @@ import '../../models/parcel.dart';
 import '../../state/parcels_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/status_chip.dart';
+import 'find_parcel_screen.dart';
 import 'parcel_detail_screen.dart';
 
 /// Home: the citizen's parcels, with the total still owed for the selected
@@ -54,6 +55,15 @@ class _ParcelsTabState extends State<ParcelsTab> {
                 icon: Icons.landscape_outlined,
                 title: Strings.t('noParcels'),
                 hint: Strings.t('noParcelsHint'),
+                action: FilledButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const FindParcelScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.search),
+                  label: Text('ຄົ້ນຫາທີ່ດິນ'),
+                ),
               ),
             ),
           ],
@@ -68,6 +78,8 @@ class _ParcelsTabState extends State<ParcelsTab> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
         children: [
+          _findButton(),
+          const SizedBox(height: 12),
           _summary(controller),
           const SizedBox(height: 12),
           if (controller.years.length > 1) _yearPicker(controller),
@@ -89,6 +101,22 @@ class _ParcelsTabState extends State<ParcelsTab> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  /// The main action: look up a parcel by its number and see what it owes.
+  Widget _findButton() {
+    return OutlinedButton.icon(
+      onPressed: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const FindParcelScreen())),
+      icon: const Icon(Icons.search),
+      label: const Text('ຄົ້ນຫາຕອນດິນດ້ວຍເລກຕອນດິນ'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: GovColors.gov,
+        side: const BorderSide(color: GovColors.gov),
+        minimumSize: const Size.fromHeight(48),
       ),
     );
   }

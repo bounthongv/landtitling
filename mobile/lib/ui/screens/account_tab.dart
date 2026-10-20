@@ -33,10 +33,7 @@ class _AccountTabState extends State<AccountTab> {
                 icon: Icons.person_outline,
                 child: Column(
                   children: [
-                    InfoRow(
-                      label: Strings.t('email'),
-                      value: auth.pendingEmail ?? '-',
-                    ),
+                    InfoRow(label: 'ເບີໂທ', value: auth.phone ?? '-'),
                     InfoRow(label: 'ບົບທີ່', value: auth.session?.role ?? '-'),
                   ],
                 ),

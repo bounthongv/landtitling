@@ -10,7 +10,7 @@ import '../../state/parcels_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/gov_header.dart';
 import '../widgets/status_chip.dart';
-import 'pay_screen.dart';
+import 'quote_screen.dart';
 
 /// Everything the land office holds about one of the citizen's parcels, and
 /// what is owed for it, year by year.
@@ -36,15 +36,16 @@ class ParcelDetailScreen extends StatelessWidget {
         body: const ErrorView(message: 'ບໍ່ພົບຂໍ້ມູນຕອນດິນນີ້'),
       );
     }
+    final p = parcel;
 
     return Scaffold(
       body: Column(
         children: [
           GovHeader(
-            title: parcel.displayNo,
+            title: p.displayNo,
             subtitle: [
-              parcel.districtName,
-              parcel.villageName,
+              p.districtName,
+              p.villageName,
             ].whereType<String>().where((s) => s.isNotEmpty).join(' · '),
             onBack: () => Navigator.of(context).pop(),
           ),
@@ -57,36 +58,27 @@ class ParcelDetailScreen extends StatelessWidget {
                   icon: Icons.info_outline,
                   child: Column(
                     children: [
-                      InfoRow(
-                        label: Strings.t('parcelNo'),
-                        value: parcel.displayNo,
-                      ),
+                      InfoRow(label: Strings.t('parcelNo'), value: p.displayNo),
                       InfoRow(
                         label: Strings.t('titleNo'),
-                        value: parcel.titleNo ?? '-',
+                        value: p.titleNo ?? '-',
                       ),
                       InfoRow(
                         label: Strings.t('district'),
-                        value: parcel.districtName ?? '-',
+                        value: p.districtName ?? '-',
                       ),
                       InfoRow(
                         label: Strings.t('village'),
-                        value: parcel.villageName ?? '-',
+                        value: p.villageName ?? '-',
                       ),
                       InfoRow(
                         label: Strings.t('area'),
-                        value: formatArea(parcel.areaSqm),
+                        value: formatArea(p.areaSqm),
                       ),
-                      if (parcel.zoneCode != null)
-                        InfoRow(
-                          label: Strings.t('zone'),
-                          value: parcel.zoneCode!,
-                        ),
-                      if (parcel.ownerName != null)
-                        InfoRow(
-                          label: Strings.t('owner'),
-                          value: parcel.ownerName!,
-                        ),
+                      if (p.zoneCode != null)
+                        InfoRow(label: Strings.t('zone'), value: p.zoneCode!),
+                      if (p.ownerName != null)
+                        InfoRow(label: Strings.t('owner'), value: p.ownerName!),
                     ],
                   ),
                 ),
@@ -94,7 +86,7 @@ class ParcelDetailScreen extends StatelessWidget {
                 SectionCard(
                   title: 'ຄ່າຊຳລະລາຍປີ',
                   icon: Icons.receipt_long_outlined,
-                  child: parcel.obligationsByYear.isEmpty
+                  child: p.obligationsByYear.isEmpty
                       ? Text(
                           Strings.t('noData'),
                           style: const TextStyle(
@@ -103,8 +95,8 @@ class ParcelDetailScreen extends StatelessWidget {
                           ),
                         )
                       : Column(
-                          children: parcel.obligationsByYear
-                              .map((o) => _obligationRow(context, o))
+                          children: p.obligationsByYear
+                              .map((o) => _obligationRow(context, p, o))
                               .toList(),
                         ),
                 ),
@@ -116,14 +108,38 @@ class ParcelDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _obligationRow(BuildContext context, Obligation o) {
+  /// Look the parcel up again (for the current server-side price) and open the
+  /// quote screen.
+  Future<void> _openQuote(
+    BuildContext context,
+    Parcel parcel,
+    Obligation obligation,
+  ) async {
+    final controller = context.read<ParcelsController>();
+    final messenger = ScaffoldMessenger.of(context);
+    final quote = await controller.lookup(
+      parcel.parcelNo,
+      feeYear: obligation.feeYear,
+    );
+    if (!context.mounted) return;
+    if (quote == null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(controller.lookupError ?? 'ບໍ່ພົບຂໍ້ມູນຕອນດິນ'),
+          backgroundColor: GovColors.danger,
+        ),
+      );
+      return;
+    }
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => QuoteScreen(quote: quote)));
+  }
+
+  Widget _obligationRow(BuildContext context, Parcel parcel, Obligation o) {
     final days = daysUntil(o.dueDate);
     return InkWell(
-      onTap: o.isSettled
-          ? null
-          : () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => PayScreen(obligation: o)),
-            ),
+      onTap: o.isSettled ? null : () => _openQuote(context, parcel, o),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),

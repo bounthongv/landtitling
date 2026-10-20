@@ -67,7 +67,6 @@ class _AuthGate extends StatelessWidget {
       case AuthStatus.authenticated:
         return const HomeShell();
       case AuthStatus.unauthenticated:
-      case AuthStatus.waitingForCode:
         return const LoginScreen();
     }
   }

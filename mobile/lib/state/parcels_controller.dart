@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 
 import '../core/api_client.dart';
 import '../core/api_exception.dart';
+import '../models/quote.dart';
 import '../models/parcel.dart';
 
-/// The signed-in citizen's parcels and their annual obligations.
+/// The citizen's own parcels (those an officer has linked to their account)
+/// and the lookup of any parcel by its number.
 class ParcelsController extends ChangeNotifier {
   ParcelsController({required ApiClient api}) : _api = api;
 
@@ -16,6 +18,11 @@ class ParcelsController extends ChangeNotifier {
 
   /// The year the app is showing. Defaults to the newest year on file.
   int? selectedYear;
+
+  /// The result of the last parcel lookup.
+  ParcelQuote? quote;
+  bool lookingUp = false;
+  String? lookupError;
 
   Future<void> load({bool silent = false}) async {
     if (!silent) {
@@ -39,6 +46,38 @@ class ParcelsController extends ChangeNotifier {
       loading = false;
       notifyListeners();
     }
+  }
+
+  /// Price one parcel by its number.
+  ///
+  /// The server reads the area and the zone code from the parcel and works
+  /// out the rate, so the amount is never computed on the phone.
+  Future<ParcelQuote?> lookup(String parcelNo, {int? feeYear}) async {
+    lookingUp = true;
+    lookupError = null;
+    notifyListeners();
+    try {
+      final query = <String, String>{'parcel_no': parcelNo.trim()};
+      if (feeYear != null) query['fee_year'] = '$feeYear';
+      final data = await _api.getData('parcel_fee.php', query: query);
+      final result = ParcelQuote.fromJson(data);
+      quote = result;
+      lookingUp = false;
+      notifyListeners();
+      return result;
+    } on ApiException catch (e) {
+      lookingUp = false;
+      lookupError = e.message;
+      quote = null;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  void clearQuote() {
+    quote = null;
+    lookupError = null;
+    notifyListeners();
   }
 
   /// Every year that appears on any of the citizen's parcels, newest first.

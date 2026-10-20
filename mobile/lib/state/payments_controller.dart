@@ -27,7 +27,7 @@ class PaymentsController extends ChangeNotifier {
       notifyListeners();
     }
     try {
-      final data = await _api.getData('payments.php');
+      final data = await _api.getData('citizen_payments.php');
       final raw = data['payments'];
       payments = raw is List
           ? raw.whereType<Map<String, dynamic>>().map(Payment.fromJson).toList()
@@ -41,12 +41,13 @@ class PaymentsController extends ChangeNotifier {
     }
   }
 
-  /// Create the payment slip for an obligation.
+  /// Issue the payment slip for a parcel and year.
   ///
-  /// The server caps the amount at the outstanding balance and defaults to
-  /// paying it in full.
+  /// The server prices the parcel (zone code -> rate -> amount) and caps the
+  /// amount at what is still outstanding.
   Future<IssuedSlip> issueSlip({
-    required int obligationId,
+    required String parcelNo,
+    required int feeYear,
     required String method,
     double? amount,
   }) async {
@@ -55,11 +56,12 @@ class PaymentsController extends ChangeNotifier {
     notifyListeners();
     try {
       final body = <String, dynamic>{
-        'obligation_id': obligationId,
+        'parcel_no': parcelNo,
+        'fee_year': feeYear,
         'method': method,
       };
       if (amount != null) body['amount'] = amount;
-      final data = await _api.postData('payments.php', body);
+      final data = await _api.postData('citizen_payments.php', body);
       final slip = IssuedSlip.fromJson(data);
       lastIssuedSlip = slip;
       issuing = false;
@@ -85,7 +87,7 @@ class PaymentsController extends ChangeNotifier {
     notifyListeners();
     try {
       await _api.postMultipart(
-        'payments.php',
+        'citizen_payments.php',
         'slip',
         filePath,
         fileName,

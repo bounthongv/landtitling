@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/money.dart';
 import '../../core/strings.dart';
@@ -11,12 +11,23 @@ import '../widgets/common.dart';
 import '../widgets/gov_header.dart';
 import 'receipt_screen.dart';
 
-/// The payment slip: the reference the citizen quotes at the bank and the QR
-/// that identifies the payment.
+/// The payment slip: the reference the citizen quotes at the bank.
+///
+/// The bank QR is a placeholder for now: the receiving account and the bank's
+/// own QR format are not known yet, so the reference is what the citizen
+/// types into their banking app. It is shown large, and can be copied.
 class SlipScreen extends StatelessWidget {
   const SlipScreen({super.key, required this.slip});
 
   final IssuedSlip slip;
+
+  Future<void> _copyReference(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: slip.referenceNo));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('ຄັດລອກລະຫັດອ້າງອີງແລ້ວ')));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,26 +53,24 @@ class SlipScreen extends StatelessWidget {
                       SelectableText(
                         slip.referenceNo,
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      if (slip.slipQr.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: GovColors.line),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: QrImageView(
-                            data: slip.slipQr,
-                            version: QrVersions.auto,
-                            size: 170,
-                            backgroundColor: Colors.white,
-                          ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _copyReference(context),
+                        icon: const Icon(Icons.copy, size: 18),
+                        label: const Text('ຄັດລອກລະຫັດ'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: GovColors.gov,
+                          side: const BorderSide(color: GovColors.gov),
+                          minimumSize: const Size(0, 38),
                         ),
+                      ),
+                      const SizedBox(height: 14),
+                      const _QrPlaceholder(),
                       const SizedBox(height: 14),
                       InfoRow(
                         label: Strings.t('amountDue'),
@@ -116,6 +125,48 @@ class SlipScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The bank QR, as a placeholder.
+///
+/// The land office's receiving account and the bank's QR format are not known
+/// yet, so there is nothing scannable to show. When they are, this is where
+/// the real QR goes: the payload is already in `slip.slipQr`.
+class _QrPlaceholder extends StatelessWidget {
+  const _QrPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+      decoration: BoxDecoration(
+        color: GovColors.bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: GovColors.line),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.qr_code_2, size: 54, color: GovColors.line),
+          SizedBox(height: 10),
+          Text(
+            'QR ກຳລັງຈະເປີດ',
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: GovColors.muted,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'ປ້ອນລະຫັດອ້າງອີງຂ້າງເທິງໃສ່ໃນແອັບທະນາຄານ',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: GovColors.muted),
           ),
         ],
       ),

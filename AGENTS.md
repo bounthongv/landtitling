@@ -47,11 +47,14 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 - **Citizens are scoped by `owners.citizen_user_id`** (not `payments.payer_owner_id`, which is an `owners.id`). A parcel links a citizen only when that column is set — officer scan-confirm never sets it, so new parcels are invisible to citizens until linked.
 - **Windows PHP built-in server is single-threaded** (`PHP_CLI_SERVER_WORKERS` is Unix-only). Admin pages that call the API server-side deadlock if both share one process. For testing run the API on one port and the UI on another with `API_BASE` pointing at the API.
 - **Production PHP runs under mod_php, not FPM.** The shared `php8.3-fpm` pool has `disable_functions` including `proc_open`/`exec`, which breaks `lib/ocr.php` (Tesseract is launched via `proc_open`). The `landfee.apis.com.la` vhost therefore serves `.php` via `SetHandler "application/x-httpd-php"` (mod_php) so OCR works; the server-wide FPM ini must NOT be edited to un-disable `proc_open` (other apps depend on it). If scan uploads 500 with an empty body, first confirm the landfee vhost is still on mod_php.
+- **The Flutter app (`mobile/`) is a client of `api/v1/*` — it never computes a fee.** Every amount comes from the server's `fee_obligations` snapshot, so zone-rate changes need no app release. Its API base is injected with `--dart-define=API_BASE=...` (default: the live server); on the Android emulator the host machine is `10.0.2.2`, not `localhost`. `mobile/tool/smoke_test.dart` drives the app's own API client against a running API and is the contract check to run after any change to the citizen endpoints.
+- **The citizen app's three endpoints (`citizen_auth.php`, `parcel_fee.php`, `citizen_payments.php`) are specified in `docs/9-citizen-app-api-contract.md` and are not in the repo yet.** The backend has another owner, so the app is built against that written contract. The app signs in by **phone number** (not email OTP, no PIN) and prices a parcel the citizen names by its parcel number — the rate comes from the parcel's zone code.
 
 ## Local Dev
 - PHP 8.3+ built-in server from repo root: `php -S localhost:8080` with `PGHOST=localhost PGPORT=5432 PGDATABASE=landfee PGUSER=postgres PGPASSWORD=test1234 PG_SCHEMA=landfee`.
 - DB: Docker `landfee-test-postgres` (postgres:16-alpine) on localhost:5432. Load `sql/schema.sql` then `sql/seed_savannakhet.sql`.
 - OCR needs the `tesseract` binary with `lao` + `eng` language data and PHP GD; uploads land in `public/uploads` (gitignored).
+- Flutter app: `cd mobile && flutter pub get && flutter run --dart-define=API_BASE=http://10.0.2.2:8091/api/v1`. `flutter analyze` must be clean. There is **no Android SDK on this dev machine**, so no APK can be built here — the app has never been run on a device.
 
 ## Demo Credentials
 - **Officer:** `sav_officer` / `demo1234` (live DB only)
@@ -59,6 +62,7 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 
 ## Verification (no automated tests exist)
 No test suite, composer, linter, or CI checks — verify manually: start the built-in server + Docker Postgres, exercise the API with curl/JSON, and click through `/public/admin/` and `/public/citizen/`. Phases/known open items are tracked in `docs/4-plan-land-fee-mvp.md` (§14).
+The one automated check is `mobile/tool/smoke_test.dart` (Dart) — it drives the Flutter app's own API client against a running API and asserts the citizen contract, including cross-citizen isolation. It needs the citizen endpoints deployed (see `docs/9-citizen-app-api-contract.md`) and the fixture from `mobile/tool/fixtures/seed_test_data.sql`; it skips with exit code 2 when the endpoints are absent.
 
 ## Production
 - **Site:** `https://landfee.apis.com.la/public/admin/` (Apache, DocumentRoot `/var/www/html/landfee`, git checkout)

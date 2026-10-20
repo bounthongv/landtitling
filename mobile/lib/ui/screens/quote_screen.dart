@@ -5,27 +5,27 @@ import 'package:provider/provider.dart';
 import '../../core/money.dart';
 import '../../core/strings.dart';
 import '../../core/theme.dart';
-import '../../models/obligation.dart';
+import '../../models/quote.dart';
 import '../../state/payments_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/gov_header.dart';
 import 'slip_screen.dart';
 
-/// Review the assessed fee for one year, choose how much to pay and how, then
+/// Review the assessed fee for a parcel, choose how much to pay and how, then
 /// issue the payment slip.
 ///
-/// The amounts shown come from the server's assessment — the app never
-/// recomputes the fee.
-class PayScreen extends StatefulWidget {
-  const PayScreen({super.key, required this.obligation});
+/// The amount comes from the server's assessment of the parcel (zone code ->
+/// rate -> amount). The app never computes a fee.
+class QuoteScreen extends StatefulWidget {
+  const QuoteScreen({super.key, required this.quote});
 
-  final Obligation obligation;
+  final ParcelQuote quote;
 
   @override
-  State<PayScreen> createState() => _PayScreenState();
+  State<QuoteScreen> createState() => _QuoteScreenState();
 }
 
-class _PayScreenState extends State<PayScreen> {
+class _QuoteScreenState extends State<QuoteScreen> {
   static const _methods = <String, String>{
     'bank_transfer': 'methodBank',
     'mobile': 'methodMobile',
@@ -40,7 +40,7 @@ class _PayScreenState extends State<PayScreen> {
   void initState() {
     super.initState();
     _amountController = TextEditingController(
-      text: _format(widget.obligation.outstanding),
+      text: widget.quote.outstanding.round().toString(),
     );
   }
 
@@ -50,12 +50,10 @@ class _PayScreenState extends State<PayScreen> {
     super.dispose();
   }
 
-  String _format(double v) => v.round().toString();
-
   double get _amount {
     final parsed = double.tryParse(_amountController.text.trim());
     if (parsed == null) return 0;
-    return parsed.clamp(0, widget.obligation.outstanding).toDouble();
+    return parsed.clamp(0, widget.quote.outstanding).toDouble();
   }
 
   Future<void> _issue() async {
@@ -63,7 +61,8 @@ class _PayScreenState extends State<PayScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final slip = await payments.issueSlip(
-        obligationId: widget.obligation.id,
+        parcelNo: widget.quote.parcel.parcelNo,
+        feeYear: widget.quote.feeYear,
         method: _method,
         amount: _payInFull ? null : _amount,
       );
@@ -80,7 +79,7 @@ class _PayScreenState extends State<PayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final o = widget.obligation;
+    final quote = widget.quote;
     final payments = context.watch<PaymentsController>();
 
     return Scaffold(
@@ -88,7 +87,8 @@ class _PayScreenState extends State<PayScreen> {
         children: [
           GovHeader(
             title: Strings.t('viewFee'),
-            subtitle: '${Strings.t('year')} ${o.feeYear}',
+            subtitle:
+                '${quote.parcel.displayNo} · ${Strings.t('year')} ${quote.feeYear}',
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(
@@ -101,32 +101,31 @@ class _PayScreenState extends State<PayScreen> {
                   child: Column(
                     children: [
                       InfoRow(
-                        label: Strings.t('amountDue'),
-                        value: formatKip(o.amountDue),
+                        label: Strings.t('area'),
+                        value: formatArea(quote.parcel.areaSqm),
                       ),
-                      if (o.ratePerSqm != null && o.areaSqm != null)
-                        InfoRow(
-                          label: 'ຄ່າຕ້ອງເມີ',
-                          value:
-                              '${formatKipPlain(o.ratePerSqm)} × ${formatArea(o.areaSqm)}',
-                        ),
-                      if (o.penalty > 0)
-                        InfoRow(
-                          label: Strings.t('penalty'),
-                          value: formatKip(o.penalty),
-                          valueColor: GovColors.danger,
-                        ),
+                      InfoRow(
+                        label: Strings.t('zone'),
+                        value: quote.parcel.zoneCode ?? '-',
+                      ),
+                      InfoRow(
+                        label: 'ຄ່າຕ້ອງເມົາ',
+                        value:
+                            '${formatKipPlain(quote.ratePerSqm)} × '
+                            '${formatArea(quote.parcel.areaSqm)}',
+                      ),
                       const Divider(height: 18),
                       InfoRow(
-                        label: Strings.t('outstanding'),
-                        value: formatKip(o.outstanding),
+                        label: Strings.t('amountDue'),
+                        value: formatKip(quote.amountDue),
                         valueColor: GovColors.danger,
                         bold: true,
                       ),
-                      InfoRow(
-                        label: Strings.t('dueDate'),
-                        value: formatDate(o.dueDate),
-                      ),
+                      if (quote.obligation != null)
+                        InfoRow(
+                          label: Strings.t('dueDate'),
+                          value: formatDate(quote.obligation!.dueDate),
+                        ),
                     ],
                   ),
                 ),
@@ -169,7 +168,7 @@ class _PayScreenState extends State<PayScreen> {
                         dense: true,
                         title: Text(
                           _payInFull
-                              ? '${Strings.t('fullAmount')} (${formatKip(o.outstanding)})'
+                              ? '${Strings.t('fullAmount')} (${formatKip(quote.outstanding)})'
                               : Strings.t('partialAmount'),
                           style: const TextStyle(fontSize: 14),
                         ),
@@ -190,7 +189,7 @@ class _PayScreenState extends State<PayScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${Strings.t('outstanding')}: ${formatKip(o.outstanding)}',
+                          '${Strings.t('outstanding')}: ${formatKip(quote.outstanding)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: GovColors.muted,
