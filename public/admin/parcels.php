@@ -41,7 +41,7 @@ $districts = api_call('GET', 'districts.php')['data'] ?? [];
     <p class="sub">Registry of land parcels (from confirmed scans). Filter by district, parcel no, status.</p>
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
-        <div class="form-group"><label>District</label><select name="district_id"><option value="">-- all --</option><?php foreach ($districts as $d): ?><option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option><?php endforeach; ?></select></div>
+        <div class="form-group"><label>District</label><select name="district_id"><option value="">-- all --</option><?php foreach ($districts as $d): ?><option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option><?php endforeach; ?></select></div>
         <div class="form-group"><label>Parcel no</label><input name="parcel_no" value="<?= e($parcel_no) ?>"></div>
         <div class="form-group"><label>Status</label>
           <select name="status"><option value="">-- all --</option><option value="confirmed" <?= $status === 'confirmed' ? 'selected' : '' ?>>Confirmed</option><option value="active" <?= $status === 'active' ? 'selected' : '' ?>>Active</option><option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>>Draft</option></select></div>

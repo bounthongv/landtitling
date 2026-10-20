@@ -89,7 +89,7 @@ $msg = $_GET['msg'] ?? '';
         <div class="form-group"><label>District</label>
           <select name="district_id"><option value="">-- all --</option>
             <?php foreach ($districts as $d): ?>
-            <option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option>
+            <option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -123,7 +123,7 @@ $msg = $_GET['msg'] ?? '';
         <div class="form-group"><label>District (optional)</label>
           <select name="district_id"><option value="">-- all confirmed parcels --</option>
             <?php foreach ($districts as $d): ?>
-            <option value="<?= $d['id'] ?>"><?= e($d['name_lo']) ?></option>
+            <option value="<?= $d['id'] ?>"><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option>
             <?php endforeach; ?>
           </select>
         </div>

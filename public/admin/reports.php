@@ -79,7 +79,7 @@ $reports = [
         <div class="form-group"><label>District</label>
           <select name="district_id"><option value="">-- all --</option>
             <?php foreach ($districts as $di): ?>
-            <option value="<?= $di['id'] ?>" <?= $district == $di['id'] ? 'selected' : '' ?>><?= e($di['name_lo']) ?></option>
+            <option value="<?= $di['id'] ?>" <?= $district == $di['id'] ? 'selected' : '' ?>><?= e($di['name_lo']) ?><?= !empty($di['province_name']) ? ' — ' . e($di['province_name']) : '' ?></option>
             <?php endforeach; ?>
           </select>
         </div>

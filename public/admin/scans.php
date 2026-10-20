@@ -106,7 +106,20 @@ function conf_badge($c) {
 }
 
 // --- Data for the page ---
-$districts = api_call('GET', 'districts.php')['data'] ?? [];
+// Geography is national now (18 provinces / 148 districts / 8,828 villages), so the
+// district list is scoped by province: the officer picks province -> district ->
+// village. Preselect the province of any district the OCR already resolved.
+$provinces = api_call('GET', 'refdata.php?table=provinces')['data'] ?? [];
+$allDistricts = api_call('GET', 'districts.php')['data'] ?? [];
+$province_id = 0;
+if ($district_id) {
+    foreach ($allDistricts as $d) {
+        if ((int)$d['id'] === $district_id) { $province_id = (int)$d['province_id']; break; }
+    }
+}
+$districts = $province_id
+    ? array_values(array_filter($allDistricts, fn($d) => (int)$d['province_id'] === $province_id))
+    : [];
 $villages = $district_id ? (api_call('GET', 'villages.php?district_id=' . $district_id)['data'] ?? []) : [];
 $zones = api_call('GET', 'rates.php')['data']['zones'] ?? [];
 $pending = api_call('GET', 'scans.php?status=pending', null, $token)['data']['scans'] ?? [];
@@ -244,6 +257,15 @@ $landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultur
               </select>
             </div>
             <div class="form-group">
+              <label>Province</label>
+              <select id="province-select">
+                <option value="">-- select province --</option>
+                <?php foreach ($provinces as $p): ?>
+                <option value="<?= (int)$p['id'] ?>" <?= $province_id === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?> <?= e($p['name_en'] ?: '') ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="form-group">
               <label>District</label>
               <select name="district_id" id="district-select">
                 <option value="">-- select --</option>
@@ -344,8 +366,36 @@ if (ownersEl) {
   else existing.forEach(o => ownersEl.insertAdjacentHTML('beforeend', ownerRow(ownerIndex++, o)));
 }
 
+const provinceSelect = document.getElementById('province-select');
 const districtSelect = document.getElementById('district-select');
 const villageSelect = document.getElementById('village-select');
+
+function fillSelect(sel, rows) {
+  sel.innerHTML = '<option value="">-- select --</option>';
+  (rows || []).forEach(r => {
+    const o = document.createElement('option');
+    o.value = r.id;
+    o.textContent = r.name_lo + (r.name_en ? ' (' + r.name_en + ')' : '');
+    sel.appendChild(o);
+  });
+}
+
+// Province -> District cascade. Districts are national (148), so we never list
+// them all: pick a province first, then its districts load.
+if (provinceSelect && districtSelect && villageSelect) {
+  provinceSelect.addEventListener('change', async () => {
+    villageSelect.innerHTML = '<option value="">-- select --</option>';
+    districtSelect.innerHTML = '<option value="">-- select --</option>';
+    if (!provinceSelect.value) return;
+    const r = await fetch('/api/v1/districts.php?province_id=' + encodeURIComponent(provinceSelect.value), {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    const j = await r.json();
+    fillSelect(districtSelect, j.data);
+  });
+}
+
+// District -> Village cascade.
 if (districtSelect && villageSelect) {
   districtSelect.addEventListener('change', async () => {
     const val = districtSelect.value;
@@ -355,12 +405,7 @@ if (districtSelect && villageSelect) {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
     });
     const j = await r.json();
-    (j.data || []).forEach(v => {
-      const o = document.createElement('option');
-      o.value = v.id;
-      o.textContent = v.name_lo + (v.name_en ? ' (' + v.name_en + ')' : '');
-      villageSelect.appendChild(o);
-    });
+    fillSelect(villageSelect, j.data);
   });
 }
 </script>
