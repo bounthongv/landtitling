@@ -95,9 +95,10 @@ function admin_province_name() {
     return $name;
 }
 
-/** Sidebar top: brand + language toggle (EN | ລາວ) at top-right. */
+/** Sidebar top: language toggle (EN | ລາວ) as first line. */
 function admin_side_top() {
-    return '<div class="brand">' . te('Land Tax Collection System') . ' ' . lang_switch() . '</div>';
+    return '<div class="lang-toggle">' . lang_switch() . '</div>' .
+           '<div class="brand">' . te('Land Tax Collection System') . '</div>';
 }
 
 /** Sidebar footer: active province name only (no label). */

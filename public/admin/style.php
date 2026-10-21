@@ -4,8 +4,12 @@
   body { font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; background: var(--bg); color: var(--text); margin: 0; }
   .app { display: flex; min-height: 100vh; }
   .side { width: 230px; background: var(--green); color: #fff; display: flex; flex-direction: column; }
-  .side .brand { padding: 18px 20px; font-size: 16px; font-weight: 700; letter-spacing: .3px; display: flex; justify-content: space-between; align-items: center; }
-  .side .brand .lang-switch { font-size: 12px; }
+  .side .brand { padding: 14px 20px 6px; font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+  .side .lang-toggle { padding: 10px 20px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 4px; }
+  .side .lang-toggle a { color: #d8e6d2; text-decoration: none; padding: 2px 6px; border-radius: 3px; }
+  .side .lang-toggle a:hover { background: rgba(255,255,255,.15); color: #fff; }
+  .side .lang-toggle a.active { background: #ffd54f; color: #1b5e20; font-weight: 700; }
+  .side .lang-toggle span { color: #8fae8f; margin: 0 2px; }
   .side-nav { list-style: none; margin: 0; padding: 12px 0; }
   .side-nav li { border-bottom: 1px solid rgba(255,255,255,.18); }
   .side-nav a { display: block; padding: 11px 20px; color: #d8e6d2; text-decoration: none; font-size: 14px; }
