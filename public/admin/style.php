@@ -4,8 +4,8 @@
   body { font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; background: var(--bg); color: var(--text); margin: 0; }
   .app { display: flex; min-height: 100vh; }
   .side { width: 230px; background: var(--green); color: #fff; display: flex; flex-direction: column; }
-  .side .brand { padding: 14px 20px 6px; font-size: 15px; font-weight: 700; letter-spacing: .3px; }
-  .side .lang-toggle { padding: 10px 20px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 4px; }
+  .side .brand { padding: 14px 20px 6px; font-size: 17px; font-weight: 700; letter-spacing: .3px; }
+  .side .lang-toggle { padding: 10px 20px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 4px; text-align: center; }
   .side .lang-toggle a { color: #d8e6d2; text-decoration: none; padding: 2px 6px; border-radius: 3px; }
   .side .lang-toggle a:hover { background: rgba(255,255,255,.15); color: #fff; }
   .side .lang-toggle a.active { background: #ffd54f; color: #1b5e20; font-weight: 700; }
