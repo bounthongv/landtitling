@@ -82,7 +82,7 @@ if ($import_id) {
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand"><?= te("Land Tax Collection System") ?></div>
+    <?= admin_side_top() ?>
     <div class="side-nav"><?= admin_nav($role) ?></div>
     <?= admin_side_foot() ?>
   </aside>

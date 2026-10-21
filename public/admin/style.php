@@ -4,7 +4,8 @@
   body { font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; background: var(--bg); color: var(--text); margin: 0; }
   .app { display: flex; min-height: 100vh; }
   .side { width: 230px; background: var(--green); color: #fff; display: flex; flex-direction: column; }
-  .side .brand { padding: 18px 20px; font-size: 16px; font-weight: 700; letter-spacing: .3px; }
+  .side .brand { padding: 18px 20px; font-size: 16px; font-weight: 700; letter-spacing: .3px; display: flex; justify-content: space-between; align-items: center; }
+  .side .brand .lang-switch { font-size: 12px; }
   .side-nav { list-style: none; margin: 0; padding: 12px 0; }
   .side-nav li { border-bottom: 1px solid rgba(255,255,255,.18); }
   .side-nav a { display: block; padding: 11px 20px; color: #d8e6d2; text-decoration: none; font-size: 14px; }

@@ -95,9 +95,14 @@ function admin_province_name() {
     return $name;
 }
 
-/** Sidebar footer: active province + language toggle (EN | ລາວ). */
+/** Sidebar top: brand + language toggle (EN | ລາວ) at top-right. */
+function admin_side_top() {
+    return '<div class="brand">' . te('Land Tax Collection System') . ' ' . lang_switch() . '</div>';
+}
+
+/** Sidebar footer: active province name only (no label). */
 function admin_side_foot() {
-    return '<div class="side-foot">' . te('Province') . ': ' . e(admin_province_name()) . lang_switch() . '</div>';
+    return '<div class="side-foot">' . e(admin_province_name()) . '</div>';
 }
 
 // api_call(method, path, body, token) — helper for server-side calls to the JSON API.
