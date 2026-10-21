@@ -14,18 +14,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($do === 'import') {
         if (empty($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-            $msg = 'Choose a CSV file first.'; $msgType = 'err';
+            $msg = t('Choose a CSV file first.'); $msgType = 'err';
         } else {
             $f = $_FILES['file'];
             $fields = ['date_col','amount_col','reference_col','bank_ref_col','no_header'];
             $r = api_upload_multipart('bank_imports.php', $f, $fields, $_POST, $token, 'file');
             if (!empty($r['ok'])) {
                 $s = $r['data']['summary'];
-                $msg = sprintf('Imported %d row(s): %d matched, %d overpaid, %d partial, %d duplicate, %d unmatched.',
-                    $r['data']['rows'], $s['matched'], $s['overpaid'], $s['partial'], $s['duplicate'], $s['unmatched']);
+                $msg = t('Imported {rows} row(s): {matched} matched, {overpaid} overpaid, {partial} partial, {duplicate} duplicate, {unmatched} unmatched.', [
+                    'rows' => $r['data']['rows'], 'matched' => $s['matched'], 'overpaid' => $s['overpaid'],
+                    'partial' => $s['partial'], 'duplicate' => $s['duplicate'], 'unmatched' => $s['unmatched'],
+                ]);
                 $import_id = (int)$r['data']['import_id'];
             } else {
-                $msg = $r['error']['message'] ?? 'Import failed'; $msgType = 'err';
+                $msg = $r['error']['message'] ?? t('Import failed'); $msgType = 'err';
             }
         }
     }
@@ -34,11 +36,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $r = api_call('POST', 'bank_imports.php?id=' . (int)($_POST['import_id'] ?? 0) . '&rematch=1', [], $token);
         if (!empty($r['ok'])) {
             $s = $r['data']['summary'];
-            $msg = sprintf('Re-matched: %d matched, %d overpaid, %d partial, %d duplicate, %d unmatched.',
-                $s['matched'], $s['overpaid'], $s['partial'], $s['duplicate'], $s['unmatched']);
+            $msg = t('Re-matched: {matched} matched, {overpaid} overpaid, {partial} partial, {duplicate} duplicate, {unmatched} unmatched.', [
+                'matched' => $s['matched'], 'overpaid' => $s['overpaid'], 'partial' => $s['partial'],
+                'duplicate' => $s['duplicate'], 'unmatched' => $s['unmatched'],
+            ]);
             $import_id = (int)($_POST['import_id'] ?? 0);
         } else {
-            $msg = $r['error']['message'] ?? 'Re-match failed'; $msgType = 'err';
+            $msg = $r['error']['message'] ?? t('Re-match failed'); $msgType = 'err';
         }
     }
 
@@ -48,10 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($do === 'apply') { $body['payment_id'] = (int)($_POST['payment_id'] ?? 0); }
         $r = api_call('POST', 'bank_imports.php?txn_id=' . $txn, $body, $token);
         if (!empty($r['ok'])) {
-            $msg = $do === 'apply' ? 'Transaction applied to payment.' : 'Transaction ignored.';
+            $msg = $do === 'apply' ? t('Transaction applied to payment.') : t('Transaction ignored.');
             $import_id = (int)($_POST['import_id'] ?? 0);
         } else {
-            $msg = $r['error']['message'] ?? 'Action failed'; $msgType = 'err';
+            $msg = $r['error']['message'] ?? t('Action failed'); $msgType = 'err';
         }
     }
 }
@@ -69,10 +73,10 @@ if ($import_id) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="lo">
+<html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bank Import — Land Fee MVP</title>
+<title><?= te('Bank Import') ?> — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -80,37 +84,36 @@ if ($import_id) {
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
+    <?= admin_side_foot() ?>
   </aside>
   <main class="main">
-    <h1>Bank Statement Import</h1>
-    <p class="sub">Import a statement; rows are matched to payments by the <b>LFE-YYYY-NNNNNN</b> reference.
-      Exact and over amounts settle automatically; partial, duplicate and unknown rows stay for you.</p>
+    <h1><?= te('Bank Statement Import') ?></h1>
+    <p class="sub"><?= te('Import a statement; rows are matched to payments by the LFE-YYYY-NNNNNN reference. Exact and over amounts settle automatically; partial, duplicate and unknown rows stay for you.') ?></p>
 
     <?php if ($msg): ?><p class="flash <?= $msgType === 'err' ? 'err' : 'ok' ?>"><?= e($msg) ?></p><?php endif; ?>
 
     <div class="form-box">
-      <h2>Upload statement (CSV)</h2>
+      <h2><?= te('Upload statement (CSV)') ?></h2>
       <form method="post" enctype="multipart/form-data" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="import">
-        <div class="form-group"><label>CSV file</label><input type="file" name="file" accept=".csv,text/csv" required></div>
-        <div class="form-group"><label>Date col #</label><input name="date_col" type="number" min="0" placeholder="auto"></div>
-        <div class="form-group"><label>Amount col #</label><input name="amount_col" type="number" min="0" placeholder="auto"></div>
-        <div class="form-group"><label>Reference col #</label><input name="reference_col" type="number" min="0" placeholder="auto"></div>
-        <div class="form-group"><label>Bank ref col #</label><input name="bank_ref_col" type="number" min="0" placeholder="auto"></div>
-        <div class="form-group"><label>Header row</label>
-          <select name="no_header"><option value="">Has header row</option><option value="1">No header row</option></select>
+        <div class="form-group"><label><?= te('CSV file') ?></label><input type="file" name="file" accept=".csv,text/csv" required></div>
+        <div class="form-group"><label><?= te('Date col #') ?></label><input name="date_col" type="number" min="0" placeholder="<?= te('auto') ?>"></div>
+        <div class="form-group"><label><?= te('Amount col #') ?></label><input name="amount_col" type="number" min="0" placeholder="<?= te('auto') ?>"></div>
+        <div class="form-group"><label><?= te('Reference col #') ?></label><input name="reference_col" type="number" min="0" placeholder="<?= te('auto') ?>"></div>
+        <div class="form-group"><label><?= te('Bank ref col #') ?></label><input name="bank_ref_col" type="number" min="0" placeholder="<?= te('auto') ?>"></div>
+        <div class="form-group"><label><?= te('Header row') ?></label>
+          <select name="no_header"><option value=""><?= te('Has header row') ?></option><option value="1"><?= te('No header row') ?></option></select>
         </div>
-        <div class="form-group"><button class="btn btn-blue" type="submit">Import &amp; match</button></div>
+        <div class="form-group"><button class="btn btn-blue" type="submit"><?= te('Import & match') ?></button></div>
       </form>
-      <p class="sub">Leave column numbers blank to auto-detect from the header (Date, Amount, Reference, Bank Ref).</p>
+      <p class="sub"><?= te('Leave column numbers blank to auto-detect from the header (Date, Amount, Reference, Bank Ref).') ?></p>
     </div>
 
     <div class="form-box">
-      <h2>Imports</h2>
-      <?php if (!$imports): ?><p class="empty">No imports yet.</p><?php else: ?>
+      <h2><?= te('Imports') ?></h2>
+      <?php if (!$imports): ?><p class="empty"><?= te('No imports yet.') ?></p><?php else: ?>
       <table>
-        <thead><tr><th>File</th><th>Imported</th><th>By</th><th>Rows</th><th>Matched</th><th></th></tr></thead>
+        <thead><tr><th><?= te('File') ?></th><th><?= te('Imported') ?></th><th><?= te('By') ?></th><th><?= te('Rows') ?></th><th><?= te('Matched') ?></th><th></th></tr></thead>
         <tbody>
         <?php foreach ($imports as $im): ?>
           <tr>
@@ -123,7 +126,7 @@ if ($import_id) {
               <form method="post" style="display:inline">
                 <input type="hidden" name="do_action" value="rematch">
                 <input type="hidden" name="import_id" value="<?= (int)$im['id'] ?>">
-                <button class="btn btn-sm" type="submit">Re-match</button>
+                <button class="btn btn-sm" type="submit"><?= te('Re-match') ?></button>
               </form>
             </td>
           </tr>
@@ -135,10 +138,10 @@ if ($import_id) {
 
     <?php if ($detail): ?>
     <div class="form-box">
-      <h2>Transactions — <?= e($detail['filename']) ?></h2>
-      <?php if (!$txns): ?><p class="empty">No transactions.</p><?php else: ?>
+      <h2><?= te('Transactions') ?> — <?= e($detail['filename']) ?></h2>
+      <?php if (!$txns): ?><p class="empty"><?= te('No transactions.') ?></p><?php else: ?>
       <table>
-        <thead><tr><th>Date</th><th>Amount</th><th>Reference</th><th>Bank ref</th><th>Status</th><th>Payment</th><th>Parcel</th><th>Actions</th></tr></thead>
+        <thead><tr><th><?= te('Date') ?></th><th><?= te('Amount') ?></th><th><?= te('Reference') ?></th><th><?= te('Bank ref') ?></th><th><?= te('Status') ?></th><th><?= te('Payment') ?></th><th><?= te('Parcel') ?></th><th><?= te('Actions') ?></th></tr></thead>
         <tbody>
         <?php foreach ($txns as $t): ?>
           <tr>
@@ -146,7 +149,7 @@ if ($import_id) {
             <td><?= number_format((float)$t['amount'], 0) ?></td>
             <td><?= e($t['reference_no'] ?? '—') ?></td>
             <td><?= e($t['bank_ref'] ?? '—') ?></td>
-            <td><span class="pill pill-<?= e($t['match_status'] === 'matched' ? 'paid' : ($t['match_status'] === 'ignored' ? 'waived' : 'pending')) ?>"><?= e($t['match_status']) ?></span></td>
+            <td><span class="pill pill-<?= e($t['match_status'] === 'matched' ? 'paid' : ($t['match_status'] === 'ignored' ? 'waived' : 'pending')) ?>"><?= e(t($t['match_status'])) ?></span></td>
             <td><?= $t['pay_ref'] ? e($t['pay_ref']) : '—' ?></td>
             <td><?= $t['parcel_no'] ? e($t['parcel_no']) : '—' ?></td>
             <td>
@@ -156,7 +159,7 @@ if ($import_id) {
                   <input type="hidden" name="txn_id" value="<?= (int)$t['id'] ?>">
                   <input type="hidden" name="payment_id" value="<?= (int)$t['matched_payment_id'] ?>">
                   <input type="hidden" name="import_id" value="<?= (int)$import_id ?>">
-                  <button class="btn btn-green btn-sm" type="submit">Apply</button>
+                  <button class="btn btn-green btn-sm" type="submit"><?= te('Apply') ?></button>
                 </form>
               <?php endif; ?>
               <?php if ($t['match_status'] !== 'ignored' && $t['match_status'] !== 'matched'): ?>
@@ -164,7 +167,7 @@ if ($import_id) {
                   <input type="hidden" name="do_action" value="ignore">
                   <input type="hidden" name="txn_id" value="<?= (int)$t['id'] ?>">
                   <input type="hidden" name="import_id" value="<?= (int)$import_id ?>">
-                  <button class="btn btn-sm" type="submit">Ignore</button>
+                  <button class="btn btn-sm" type="submit"><?= te('Ignore') ?></button>
                 </form>
               <?php endif; ?>
             </td>

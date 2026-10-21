@@ -31,20 +31,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
     ];
     $d = api_call('PUT', 'rates.php', $body, $_SESSION['admin_token']);
     if (!empty($d['ok'])) {
-        $msg = 'Rate saved: ' . number_format($body['rate_per_sqm'], 0) . ' kip/m²';
+        $msg = t('Rate saved: {rate} kip/m²', ['rate' => number_format($body['rate_per_sqm'], 0)]);
         $editDistrict = $body['district_id'];
         $editCategory = $body['road_category'];
         $editRate = $body['rate_per_sqm'];
     } else {
-        $msg = $d['error']['message'] ?? 'Save failed';
+        $msg = $d['error']['message'] ?? t('Save failed');
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="lo">
+<html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Zone Rates — Land Fee MVP</title>
+<title><?= te('Zone Rates') ?> — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -52,11 +52,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
+    <?= admin_side_foot() ?>
   </aside>
   <main class="main">
-    <h1>Zone Rates (flat, location-based)</h1>
-    <p class="sub">Fee = rate × area. Rate depends only on district + road category. Flat across transaction types and land use.</p>
+    <h1><?= te('Zone Rates (flat, location-based)') ?></h1>
+    <p class="sub"><?= te('Fee = rate × area. Rate depends only on district + road category. Flat across transaction types and land use.') ?></p>
 
     <div class="grid">
       <div class="card">
@@ -65,35 +65,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
           <form method="post">
             <input type="hidden" name="save_rate" value="1">
             <div class="form-group">
-              <label>Edit rate for district</label>
+              <label><?= te('Edit rate for district') ?></label>
               <select name="district_id" id="rate-district">
-                <option value="">-- select district --</option>
+                <option value=""><?= te('-- select district --') ?></option>
                 <?php foreach ($districts as $d): ?>
                   <option value="<?= $d['id'] ?>" <?= $editDistrict == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
             <div class="form-group">
-              <label>Road category</label>
+              <label><?= te('Road category') ?></label>
               <select name="road_category" id="rate-cat">
-                <option value="">-- select --</option>
-                <option value="main" <?= $editCategory === 'main' ? 'selected' : '' ?>>Main road</option>
-                <option value="branch" <?= $editCategory === 'branch' ? 'selected' : '' ?>>Branch road</option>
-                <option value="alley" <?= $editCategory === 'alley' ? 'selected' : '' ?>>Alley</option>
-                <option value="none" <?= $editCategory === 'none' ? 'selected' : '' ?>>None</option>
+                <option value=""><?= te('-- select --') ?></option>
+                <option value="main" <?= $editCategory === 'main' ? 'selected' : '' ?>><?= te('Main road') ?></option>
+                <option value="branch" <?= $editCategory === 'branch' ? 'selected' : '' ?>><?= te('Branch road') ?></option>
+                <option value="alley" <?= $editCategory === 'alley' ? 'selected' : '' ?>><?= te('Alley') ?></option>
+                <option value="none" <?= $editCategory === 'none' ? 'selected' : '' ?>><?= te('None') ?></option>
               </select>
             </div>
             <div class="form-group">
-              <label>Rate per m² (kip)</label>
+              <label><?= te('Rate per m² (kip)') ?></label>
               <input name="rate_per_sqm" type="number" step="1000" value="<?= $editRate ?>">
-              <p class="sub" style="font-size:12px;">Band: 80,000–180,000 kip/m²</p>
+              <p class="sub" style="font-size:12px;"><?= te('Band: 80,000–180,000 kip/m²') ?></p>
             </div>
             <div class="form-group">
-              <label>Note (optional)</label>
+              <label><?= te('Note (optional)') ?></label>
               <input name="note">
             </div>
             <div class="modal-actions" style="justify-content:flex-start;">
-              <button class="btn btn-green" type="submit">Save rate</button>
+              <button class="btn btn-green" type="submit"><?= te('Save rate') ?></button>
             </div>
           </form>
         </div>
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
 
       <div class="card" style="overflow-x:auto;">
         <table>
-          <thead><tr><th>District</th><th>Main</th><th>Branch</th><th>Alley</th><th>None</th></tr></thead>
+          <thead><tr><th><?= te('District') ?></th><th><?= te('Main') ?></th><th><?= te('Branch') ?></th><th><?= te('Alley') ?></th><th><?= te('None') ?></th></tr></thead>
           <tbody>
             <?php foreach ($districts as $d): ?>
             <tr>
@@ -119,13 +119,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_rate'])) {
 
     <div class="card">
       <table style="margin-top:8px;">
-        <thead><tr><th>ID</th><th>District</th><th>Category</th><th>Rate (kip/m²)</th><th>Valid from</th><th>Updated</th></tr></thead>
+        <thead><tr><th>ID</th><th><?= te('District') ?></th><th><?= te('Category') ?></th><th><?= te('Rate (kip/m²)') ?></th><th><?= te('Valid from') ?></th><th><?= te('Updated') ?></th></tr></thead>
         <tbody>
           <?php foreach ($rates as $r): ?>
           <tr>
             <td><?= $r['id'] ?></td>
             <td><?= e($r['district_name']) ?></td>
-            <td><?= e(ucfirst($r['road_category'])) ?></td>
+            <td><?= e(t(ucfirst($r['road_category']))) ?></td>
             <td style="font-weight:600;"><?= number_format((float)$r['rate_per_sqm'], 0) ?></td>
             <td><?= e($r['valid_from']) ?></td>
             <td><?= e($r['updated_at'] ?? '-') ?></td>

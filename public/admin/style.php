@@ -17,6 +17,11 @@
   .side-nav .sub-nav a:hover { background: rgba(255,255,255,.12); }
   .side-nav .sub-nav a.active { background: rgba(255,255,255,.18); color: #fff; border-left-color: #ffd54f; font-weight: 600; }
   .side-foot { margin-top: auto; padding: 14px 20px; font-size: 12px; color: #bfd6c2; }
+  .lang-switch { margin-top: 8px; font-size: 12px; }
+  .lang-switch a { color: #d8e6d2; text-decoration: none; padding: 2px 6px; border-radius: 3px; }
+  .lang-switch a:hover { background: rgba(255,255,255,.15); color: #fff; }
+  .lang-switch a.active { background: #ffd54f; color: #1b5e20; font-weight: 700; }
+  .lang-switch span { color: #8fae8f; margin: 0 2px; }
   .main { flex: 1; padding: 24px 28px; overflow: auto; }
   h1 { font-size: 22px; margin: 0 0 6px; }
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }

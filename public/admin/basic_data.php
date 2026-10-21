@@ -3,7 +3,7 @@
 // province, districts, villages, road categories, title types, land use, zone rates, fee years.
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
-if ($role !== 'admin') { http_response_code(403); exit('Admins only.'); }
+if ($role !== 'admin') { http_response_code(403); exit(t('Admins only.')); }
 $token = $_SESSION['admin_token'];
 
 $tab = $_GET['tab'] ?? 'province';
@@ -29,7 +29,7 @@ function th_sort(string $key, string $label, string $sort, string $dir, string $
     // column never drops the current filter.
     $href  = '?' . http_build_query(array_merge(['tab' => $tab], $extra, ['sort' => $key, 'dir' => $next]));
     $arrow = $isCurrent ? '<span class="arrow">' . ($dir === 'asc' ? '▲' : '▼') . '</span>' : '';
-    return '<a class="th-sort" href="' . e($href) . '" title="Sort by ' . e($label) . '">' . e($label) . $arrow . '</a>';
+    return '<a class="th-sort" href="' . e($href) . '" title="' . te('Sort by {label}', ['label' => $label]) . '">' . e($label) . $arrow . '</a>';
 }
 
 // ---- POST handlers ----
@@ -50,13 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $r = $id
             ? api_call('PUT', 'refdata.php?table=' . urlencode($table) . '&id=' . $id, $body, $token)
             : api_call('POST', 'refdata.php?table=' . urlencode($table), $body, $token);
-        $msg = !empty($r['ok']) ? ucfirst(str_replace('_', ' ', $table)) . ' saved.' : ($r['error']['message'] ?? 'Save failed');
+        $msg = !empty($r['ok']) ? t('{name} saved.', ['name' => t(ucfirst(str_replace('_', ' ', $table)))]) : ($r['error']['message'] ?? t('Save failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
 
     if ($do === 'ref_delete') {
         $r = api_call('POST', 'refdata.php?table=' . urlencode($table) . '&code=' . urlencode($_POST['code'] ?? ''), null, $token);
-        $msg = !empty($r['ok']) ? 'Deleted.' : ($r['error']['message'] ?? 'Delete failed');
+        $msg = !empty($r['ok']) ? t('Deleted.') : ($r['error']['message'] ?? t('Delete failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
 
@@ -67,12 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)($_POST['id'] ?? 0);
         $r = $id ? api_call('PUT', 'districts.php?id=' . $id, $body, $token)
                  : api_call('POST', 'districts.php', $body, $token);
-        $msg = !empty($r['ok']) ? 'District saved.' : ($r['error']['message'] ?? 'Save failed');
+        $msg = !empty($r['ok']) ? t('District saved.') : ($r['error']['message'] ?? t('Save failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
     if ($do === 'district_delete') {
         $r = api_call('POST', 'districts.php?id=' . (int)($_POST['id'] ?? 0), null, $token);
-        $msg = !empty($r['ok']) ? 'District deleted.' : ($r['error']['message'] ?? 'Delete failed');
+        $msg = !empty($r['ok']) ? t('District deleted.') : ($r['error']['message'] ?? t('Delete failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
 
@@ -83,12 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)($_POST['id'] ?? 0);
         $r = $id ? api_call('PUT', 'villages.php?id=' . $id, $body, $token)
                  : api_call('POST', 'villages.php', $body, $token);
-        $msg = !empty($r['ok']) ? 'Village saved.' : ($r['error']['message'] ?? 'Save failed');
+        $msg = !empty($r['ok']) ? t('Village saved.') : ($r['error']['message'] ?? t('Save failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
     if ($do === 'village_delete') {
         $r = api_call('POST', 'villages.php?id=' . (int)($_POST['id'] ?? 0), null, $token);
-        $msg = !empty($r['ok']) ? 'Village deleted.' : ($r['error']['message'] ?? 'Delete failed');
+        $msg = !empty($r['ok']) ? t('Village deleted.') : ($r['error']['message'] ?? t('Delete failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
 
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rate   = (float)($_POST['rate_per_sqm'] ?? 0);
         $nameLo = trim((string)($_POST['name_lo'] ?? ''));
         if ($code === '' || $rate <= 0 || $nameLo === '') {
-            $msg = 'Zone code, Lao name and a positive rate are required.';
+            $msg = t('Zone code, Lao name and a positive rate are required.');
             $msgType = 'err';
         } else {
             $r = api_call('PUT', 'rates.php?code=' . urlencode($code), [
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'name_en'      => $_POST['name_en'] ?? null,
                 'note'         => $_POST['note'] ?? null,
             ], $token);
-            $msg = !empty($r['ok']) ? 'Zone ' . $code . ' updated.' : ($r['error']['message'] ?? 'Update failed');
+            $msg = !empty($r['ok']) ? t('Zone {code} updated.', ['code' => $code]) : ($r['error']['message'] ?? t('Update failed'));
             $msgType = !empty($r['ok']) ? 'ok' : 'err';
         }
     }
@@ -119,12 +119,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'rate_per_sqm' => (float)($_POST['rate_per_sqm'] ?? 0),
             'note'         => $_POST['note'] ?? null,
         ], $token);
-        $msg = !empty($r['ok']) ? 'Zone ' . e(($_POST['code'] ?? '')) . ' added.' : ($r['error']['message'] ?? 'Add failed');
+        $msg = !empty($r['ok']) ? t('Zone {code} added.', ['code' => $_POST['code'] ?? '']) : ($r['error']['message'] ?? t('Add failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
     if ($do === 'zone_delete') {
         $r = api_call('POST', 'rates.php?code=' . urlencode((string)($_POST['code'] ?? '')), [], $token);
-        $msg = !empty($r['ok']) ? 'Zone deleted.' : ($r['error']['message'] ?? 'Delete failed');
+        $msg = !empty($r['ok']) ? t('Zone deleted.') : ($r['error']['message'] ?? t('Delete failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
 
@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'due_date' => $_POST['due_date'] ?? '',
             'status'   => $_POST['status'] ?? 'open',
         ], $token);
-        $msg = !empty($r['ok']) ? 'Fee year saved.' : ($r['error']['message'] ?? 'Save failed');
+        $msg = !empty($r['ok']) ? t('Fee year saved.') : ($r['error']['message'] ?? t('Save failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
     if ($do === 'year_generate') {
@@ -145,8 +145,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'district_id' => (int)($_POST['district_id'] ?? 0) ?: null,
         ], $token);
         $msg = !empty($r['ok'])
-            ? 'Assessed ' . (int)($r['data']['assessed'] ?? 0) . ' obligation(s).'
-            : ($r['error']['message'] ?? 'Generation failed');
+            ? t('Assessed {n} obligation(s).', ['n' => (int)($r['data']['assessed'] ?? 0)])
+            : ($r['error']['message'] ?? t('Generation failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
 }
@@ -214,12 +214,12 @@ if ($vQuery !== '') { $vExtra['q'] = $vQuery; }
 $allDistricts = $districts;
 
 $tabLabels = [
-    'province' => 'Province',
-    'districts'=> 'Districts',
-    'villages' => 'Villages',
-    'zones'    => 'Zone rates (fee)',
-    'years'    => 'Fee years',
-    'refdata'  => 'Lookups (road / title / land use)',
+    'province' => t('Province'),
+    'districts'=> t('Districts'),
+    'villages' => t('Villages'),
+    'zones'    => t('Zone rates (fee)'),
+    'years'    => t('Fee years'),
+    'refdata'  => t('Lookups (road / title / land use)'),
 ];
 // Submenu lives in the sidebar (admin_nav); guard against an unknown tab.
 if (!isset($tabLabels[$tab])) {
@@ -227,10 +227,10 @@ if (!isset($tabLabels[$tab])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="lo">
+<html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= e($tabLabels[$tab]) ?> — Basic Data — Land Fee MVP</title>
+<title><?= e($tabLabels[$tab]) ?> — <?= te('Basic Data') ?> — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -238,24 +238,23 @@ if (!isset($tabLabels[$tab])) {
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
+    <?= admin_side_foot() ?>
   </aside>
   <main class="main">
     <h1><?= e($tabLabels[$tab]) ?></h1>
-    <p class="sub">Province, districts, villages, lookups, zone rates (the fee) and fee years.
-      Fee values are placeholders — set them to whatever the province decides.</p>
+    <p class="sub"><?= te('Province, districts, villages, lookups, zone rates (the fee) and fee years. Fee values are placeholders — set them to whatever the province decides.') ?></p>
 
     <?php if ($msg): ?><p class="flash <?= e($msgType) ?>"><?= e($msg) ?></p><?php endif; ?>
 
 <?php if ($tab === 'province'): ?>
     <div class="form-box">
-      <h2>Province</h2>
+      <h2><?= te('Province') ?></h2>
       <table style="margin-bottom:14px;">
         <thead><tr>
-          <th><?= th_sort('code', 'Code', $sort, $dir, $tab) ?></th>
-          <th><?= th_sort('name_lo', 'Lao', $sort, $dir, $tab) ?></th>
-          <th><?= th_sort('name_en', 'English', $sort, $dir, $tab) ?></th>
-          <th>Active</th><th></th>
+          <th><?= th_sort('code', t('Code'), $sort, $dir, $tab) ?></th>
+          <th><?= th_sort('name_lo', t('Lao'), $sort, $dir, $tab) ?></th>
+          <th><?= th_sort('name_en', t('English'), $sort, $dir, $tab) ?></th>
+          <th><?= te('Active') ?></th><th></th>
         </tr></thead>
         <tbody>
         <?php foreach ($provinces as $p): ?>
@@ -263,14 +262,14 @@ if (!isset($tabLabels[$tab])) {
             <td><?= e($p['code']) ?></td>
             <td><?= e($p['name_lo']) ?></td>
             <td><?= e($p['name_en']) ?></td>
-            <td><?= $p['is_active'] ? 'yes' : 'no' ?></td>
+            <td><?= $p['is_active'] ? te('yes') : te('no') ?></td>
             <td>
               <div style="display:inline-flex; gap:6px;">
-                <button class="btn btn-blue btn-sm" type="button" onclick="editProvince(<?= (int)$p['id'] ?>, '<?= e($p['code']) ?>', '<?= e($p['name_lo']) ?>', '<?= e($p['name_en'] ?? '') ?>', <?= $p['is_active'] ? 1 : 0 ?>)">Edit</button>
+                <button class="btn btn-blue btn-sm" type="button" onclick="editProvince(<?= (int)$p['id'] ?>, '<?= e($p['code']) ?>', '<?= e($p['name_lo']) ?>', '<?= e($p['name_en'] ?? '') ?>', <?= $p['is_active'] ? 1 : 0 ?>)"><?= te('Edit') ?></button>
                 <form method="post" style="display:inline">
                   <input type="hidden" name="do_action" value="ref_delete"><input type="hidden" name="table" value="provinces">
                   <input type="hidden" name="code" value="<?= e($p['code']) ?>">
-                  <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                  <button class="btn btn-red btn-sm" type="submit"><?= te('Delete') ?></button>
                 </form>
               </div>
             </td>
@@ -281,13 +280,13 @@ if (!isset($tabLabels[$tab])) {
       <form method="post" id="province-form" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="ref_save"><input type="hidden" name="table" value="provinces">
         <input type="hidden" name="id" id="province-id" value="0">
-        <div class="form-group"><label>Code</label><input name="code" id="province-code" required></div>
-        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" id="province-name-lo" required></div>
-        <div class="form-group"><label>Name (EN)</label><input name="name_en" id="province-name-en"></div>
-        <div class="form-group"><label>Active</label>
-          <select name="is_active" id="province-active"><option value="1">yes</option><option value="0">no</option></select>
+        <div class="form-group"><label><?= te('Code') ?></label><input name="code" id="province-code" required></div>
+        <div class="form-group"><label><?= te('Name (Lao)') ?></label><input name="name_lo" id="province-name-lo" required></div>
+        <div class="form-group"><label><?= te('Name (EN)') ?></label><input name="name_en" id="province-name-en"></div>
+        <div class="form-group"><label><?= te('Active') ?></label>
+          <select name="is_active" id="province-active"><option value="1"><?= te('yes') ?></option><option value="0"><?= te('no') ?></option></select>
         </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="province-submit">Add province</button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="province-submit"><?= te('Add province') ?></button></div>
       </form>
       <script>
       // Fill the form above from a row so the same form creates and updates.
@@ -297,7 +296,7 @@ if (!isset($tabLabels[$tab])) {
         document.getElementById('province-name-lo').value = nameLo;
         document.getElementById('province-name-en').value = nameEn;
         document.getElementById('province-active').value = isActive ? '1' : '0';
-        document.getElementById('province-submit').textContent = 'Update province';
+        document.getElementById('province-submit').textContent = <?= json_encode(t('Update province'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         document.getElementById('province-form').scrollIntoView({behavior:'smooth'});
       }
       </script>
@@ -305,31 +304,31 @@ if (!isset($tabLabels[$tab])) {
 
 <?php elseif ($tab === 'districts'): ?>
     <div class="form-box">
-      <h2>Districts</h2>
+      <h2><?= te('Districts') ?></h2>
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:14px;">
         <input type="hidden" name="tab" value="districts">
         <input type="hidden" name="sort" value="<?= e($dSort) ?>">
         <input type="hidden" name="dir" value="<?= e($dDir) ?>">
-        <div class="form-group"><label>Province</label>
-          <select name="province_id"><option value="">-- all provinces --</option>
+        <div class="form-group"><label><?= te('Province') ?></label>
+          <select name="province_id"><option value=""><?= te('-- all provinces --') ?></option>
             <?php foreach ($provinces as $p): ?>
             <option value="<?= (int)$p['id'] ?>" <?= $vProvince == $p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?> <?= e($p['name_en'] ?: '') ?></option>
             <?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Filter</button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
         <?php if ($vProvince): ?>
-        <div class="form-group"><label>&nbsp;</label><a class="btn btn-gold" href="?tab=districts&amp;sort=<?= e($dSort) ?>&amp;dir=<?= e($dDir) ?>">Clear filter</a></div>
+        <div class="form-group"><label>&nbsp;</label><a class="btn btn-gold" href="?tab=districts&amp;sort=<?= e($dSort) ?>&amp;dir=<?= e($dDir) ?>"><?= te('Clear filter') ?></a></div>
         <?php endif; ?>
       </form>
-      <p class="sub"><?= count($districts) ?> district(s) shown<?= $vProvince ? ' — filtered by province' : ' (all provinces)' ?>.</p>
+      <p class="sub"><?= $vProvince ? te('{n} district(s) shown — filtered by province', ['n' => count($districts)]) : te('{n} district(s) shown (all provinces)', ['n' => count($districts)]) ?></p>
       <table style="margin-bottom:14px;">
         <thead><tr>
-          <th><?= th_sort('code', 'Code', $dSort, $dDir, $tab, $dExtra) ?></th>
-          <th><?= th_sort('name_lo', 'Lao', $dSort, $dDir, $tab, $dExtra) ?></th>
-          <th><?= th_sort('name_en', 'English', $dSort, $dDir, $tab, $dExtra) ?></th>
-          <th><?= th_sort('province', 'Province', $dSort, $dDir, $tab, $dExtra) ?></th>
-          <th><?= th_sort('villages', 'Villages', $dSort, $dDir, $tab, $dExtra) ?></th>
-          <th><?= th_sort('parcels', 'Parcels', $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('code', t('Code'), $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('name_lo', t('Lao'), $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('name_en', t('English'), $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('province', t('Province'), $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('villages', t('Villages'), $dSort, $dDir, $tab, $dExtra) ?></th>
+          <th><?= th_sort('parcels', t('Parcels'), $dSort, $dDir, $tab, $dExtra) ?></th>
           <th></th>
         </tr></thead>
         <tbody>
@@ -343,10 +342,10 @@ if (!isset($tabLabels[$tab])) {
             <td><?= (int)$d['parcel_count'] ?></td>
             <td>
               <div style="display:inline-flex; gap:6px;">
-                <button class="btn btn-blue btn-sm" type="button" onclick="editDistrict(<?= (int)$d['id'] ?>, '<?= e($d['code']) ?>', '<?= e($d['name_lo']) ?>', '<?= e($d['name_en'] ?? '') ?>', '<?= (int)$d['province_id'] ?>')">Edit</button>
+                <button class="btn btn-blue btn-sm" type="button" onclick="editDistrict(<?= (int)$d['id'] ?>, '<?= e($d['code']) ?>', '<?= e($d['name_lo']) ?>', '<?= e($d['name_en'] ?? '') ?>', '<?= (int)$d['province_id'] ?>')"><?= te('Edit') ?></button>
                 <form method="post" style="display:inline">
                   <input type="hidden" name="do_action" value="district_delete"><input type="hidden" name="id" value="<?= (int)$d['id'] ?>">
-                  <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                  <button class="btn btn-red btn-sm" type="submit"><?= te('Delete') ?></button>
                 </form>
               </div>
             </td>
@@ -357,14 +356,14 @@ if (!isset($tabLabels[$tab])) {
       <form method="post" class="form-grid" id="district-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="district_save">
         <input type="hidden" name="id" id="district-id" value="0">
-        <div class="form-group"><label>Code</label><input name="code" id="district-code" required></div>
-        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" id="district-name-lo" required></div>
-        <div class="form-group"><label>Name (EN)</label><input name="name_en" id="district-name-en"></div>
-        <div class="form-group"><label>Province</label>
+        <div class="form-group"><label><?= te('Code') ?></label><input name="code" id="district-code" required></div>
+        <div class="form-group"><label><?= te('Name (Lao)') ?></label><input name="name_lo" id="district-name-lo" required></div>
+        <div class="form-group"><label><?= te('Name (EN)') ?></label><input name="name_en" id="district-name-en"></div>
+        <div class="form-group"><label><?= te('Province') ?></label>
           <select name="province_id" id="district-province" required><?php foreach ($provinces as $p): ?>
             <option value="<?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option><?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="district-submit">Add district</button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="district-submit"><?= te('Add district') ?></button></div>
       </form>
       <script>
       function editDistrict(id, code, nameLo, nameEn, provinceId) {
@@ -373,7 +372,7 @@ if (!isset($tabLabels[$tab])) {
         document.getElementById('district-name-lo').value = nameLo;
         document.getElementById('district-name-en').value = nameEn;
         document.getElementById('district-province').value = provinceId;
-        document.getElementById('district-submit').textContent = 'Update district';
+        document.getElementById('district-submit').textContent = <?= json_encode(t('Update district'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         document.getElementById('district-form').scrollIntoView({behavior:'smooth'});
       }
       </script>
@@ -381,25 +380,25 @@ if (!isset($tabLabels[$tab])) {
 
 <?php elseif ($tab === 'villages'): ?>
     <div class="form-box">
-      <h2>Villages</h2>
+      <h2><?= te('Villages') ?></h2>
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-bottom:14px;">
         <input type="hidden" name="tab" value="villages">
         <input type="hidden" name="sort" value="<?= e($vSort) ?>">
         <input type="hidden" name="dir" value="<?= e($vDir) ?>">
-        <div class="form-group"><label>Province</label>
-          <select name="province_id" id="v-province"><option value="">-- all --</option>
+        <div class="form-group"><label><?= te('Province') ?></label>
+          <select name="province_id" id="v-province"><option value=""><?= te('-- all --') ?></option>
             <?php foreach ($provinces as $p): ?>
             <option value="<?= (int)$p['id'] ?>" <?= $vProvince == $p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?></option>
             <?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label>District</label>
-          <select name="district_id" id="v-district"><option value="">-- all --</option>
+        <div class="form-group"><label><?= te('District') ?></label>
+          <select name="district_id" id="v-district"><option value=""><?= te('-- all --') ?></option>
             <?php foreach ($districts as $d): ?>
             <option value="<?= (int)$d['id'] ?>" data-province="<?= (int)$d['province_id'] ?>" <?= $vDistrict == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option>
             <?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label>Search</label><input name="q" value="<?= e($vQuery) ?>"></div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Filter</button></div>
+        <div class="form-group"><label><?= te('Search') ?></label><input name="q" value="<?= e($vQuery) ?>"></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
       </form>
       <script>
       // Province -> district cascade: hide districts of other provinces (like tax-ets).
@@ -422,14 +421,16 @@ if (!isset($tabLabels[$tab])) {
         filterDistricts();
       })();
       </script>
-      <p class="sub"><?= count($villages) ?> village(s) shown<?= count($villages) >= 500 ? ' (first 500 — narrow with the district filter or search)' : '' ?>.</p>
+      <p class="sub"><?= count($villages) >= 500
+          ? te('{n} village(s) shown (first 500 — narrow with the district filter or search)', ['n' => count($villages)])
+          : te('{n} village(s) shown', ['n' => count($villages)]) ?></p>
       <table style="margin-bottom:14px;">
         <thead><tr>
-          <th><?= th_sort('code', 'Code', $vSort, $vDir, $tab, $vExtra) ?></th>
-          <th><?= th_sort('name_lo', 'Lao', $vSort, $vDir, $tab, $vExtra) ?></th>
-          <th><?= th_sort('name_en', 'English', $vSort, $vDir, $tab, $vExtra) ?></th>
-          <th><?= th_sort('district', 'District', $vSort, $vDir, $tab, $vExtra) ?></th>
-          <th><?= th_sort('parcels', 'Parcels', $vSort, $vDir, $tab, $vExtra) ?></th>
+          <th><?= th_sort('code', t('Code'), $vSort, $vDir, $tab, $vExtra) ?></th>
+          <th><?= th_sort('name_lo', t('Lao'), $vSort, $vDir, $tab, $vExtra) ?></th>
+          <th><?= th_sort('name_en', t('English'), $vSort, $vDir, $tab, $vExtra) ?></th>
+          <th><?= th_sort('district', t('District'), $vSort, $vDir, $tab, $vExtra) ?></th>
+          <th><?= th_sort('parcels', t('Parcels'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th></th>
         </tr></thead>
         <tbody>
@@ -442,10 +443,10 @@ if (!isset($tabLabels[$tab])) {
             <td><?= (int)$v['parcel_count'] ?></td>
             <td>
               <div style="display:inline-flex; gap:6px;">
-                <button class="btn btn-blue btn-sm" type="button" onclick="editVillage(<?= (int)$v['id'] ?>, '<?= e($v['code']) ?>', '<?= e($v['name_lo']) ?>', '<?= e($v['name_en'] ?? '') ?>', '<?= (int)$v['district_id'] ?>')">Edit</button>
+                <button class="btn btn-blue btn-sm" type="button" onclick="editVillage(<?= (int)$v['id'] ?>, '<?= e($v['code']) ?>', '<?= e($v['name_lo']) ?>', '<?= e($v['name_en'] ?? '') ?>', '<?= (int)$v['district_id'] ?>')"><?= te('Edit') ?></button>
                 <form method="post" style="display:inline">
                   <input type="hidden" name="do_action" value="village_delete"><input type="hidden" name="id" value="<?= (int)$v['id'] ?>">
-                  <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                  <button class="btn btn-red btn-sm" type="submit"><?= te('Delete') ?></button>
                 </form>
               </div>
             </td>
@@ -456,14 +457,14 @@ if (!isset($tabLabels[$tab])) {
       <form method="post" class="form-grid" id="village-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="village_save">
         <input type="hidden" name="id" id="village-id" value="0">
-        <div class="form-group"><label>Code</label><input name="code" id="village-code" required></div>
-        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" id="village-name-lo" required></div>
-        <div class="form-group"><label>Name (EN)</label><input name="name_en" id="village-name-en"></div>
-        <div class="form-group"><label>District</label>
+        <div class="form-group"><label><?= te('Code') ?></label><input name="code" id="village-code" required></div>
+        <div class="form-group"><label><?= te('Name (Lao)') ?></label><input name="name_lo" id="village-name-lo" required></div>
+        <div class="form-group"><label><?= te('Name (EN)') ?></label><input name="name_en" id="village-name-en"></div>
+        <div class="form-group"><label><?= te('District') ?></label>
           <select name="district_id" id="village-district" required><?php foreach ($districts as $d): ?>
             <option value="<?= (int)$d['id'] ?>"><?= e($d['name_lo']) ?></option><?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="village-submit">Add village</button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="village-submit"><?= te('Add village') ?></button></div>
       </form>
       <script>
       function editVillage(id, code, nameLo, nameEn, districtId) {
@@ -472,7 +473,7 @@ if (!isset($tabLabels[$tab])) {
         document.getElementById('village-name-lo').value = nameLo;
         document.getElementById('village-name-en').value = nameEn;
         document.getElementById('village-district').value = districtId;
-        document.getElementById('village-submit').textContent = 'Update village';
+        document.getElementById('village-submit').textContent = <?= json_encode(t('Update village'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         document.getElementById('village-form').scrollIntoView({behavior:'smooth'});
       }
       </script>
@@ -480,13 +481,10 @@ if (!isset($tabLabels[$tab])) {
 
 <?php elseif ($tab === 'zones'): ?>
     <div class="form-box">
-      <h2>Zone rates — the fee per m²</h2>
-      <p class="sub">Fee = zone rate × area. A zone is a valuation area code (e.g. G17, A7, C7, C8)
-        like in the land office system. Add zones, then set each rate in kip/m².
-        These start as placeholders; revise them when you get the official figures
-        from the Land Department or MOF.</p>
+      <h2><?= te('Zone rates — the fee per m²') ?></h2>
+      <p class="sub"><?= te('Fee = zone rate × area. A zone is a valuation area code (e.g. G17, A7, C7, C8) like in the land office system. Add zones, then set each rate in kip/m². These start as placeholders; revise them when you get the official figures from the Land Department or MOF.') ?></p>
       <table style="margin-bottom:14px;">
-        <thead><tr><th>Code</th><th>Name (Lao)</th><th>Name (EN)</th><th>Rate (kip/m²)</th><th>Active</th><th>Note</th><th style="width:130px">Actions</th></tr></thead>
+        <thead><tr><th><?= te('Code') ?></th><th><?= te('Name (Lao)') ?></th><th><?= te('Name (EN)') ?></th><th><?= te('Rate (kip/m²)') ?></th><th><?= te('Active') ?></th><th><?= te('Note') ?></th><th style="width:130px"><?= te('Actions') ?></th></tr></thead>
         <tbody>
         <?php foreach ($zones as $z): ?>
           <tr>
@@ -494,35 +492,35 @@ if (!isset($tabLabels[$tab])) {
             <td><?= e($z['name_lo']) ?></td>
             <td><?= e($z['name_en'] ?? '') ?></td>
             <td><?= number_format((float)$z['rate_per_sqm'], 0) ?></td>
-            <td><?= $z['is_active'] ? 'yes' : 'no' ?></td>
+            <td><?= $z['is_active'] ? te('yes') : te('no') ?></td>
             <td><?= e($z['note'] ?? '') ?></td>
             <td>
               <div style="display:inline-flex; gap:6px;">
                 <button class="btn btn-blue btn-sm" type="button"
-                  onclick="editZone('<?= e($z['code']) ?>','<?= e($z['name_lo']) ?>','<?= e($z['name_en'] ?? '') ?>','<?= (float)$z['rate_per_sqm'] ?>','<?= e($z['note'] ?? '') ?>')">Edit</button>
+                  onclick="editZone('<?= e($z['code']) ?>','<?= e($z['name_lo']) ?>','<?= e($z['name_en'] ?? '') ?>','<?= (float)$z['rate_per_sqm'] ?>','<?= e($z['note'] ?? '') ?>')"><?= te('Edit') ?></button>
                 <form method="post" style="display:inline">
                   <input type="hidden" name="do_action" value="zone_delete"><input type="hidden" name="code" value="<?= e($z['code']) ?>">
-                  <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                  <button class="btn btn-red btn-sm" type="submit"><?= te('Delete') ?></button>
                 </form>
               </div>
             </td>
           </tr>
         <?php endforeach; ?>
         <?php if (!$zones): ?>
-          <tr><td colspan="7" class="muted">No zones yet — add one below.</td></tr>
+          <tr><td colspan="7" class="muted"><?= te('No zones yet — add one below.') ?></td></tr>
         <?php endif; ?>
         </tbody>
       </table>
 
-      <h3 style="margin-top:6px;">Add zone</h3>
+      <h3 style="margin-top:6px;"><?= te('Add zone') ?></h3>
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;" id="zone-form">
         <input type="hidden" name="do_action" id="zone-action" value="zone_add">
-        <div class="form-group"><label>Code</label><input name="code" id="zone-code" required placeholder="e.g. B3"></div>
-        <div class="form-group"><label>Name (Lao)</label><input name="name_lo" id="zone-name-lo" required></div>
-        <div class="form-group"><label>Name (EN)</label><input name="name_en" id="zone-name-en"></div>
-        <div class="form-group"><label>Rate (kip/m²)</label><input name="rate_per_sqm" id="zone-rate" type="number" min="0" step="1" required></div>
-        <div class="form-group"><label>Note</label><input name="note" id="zone-note"></div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="zone-submit">Add zone</button></div>
+        <div class="form-group"><label><?= te('Code') ?></label><input name="code" id="zone-code" required placeholder="<?= te('e.g. B3') ?>"></div>
+        <div class="form-group"><label><?= te('Name (Lao)') ?></label><input name="name_lo" id="zone-name-lo" required></div>
+        <div class="form-group"><label><?= te('Name (EN)') ?></label><input name="name_en" id="zone-name-en"></div>
+        <div class="form-group"><label><?= te('Rate (kip/m²)') ?></label><input name="rate_per_sqm" id="zone-rate" type="number" min="0" step="1" required></div>
+        <div class="form-group"><label><?= te('Note') ?></label><input name="note" id="zone-note"></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit" id="zone-submit"><?= te('Add zone') ?></button></div>
       </form>
       <script>
       function editZone(code, nameLo, nameEn, rate, note) {
@@ -532,7 +530,7 @@ if (!isset($tabLabels[$tab])) {
         document.getElementById('zone-rate').value = rate;
         document.getElementById('zone-note').value = note;
         document.getElementById('zone-action').value = 'zone_save';
-        document.getElementById('zone-submit').textContent = 'Update zone';
+        document.getElementById('zone-submit').textContent = <?= json_encode(t('Update zone'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         document.getElementById('zone-form').scrollIntoView({behavior:'smooth'});
       }
       </script>
@@ -540,15 +538,15 @@ if (!isset($tabLabels[$tab])) {
 
 <?php elseif ($tab === 'years'): ?>
     <div class="form-box">
-      <h2>Fee years</h2>
+      <h2><?= te('Fee years') ?></h2>
       <table style="margin-bottom:14px;">
-        <thead><tr><th>Year</th><th>Due date</th><th>Status</th><th>Obligations</th><th>Assessed</th><th>Collected</th></tr></thead>
+        <thead><tr><th><?= te('Year') ?></th><th><?= te('Due date') ?></th><th><?= te('Status') ?></th><th><?= te('Obligations') ?></th><th><?= te('Assessed') ?></th><th><?= te('Collected') ?></th></tr></thead>
         <tbody>
         <?php foreach ($years as $y): ?>
           <tr>
             <td><?= e($y['year']) ?></td>
             <td><?= e($y['due_date']) ?></td>
-            <td><?= e($y['status']) ?></td>
+            <td><?= e(t($y['status'])) ?></td>
             <td><?= (int)$y['obligation_count'] ?></td>
             <td><?= number_format((float)$y['total_due'], 0) ?></td>
             <td><?= number_format((float)$y['total_paid'], 0) ?></td>
@@ -558,36 +556,36 @@ if (!isset($tabLabels[$tab])) {
       </table>
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="year_save">
-        <div class="form-group"><label>Year</label><input name="year" type="number" min="2000" max="2100" required></div>
-        <div class="form-group"><label>Due date</label><input name="due_date" type="date"></div>
-        <div class="form-group"><label>Status</label>
-          <select name="status"><option value="draft">draft</option><option value="open">open</option><option value="closed">closed</option></select>
+        <div class="form-group"><label><?= te('Year') ?></label><input name="year" type="number" min="2000" max="2100" required></div>
+        <div class="form-group"><label><?= te('Due date') ?></label><input name="due_date" type="date"></div>
+        <div class="form-group"><label><?= te('Status') ?></label>
+          <select name="status"><option value="draft"><?= te('draft') ?></option><option value="open"><?= te('open') ?></option><option value="closed"><?= te('closed') ?></option></select>
         </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Save year</button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Save year') ?></button></div>
       </form>
-      <h2 style="margin-top:20px;">Generate obligations</h2>
+      <h2 style="margin-top:20px;"><?= te('Generate obligations') ?></h2>
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="year_generate">
-        <div class="form-group"><label>Year</label><input name="year" type="number" min="2000" max="2100" required></div>
-        <div class="form-group"><label>District (optional)</label>
-          <select name="district_id"><option value="">-- all confirmed parcels --</option>
+        <div class="form-group"><label><?= te('Year') ?></label><input name="year" type="number" min="2000" max="2100" required></div>
+        <div class="form-group"><label><?= te('District (optional)') ?></label>
+          <select name="district_id"><option value=""><?= te('-- all confirmed parcels --') ?></option>
             <?php foreach ($districts as $d): ?><option value="<?= (int)$d['id'] ?>"><?= e($d['name_lo']) ?></option><?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-blue" type="submit">Generate</button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-blue" type="submit"><?= te('Generate') ?></button></div>
       </form>
     </div>
 
 <?php elseif ($tab === 'refdata'): ?>
 <?php
 $refGroups = [
-    'title_types'     => 'Title types',
-    'land_use_classes'=> 'Land use classes',
+    'title_types'     => t('Title types'),
+    'land_use_classes'=> t('Land use classes'),
 ];
 foreach ($refGroups as $tbl => $label): ?>
     <div class="form-box">
       <h2><?= e($label) ?></h2>
       <table style="margin-bottom:12px;">
-        <thead><tr><th>Code</th><th>Lao</th><th>English</th><th>Sort</th><th></th></tr></thead>
+        <thead><tr><th><?= te('Code') ?></th><th><?= te('Lao') ?></th><th><?= te('English') ?></th><th><?= te('Sort') ?></th><th></th></tr></thead>
         <tbody>
         <?php foreach (($refdata[$tbl] ?? []) as $row): ?>
           <tr>
@@ -599,7 +597,7 @@ foreach ($refGroups as $tbl => $label): ?>
               <form method="post" style="display:inline">
                 <input type="hidden" name="do_action" value="ref_delete"><input type="hidden" name="table" value="<?= e($tbl) ?>">
                 <input type="hidden" name="code" value="<?= e($row['code']) ?>">
-                <button class="btn btn-red btn-sm" type="submit">Delete</button>
+                <button class="btn btn-red btn-sm" type="submit"><?= te('Delete') ?></button>
               </form>
             </td>
           </tr>
@@ -608,11 +606,11 @@ foreach ($refGroups as $tbl => $label): ?>
       </table>
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="ref_save"><input type="hidden" name="table" value="<?= e($tbl) ?>">
-        <div class="form-group"><label>Code</label><input name="code" required></div>
-        <div class="form-group"><label>Lao</label><input name="name_lo" required></div>
-        <div class="form-group"><label>English</label><input name="name_en"></div>
-        <div class="form-group"><label>Sort</label><input name="sort_order" type="number"></div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit">Add</button></div>
+        <div class="form-group"><label><?= te('Code') ?></label><input name="code" required></div>
+        <div class="form-group"><label><?= te('Lao') ?></label><input name="name_lo" required></div>
+        <div class="form-group"><label><?= te('English') ?></label><input name="name_en"></div>
+        <div class="form-group"><label><?= te('Sort') ?></label><input name="sort_order" type="number"></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Add') ?></button></div>
       </form>
     </div>
 <?php endforeach; ?>

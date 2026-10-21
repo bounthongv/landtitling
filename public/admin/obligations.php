@@ -57,10 +57,10 @@ foreach ($obligations as $o) {
 $msg = $_GET['msg'] ?? '';
 ?>
 <!DOCTYPE html>
-<html lang="lo">
+<html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Annual Obligations — Land Fee MVP</title>
+<title><?= te('Annual Obligations') ?> — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -68,50 +68,50 @@ $msg = $_GET['msg'] ?? '';
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
+    <?= admin_side_foot() ?>
   </aside>
   <main class="main">
-    <?php if ($msg === 'generated'): ?><p class="flash ok">Generated obligations for <?= (int)($_GET['fee_year'] ?? 0) ?> — <?= (int)($_GET['n'] ?? 0) ?> parcel(s).</p><?php endif; ?>
-    <?php if ($msg === 'error'): ?><p class="flash err">Generation failed.</p><?php endif; ?>
+    <?php if ($msg === 'generated'): ?><p class="flash ok"><?= te('Generated obligations for {year} — {n} parcel(s).', ['year' => (int)($_GET['fee_year'] ?? 0), 'n' => (int)($_GET['n'] ?? 0)]) ?></p><?php endif; ?>
+    <?php if ($msg === 'error'): ?><p class="flash err"><?= te('Generation failed.') ?></p><?php endif; ?>
 
-    <h1>Annual Obligations</h1>
-    <p class="sub">Fee = zone rate (district × road category) × area. One obligation per parcel per year.</p>
+    <h1><?= te('Annual Obligations') ?></h1>
+    <p class="sub"><?= te('Fee = zone rate (district × road category) × area. One obligation per parcel per year.') ?></p>
 
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
-        <div class="form-group"><label>Fee year</label>
-          <select name="fee_year"><option value="">-- all --</option>
+        <div class="form-group"><label><?= te('Fee year') ?></label>
+          <select name="fee_year"><option value=""><?= te('-- all --') ?></option>
             <?php foreach ($years as $y): ?>
-            <option value="<?= e($y['year']) ?>" <?= $fee_year == $y['year'] ? 'selected' : '' ?>><?= e($y['year']) ?> (<?= e($y['status']) ?>)</option>
+            <option value="<?= e($y['year']) ?>" <?= $fee_year == $y['year'] ? 'selected' : '' ?>><?= e($y['year']) ?> (<?= e(t($y['status'])) ?>)</option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>District</label>
-          <select name="district_id"><option value="">-- all --</option>
+        <div class="form-group"><label><?= te('District') ?></label>
+          <select name="district_id"><option value=""><?= te('-- all --') ?></option>
             <?php foreach ($districts as $d): ?>
             <option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>Status</label>
-          <select name="status"><option value="">-- all --</option>
+        <div class="form-group"><label><?= te('Status') ?></label>
+          <select name="status"><option value=""><?= te('-- all --') ?></option>
             <?php foreach (['UNPAID','PARTIAL','PAID','OVERPAID','WAIVED','DISPUTED'] as $s): ?>
-            <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= $s ?></option>
+            <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= e(t($s)) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>View</label>
-          <select name="view"><option value="">All</option><option value="arrears" <?= $view === 'arrears' ? 'selected' : '' ?>>Arrears only</option></select>
+        <div class="form-group"><label><?= te('View') ?></label>
+          <select name="view"><option value=""><?= te('All') ?></option><option value="arrears" <?= $view === 'arrears' ? 'selected' : '' ?>><?= te('Arrears only') ?></option></select>
         </div>
-        <div class="form-group"><button class="btn btn-green" type="submit">Filter</button></div>
+        <div class="form-group"><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
       </form>
     </div>
 
     <div class="form-box">
-      <h2>Generate obligations</h2>
+      <h2><?= te('Generate obligations') ?></h2>
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
         <input type="hidden" name="action" value="generate">
-        <div class="form-group"><label>Fee year</label>
+        <div class="form-group"><label><?= te('Fee year') ?></label>
           <select name="fee_year">
             <?php
             $thisYear = (int)date('Y');
@@ -120,36 +120,36 @@ $msg = $_GET['msg'] ?? '';
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label>District (optional)</label>
-          <select name="district_id"><option value="">-- all confirmed parcels --</option>
+        <div class="form-group"><label><?= te('District (optional)') ?></label>
+          <select name="district_id"><option value=""><?= te('-- all confirmed parcels --') ?></option>
             <?php foreach ($districts as $d): ?>
             <option value="<?= $d['id'] ?>"><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option>
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><button class="btn btn-blue" type="submit">Generate</button></div>
+        <div class="form-group"><button class="btn btn-blue" type="submit"><?= te('Generate') ?></button></div>
       </form>
-      <p class="sub">Safe to re-run: existing unpaid obligations are updated to the current rate; paid ones are left alone.</p>
+      <p class="sub"><?= te('Safe to re-run: existing unpaid obligations are updated to the current rate; paid ones are left alone.') ?></p>
     </div>
 
     <div class="form-box">
-      <h2>Summary</h2>
+      <h2><?= te('Summary') ?></h2>
       <table>
         <tbody>
-          <tr><th>Count</th><td><?= $count ?></td></tr>
-          <tr><th>Total due</th><td><?= number_format($totalDue, 0) ?> kip</td></tr>
-          <tr><th>Total paid</th><td><?= number_format($totalPaid, 0) ?> kip</td></tr>
-          <tr><th>Outstanding</th><td><?= number_format($totalDue - $totalPaid, 0) ?> kip</td></tr>
-          <tr><th>Overdue (unpaid &amp; past due)</th><td><?= $overdueCount ?></td></tr>
+          <tr><th><?= te('Count') ?></th><td><?= $count ?></td></tr>
+          <tr><th><?= te('Total due') ?></th><td><?= number_format($totalDue, 0) ?> <?= te('kip') ?></td></tr>
+          <tr><th><?= te('Total paid') ?></th><td><?= number_format($totalPaid, 0) ?> <?= te('kip') ?></td></tr>
+          <tr><th><?= te('Outstanding') ?></th><td><?= number_format($totalDue - $totalPaid, 0) ?> <?= te('kip') ?></td></tr>
+          <tr><th><?= te('Overdue (unpaid & past due)') ?></th><td><?= $overdueCount ?></td></tr>
         </tbody>
       </table>
     </div>
 
     <?php if ($count === 0): ?>
-      <p class="empty">No obligations match the filter.</p>
+      <p class="empty"><?= te('No obligations match the filter.') ?></p>
     <?php else: ?>
     <table style="margin-top:8px;">
-      <thead><tr><th>Year</th><th>Parcel</th><th>District</th><th>Village</th><th>Rate</th><th>Area</th><th>Due</th><th>Paid</th><th>Status</th><th>Due date</th><th>Overdue days</th></tr></thead>
+      <thead><tr><th><?= te('Year') ?></th><th><?= te('Parcel') ?></th><th><?= te('District') ?></th><th><?= te('Village') ?></th><th><?= te('Rate') ?></th><th><?= te('Area') ?></th><th><?= te('Due') ?></th><th><?= te('Paid') ?></th><th><?= te('Status') ?></th><th><?= te('Due date') ?></th><th><?= te('Overdue days') ?></th></tr></thead>
       <tbody>
         <?php foreach ($obligations as $o): ?>
         <tr>
@@ -161,7 +161,7 @@ $msg = $_GET['msg'] ?? '';
           <td><?= number_format((float)$o['area_sqm'], 2) ?></td>
           <td><?= number_format((float)$o['amount_due'], 0) ?></td>
           <td><?= number_format((float)$o['amount_paid'], 0) ?></td>
-          <td><span class="pill pill-<?= e(strtolower($o['status'])) ?>"><?= e($o['status']) ?></span></td>
+          <td><span class="pill pill-<?= e(strtolower($o['status'])) ?>"><?= e(t($o['status'])) ?></span></td>
           <td><?= e($o['due_date']) ?></td>
           <td><?= (int)$o['days_overdue'] > 0 ? (int)$o['days_overdue'] : '' ?></td>
         </tr>

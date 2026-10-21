@@ -2,6 +2,7 @@
 // public/admin/common.php — admin shared: session, JWT auth, navbar
 session_start();
 require_once __DIR__ . '/../../lib/auth.php';
+require_once __DIR__ . '/../../lib/i18n.php';
 $cfg = require __DIR__ . '/../../lib/config.php';
 $base = $cfg['admin_base'];
 $api_base = $cfg['api_base'];
@@ -49,28 +50,28 @@ function admin_nav($role) {
 
     $links = [];
     if ($role === 'admin') {
-        $links[] = '<li><a href="' . $base . '/index.php">Dashboard</a></li>';
+        $links[] = '<li><a href="' . $base . '/index.php">' . te('Dashboard') . '</a></li>';
     }
-    $links[] = '<li><a href="' . $base . '/scans.php">Scan Review</a></li>';
-    $links[] = '<li><a href="' . $base . '/parcels.php">Parcels</a></li>';
-    $links[] = '<li><a href="' . $base . '/obligations.php">Obligations</a></li>';
-    $links[] = '<li><a href="' . $base . '/payments.php">Payment Verify</a></li>';
-    $links[] = '<li><a href="' . $base . '/bank_imports.php">Bank Import</a></li>';
+    $links[] = '<li><a href="' . $base . '/scans.php">' . te('Scan Review') . '</a></li>';
+    $links[] = '<li><a href="' . $base . '/parcels.php">' . te('Parcels') . '</a></li>';
+    $links[] = '<li><a href="' . $base . '/obligations.php">' . te('Obligations') . '</a></li>';
+    $links[] = '<li><a href="' . $base . '/payments.php">' . te('Payment Verify') . '</a></li>';
+    $links[] = '<li><a href="' . $base . '/bank_imports.php">' . te('Bank Import') . '</a></li>';
 
     if ($role === 'admin') {
         $onBasicData = ($page === 'basic_data.php');
-        $links[] = '<li><a href="' . $base . '/reports.php">Reports</a></li>';
-        $links[] = '<li class="has-sub"><a href="' . $base . '/basic_data.php' . ($onBasicData ? '?tab=' . urlencode($tab ?: 'province') : '') . '">Basic Data</a>';
+        $links[] = '<li><a href="' . $base . '/reports.php">' . te('Reports') . '</a></li>';
+        $links[] = '<li class="has-sub"><a href="' . $base . '/basic_data.php' . ($onBasicData ? '?tab=' . urlencode($tab ?: 'province') : '') . '">' . te('Basic Data') . '</a>';
         if ($onBasicData) {
             $links[] = '<ul class="sub-nav">';
             foreach ($basicDataItems as $k => $label) {
                 $active = ((string)$tab === $k) ? ' class="active"' : '';
-                $links[] = '<li><a' . $active . ' href="' . $base . '/basic_data.php?tab=' . $k . '">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</a></li>';
+                $links[] = '<li><a' . $active . ' href="' . $base . '/basic_data.php?tab=' . $k . '">' . te($label) . '</a></li>';
             }
             $links[] = '</ul>';
         }
         $links[] = '</li>';
-        $links[] = '<li><a href="' . $base . '/users.php">Users</a></li>';
+        $links[] = '<li><a href="' . $base . '/users.php">' . te('Users') . '</a></li>';
     }
     return '<ul class="nav">' . implode('', $links) . '</ul>';
 }
@@ -92,6 +93,11 @@ function admin_province_name() {
         // keep the default
     }
     return $name;
+}
+
+/** Sidebar footer: active province + language toggle (EN | ລາວ). */
+function admin_side_foot() {
+    return '<div class="side-foot">' . te('Province') . ': ' . e(admin_province_name()) . lang_switch() . '</div>';
 }
 
 // api_call(method, path, body, token) — helper for server-side calls to the JSON API.

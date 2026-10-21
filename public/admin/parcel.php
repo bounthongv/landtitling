@@ -35,10 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
 }
 ?>
 <!DOCTYPE html>
-<html lang="lo">
+<html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Parcel <?= e($parcel['parcel_no'] ?? '') ?> — Land Fee MVP</title>
+<title><?= te('Parcel') ?> <?= e($parcel['parcel_no'] ?? '') ?> — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -46,44 +46,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
+    <?= admin_side_foot() ?>
   </aside>
   <main class="main">
-    <?php if ($flash === 'recomputed'): ?><p class="flash ok">Current-year obligation recomputed.</p><?php endif; ?>
-    <?php if ($flash === 'error'): ?><p class="flash err">Recompute failed.</p><?php endif; ?>
+    <?php if ($flash === 'recomputed'): ?><p class="flash ok"><?= te('Current-year obligation recomputed.') ?></p><?php endif; ?>
+    <?php if ($flash === 'error'): ?><p class="flash err"><?= te('Recompute failed.') ?></p><?php endif; ?>
 
     <?php if (!$parcel): ?>
-      <p class="empty">Parcel not found.</p>
+      <p class="empty"><?= te('Parcel not found.') ?></p>
     <?php else: ?>
-    <h1>Parcel <?= e($parcel['parcel_no']) ?><?= $parcel['sub_parcel_no'] ? ' / ' . e($parcel['sub_parcel_no']) : '' ?></h1>
-    <p class="sub">Annual fee obligations — fee = zone rate × area (location-based).</p>
+    <h1><?= te('Parcel') ?> <?= e($parcel['parcel_no']) ?><?= $parcel['sub_parcel_no'] ? ' / ' . e($parcel['sub_parcel_no']) : '' ?></h1>
+    <p class="sub"><?= te('Annual fee obligations — fee = zone rate × area (location-based).') ?></p>
 
     <div class="form-box">
-      <h2>Title</h2>
+      <h2><?= te('Title') ?></h2>
       <table>
         <tbody>
-          <tr><th>District</th><td><?= e($parcel['district_name']) ?></td></tr>
-          <tr><th>Village</th><td><?= e($parcel['village_name']) ?></td></tr>
-          <tr><th>Area (m²)</th><td><?= number_format((float)$parcel['area_sqm'], 2) ?></td></tr>
-          <tr><th>Road category</th><td><?= e(ucfirst($parcel['road_category'] ?? '—')) ?></td></tr>
-          <tr><th>Title no</th><td><?= e($parcel['title_no'] ?? '—') ?></td></tr>
-          <tr><th>Title type</th><td><?= e($parcel['title_type'] ?? '—') ?></td></tr>
-          <tr><th>Book / Volume / Page</th><td><?= e($parcel['book_no'] ?? '—') ?> / <?= e($parcel['volume_no'] ?? '—') ?> / <?= e($parcel['page_no'] ?? '—') ?></td></tr>
-          <tr><th>Land use</th><td><?= e($parcel['land_use_class'] ?? '—') ?></td></tr>
-          <tr><th>Issued date</th><td><?= e($parcel['issued_date'] ?? '—') ?></td></tr>
-          <tr><th>Status</th><td><span class="pill pill-<?= e($parcel['status']) ?>"><?= e(ucfirst($parcel['status'])) ?></span></td></tr>
+          <tr><th><?= te('District') ?></th><td><?= e($parcel['district_name']) ?></td></tr>
+          <tr><th><?= te('Village') ?></th><td><?= e($parcel['village_name']) ?></td></tr>
+          <tr><th><?= te('Area (m²)') ?></th><td><?= number_format((float)$parcel['area_sqm'], 2) ?></td></tr>
+          <tr><th><?= te('Road category') ?></th><td><?= e(t(ucfirst($parcel['road_category'] ?? '—'))) ?></td></tr>
+          <tr><th><?= te('Title no') ?></th><td><?= e($parcel['title_no'] ?? '—') ?></td></tr>
+          <tr><th><?= te('Title type') ?></th><td><?= e(t($parcel['title_type'] ?? '—')) ?></td></tr>
+          <tr><th><?= te('Book / Volume / Page') ?></th><td><?= e($parcel['book_no'] ?? '—') ?> / <?= e($parcel['volume_no'] ?? '—') ?> / <?= e($parcel['page_no'] ?? '—') ?></td></tr>
+          <tr><th><?= te('Land use') ?></th><td><?= e(t($parcel['land_use_class'] ?? '—')) ?></td></tr>
+          <tr><th><?= te('Issued date') ?></th><td><?= e($parcel['issued_date'] ?? '—') ?></td></tr>
+          <tr><th><?= te('Status') ?></th><td><span class="pill pill-<?= e($parcel['status']) ?>"><?= e(t(ucfirst($parcel['status']))) ?></span></td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="form-box">
-      <h2>Owners</h2>
-      <?php if (!$owners): ?><p class="empty">No owners recorded.</p><?php else: ?>
+      <h2><?= te('Owners') ?></h2>
+      <?php if (!$owners): ?><p class="empty"><?= te('No owners recorded.') ?></p><?php else: ?>
       <table>
-        <thead><tr><th>Name</th><th>ID number</th><th>Role</th><th>Address</th></tr></thead>
+        <thead><tr><th><?= te('Name') ?></th><th><?= te('ID number') ?></th><th><?= te('Role') ?></th><th><?= te('Address') ?></th></tr></thead>
         <tbody>
         <?php foreach ($owners as $o): ?>
-          <tr><td><?= e($o['full_name']) ?></td><td><?= e($o['id_number'] ?? '—') ?></td><td><?= e($o['role']) ?></td><td><?= e($o['address'] ?? '—') ?></td></tr>
+          <tr><td><?= e($o['full_name']) ?></td><td><?= e($o['id_number'] ?? '—') ?></td><td><?= e(t($o['role'])) ?></td><td><?= e($o['address'] ?? '—') ?></td></tr>
         <?php endforeach; ?>
         </tbody>
       </table>
@@ -91,17 +91,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
     </div>
 
     <div class="form-box">
-      <h2>Obligation history</h2>
+      <h2><?= te('Obligation history') ?></h2>
       <?php if (!$obligations): ?>
-        <p class="empty">No obligations yet.</p>
+        <p class="empty"><?= te('No obligations yet.') ?></p>
         <form method="post">
           <input type="hidden" name="action" value="recompute">
           <input type="hidden" name="fee_year" value="<?= $thisYear ?>">
-          <button class="btn btn-green" type="submit">Assess <?= $thisYear ?> obligation</button>
+          <button class="btn btn-green" type="submit"><?= te('Assess {year} obligation', ['year' => $thisYear]) ?></button>
         </form>
       <?php else: ?>
       <table>
-        <thead><tr><th>Year</th><th>Rate (kip/m²)</th><th>Area (m²)</th><th>Due</th><th>Paid</th><th>Penalty</th><th>Status</th><th>Due date</th><th></th></tr></thead>
+        <thead><tr><th><?= te('Year') ?></th><th><?= te('Rate (kip/m²)') ?></th><th><?= te('Area (m²)') ?></th><th><?= te('Due') ?></th><th><?= te('Paid') ?></th><th><?= te('Penalty') ?></th><th><?= te('Status') ?></th><th><?= te('Due date') ?></th><th></th></tr></thead>
         <tbody>
         <?php foreach ($obligations as $o): ?>
           <tr>
@@ -111,14 +111,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
             <td><strong><?= number_format((float)$o['amount_due'], 0) ?></strong></td>
             <td><?= number_format((float)$o['amount_paid'], 0) ?></td>
             <td><?= number_format((float)$o['penalty'], 0) ?></td>
-            <td><span class="pill pill-<?= e(strtolower($o['status'])) ?>"><?= e($o['status']) ?></span></td>
+            <td><span class="pill pill-<?= e(strtolower($o['status'])) ?>"><?= e(t($o['status'])) ?></span></td>
             <td><?= e($o['due_date']) ?></td>
             <td>
               <?php if ((float)$o['amount_paid'] <= 0): ?>
               <form method="post" style="display:inline">
                 <input type="hidden" name="action" value="recompute">
                 <input type="hidden" name="fee_year" value="<?= e($o['fee_year']) ?>">
-                <button class="btn btn-sm" type="submit">Recompute</button>
+                <button class="btn btn-sm" type="submit"><?= te('Recompute') ?></button>
               </form>
               <?php endif; ?>
             </td>
@@ -128,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
       </table>
       <?php endif; ?>
     </div>
-    <p><a href="<?= $base ?>/parcels.php">&larr; Back to parcels</a></p>
+    <p><a href="<?= $base ?>/parcels.php">&larr; <?= te('Back to parcels') ?></a></p>
     <?php endif; ?>
   </main>
 </div>

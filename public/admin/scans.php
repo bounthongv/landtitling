@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image']) && $_FILES[
         header('Location: scans.php?scan_id=' . (int)$data['data']['id']);
         exit;
     }
-    $errors[] = $data['error']['message'] ?? 'Upload failed';
+    $errors[] = $data['error']['message'] ?? t('Upload failed');
 }
 
 // --- POST: confirm/edit → create or update parcel (+ owners) ---
@@ -56,11 +56,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel']) &&
     ];
     $data = api_call('POST', 'scans/confirm.php?id=' . $scanId, $body, $token);
     if (!empty($data['ok'])) {
-        $success = 'Parcel confirmed — ID ' . $data['data']['parcel_id']
-            . ' (' . count($data['data']['owner_ids'] ?? []) . ' owner(s))';
+        $success = t('Parcel confirmed — ID {id} ({n} owner(s))', [
+            'id' => $data['data']['parcel_id'],
+            'n'  => count($data['data']['owner_ids'] ?? []),
+        ]);
         $scanId = 0;
     } else {
-        $errors = $data['error']['fields'] ?? [$data['error']['message'] ?? 'Failed to confirm'];
+        $errors = $data['error']['fields'] ?? [$data['error']['message'] ?? t('Failed to confirm')];
         if (!is_array($errors)) $errors = [$errors];
     }
 }
@@ -89,7 +91,7 @@ if ($scanId > 0) {
             }
         }
     } else {
-        $errors[] = $data['error']['message'] ?? 'Scan not found';
+        $errors[] = $data['error']['message'] ?? t('Scan not found');
         $scanId = 0;
     }
 }
@@ -126,22 +128,22 @@ $zones = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
 $pending = api_call('GET', 'scans.php?status=pending', null, $token)['data']['scans'] ?? [];
 
 $parsedLabels = [
-    'parcel_no' => 'Parcel no', 'sub_parcel_no' => 'Sub-parcel', 'area_sqm' => 'Area (m²)',
-    'title_no' => 'Title no', 'title_type' => 'Title type', 'book_no' => 'Book',
-    'volume_no' => 'Volume', 'page_no' => 'Page', 'land_use_class' => 'Land use',
-    'issued_date' => 'Issued date', 'province' => 'Province',
-    'district_name' => 'District (text)', 'village_name' => 'Village (text)',
-    'district_id' => 'District id', 'village_id' => 'Village id',
-    'owner_name' => 'Owner name', 'owner_id_number' => 'Owner ID', 'owner_address' => 'Owner address',
+    'parcel_no' => t('Parcel no'), 'sub_parcel_no' => t('Sub-parcel'), 'area_sqm' => t('Area (m²)'),
+    'title_no' => t('Title no'), 'title_type' => t('Title type'), 'book_no' => t('Book'),
+    'volume_no' => t('Volume'), 'page_no' => t('Page'), 'land_use_class' => t('Land use'),
+    'issued_date' => t('Issued date'), 'province' => t('Province'),
+    'district_name' => t('District (text)'), 'village_name' => t('Village (text)'),
+    'district_id' => t('District id'), 'village_id' => t('Village id'),
+    'owner_name' => t('Owner name'), 'owner_id_number' => t('Owner ID'), 'owner_address' => t('Owner address'),
 ];
-$titleTypes = ['land_title' => 'Land title', 'survey_cert' => 'Survey certificate', 'concession' => 'Concession', 'other' => 'Other'];
-$landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultural', 'commercial' => 'Commercial', 'other' => 'Other'];
+$titleTypes = ['land_title' => t('Land title'), 'survey_cert' => t('Survey certificate'), 'concession' => t('Concession'), 'other' => t('Other')];
+$landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agricultural'), 'commercial' => t('Commercial'), 'other' => t('Other')];
 ?>
 <!DOCTYPE html>
-<html lang="lo">
+<html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Scan Review — Land Fee MVP</title>
+<title><?= te('Scan Review') ?> — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -149,58 +151,58 @@ $landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultur
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
+    <?= admin_side_foot() ?>
   </aside>
   <main class="main">
-    <h1>Scan Review</h1>
-    <p class="sub">Upload a land title scan → OCR → review the parsed fields → confirm or correct</p>
+    <h1><?= te('Scan Review') ?></h1>
+    <p class="sub"><?= te('Upload a land title scan → OCR → review the parsed fields → confirm or correct') ?></p>
 
     <?php if ($success): ?><div class="form-box" style="border-color:#2e7d32; background:#eaf4ea;"><?= e($success) ?></div><?php endif; ?>
     <?php foreach ($errors as $err): ?><div class="form-box" style="border-color:#c62828; background:#fdecea;"><?= e(is_array($err) ? implode('; ', $err) : $err) ?></div><?php endforeach; ?>
 
     <?php if (!$scan): ?>
           <div class="form-box">
-            <h3>Upload a Land Title Scan</h3>
+            <h3><?= te('Upload a Land Title Scan') ?></h3>
             <form method="post" enctype="multipart/form-data" action="scans.php">
               <div class="form-group">
-                <label>Land title image (JPG/PNG)</label>
+                <label><?= te('Land title image (JPG/PNG)') ?></label>
                 <input type="file" name="image" accept="image/*" required>
-                <p class="sub" style="font-size:12px;">OCR reads the title text and pre-fills the fields below. You confirm and correct everything.</p>
+                <p class="sub" style="font-size:12px;"><?= te('OCR reads the title text and pre-fills the fields below. You confirm and correct everything.') ?></p>
               </div>
               <div class="form-group">
-                <label>OCR Method</label>
+                <label><?= te('OCR Method') ?></label>
                 <div style="display:flex; gap:16px; flex-wrap:wrap;">
                   <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
                     <input type="radio" name="ocr_method" value="tesseract" checked>
-                    <span>Tesseract (local, free, fast)</span>
+                    <span><?= te('Tesseract (local, free, fast)') ?></span>
                   </label>
                   <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
                     <input type="radio" name="ocr_method" value="gemini">
-                    <span>Gemini 2.5 Flash (AI, higher accuracy, requires API key)</span>
+                    <span><?= te('Gemini 2.5 Flash (AI, higher accuracy, requires API key)') ?></span>
                   </label>
                 </div>
-                <p class="sub" style="font-size:12px;">OCR reads the title text and pre-fills the fields below. You confirm and correct everything.</p>
+                <p class="sub" style="font-size:12px;"><?= te('OCR reads the title text and pre-fills the fields below. You confirm and correct everything.') ?></p>
               </div>
-              <button type="submit" class="btn btn-green">Upload & Process</button>
+              <button type="submit" class="btn btn-green"><?= te('Upload & Process') ?></button>
             </form>
           </div>
 
       <div class="form-box">
-        <h3>Pending in queue (<?= count($pending) ?>)</h3>
+        <h3><?= te('Pending in queue ({n})', ['n' => count($pending)]) ?></h3>
         <?php if (empty($pending)): ?>
-          <p class="empty">No scans waiting for review.</p>
+          <p class="empty"><?= te('No scans waiting for review.') ?></p>
         <?php else: ?>
         <table>
-          <thead><tr><th>#</th><th>Uploaded</th><th>Status</th><th>Conf.</th><th>Parcel</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th><?= te('Uploaded') ?></th><th><?= te('Status') ?></th><th><?= te('Conf.') ?></th><th><?= te('Parcel') ?></th><th></th></tr></thead>
           <tbody>
             <?php foreach ($pending as $s): ?>
             <tr>
               <td><?= (int)$s['id'] ?></td>
               <td><?= e($s['created_at']) ?></td>
-              <td><span class="pill pill-pending"><?= e($s['status']) ?></span></td>
+              <td><span class="pill pill-pending"><?= e(t($s['status'])) ?></span></td>
               <td><?= conf_badge($s['overall_confidence'] ?? null) ?></td>
               <td><?= e($s['parcel_no'] ?: '—') ?></td>
-              <td><a class="btn btn-gold btn-sm" href="scans.php?scan_id=<?= (int)$s['id'] ?>">Review →</a></td>
+              <td><a class="btn btn-gold btn-sm" href="scans.php?scan_id=<?= (int)$s['id'] ?>"><?= te('Review →') ?></a></td>
             </tr>
             <?php endforeach; ?>
           </tbody>
@@ -211,17 +213,17 @@ $landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultur
       <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
         <div>
           <div class="form-box" style="border:2px solid #1b5e20;">
-            <h3>Title scan #<?= (int)$scan['id'] ?> &nbsp;<?= conf_badge($overallConf) ?></h3>
-            <img src="<?= e($scan['image_path']) ?>" style="width:100%; max-height:340px; object-fit:contain; border-radius:4px; background:#fff;" alt="Scan">
+            <h3><?= te('Title scan #{id}', ['id' => (int)$scan['id']]) ?> &nbsp;<?= conf_badge($overallConf) ?></h3>
+            <img src="<?= e($scan['image_path']) ?>" style="width:100%; max-height:340px; object-fit:contain; border-radius:4px; background:#fff;" alt="<?= te('Scan') ?>">
           </div>
           <div class="form-box">
-            <h3>OCR extracted text</h3>
-            <div class="ocr-box"><?= e($scan['ocr_raw'] ?? 'No text extracted.') ?></div>
+            <h3><?= te('OCR extracted text') ?></h3>
+            <div class="ocr-box"><?= e($scan['ocr_raw'] ?? t('No text extracted.')) ?></div>
           </div>
         </div>
         <div>
           <div class="form-box">
-            <h3>Parsed fields</h3>
+            <h3><?= te('Parsed fields') ?></h3>
             <?php
             $shown = 0;
             ob_start(); ?>
@@ -239,119 +241,119 @@ $landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultur
             </tbody></table>
             <?php
             $tableHtml = ob_get_clean();
-            echo $shown ? $tableHtml : '<p class="empty">No fields parsed from this scan — fill them in below.</p>';
+            echo $shown ? $tableHtml : '<p class="empty">' . te('No fields parsed from this scan — fill them in below.') . '</p>';
             ?>
           </div>
         </div>
       </div>
 
       <div class="form-box">
-        <h3>Confirm / Edit Parcel Data</h3>
+        <h3><?= te('Confirm / Edit Parcel Data') ?></h3>
         <form method="post" action="scans.php?scan_id=<?= (int)$scan['id'] ?>">
           <input type="hidden" name="confirm_parcel" value="1">
           <div class="form-grid">
             <div class="form-group">
-              <label>Parcel number</label>
+              <label><?= te('Parcel number') ?></label>
               <input name="parcel_no" value="<?= e($val('parcel_no')) ?>">
             </div>
             <div class="form-group">
-              <label>Sub-parcel number</label>
+              <label><?= te('Sub-parcel number') ?></label>
               <input name="sub_parcel_no" value="<?= e($val('sub_parcel_no')) ?>">
             </div>
             <div class="form-group">
-              <label>Area (m²)</label>
+              <label><?= te('Area (m²)') ?></label>
               <input name="area_sqm" type="number" step="0.01" value="<?= e($val('area_sqm')) ?>">
             </div>
             <div class="form-group">
-              <label>Zone (fee rate)</label>
+              <label><?= te('Zone (fee rate)') ?></label>
               <select name="zone_code">
-                <option value="">-- select --</option>
+                <option value=""><?= te('-- select --') ?></option>
                 <?php foreach ($zones as $z): ?>
                 <option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?> — <?= number_format((float)$z['rate_per_sqm'], 0) ?> kip/m²</option>
                 <?php endforeach; ?>
               </select>
             </div>
             <div class="form-group">
-              <label>Province</label>
+              <label><?= te('Province') ?></label>
               <select id="province-select">
-                <option value="">-- select province --</option>
+                <option value=""><?= te('-- select province --') ?></option>
                 <?php foreach ($provinces as $p): ?>
                 <option value="<?= (int)$p['id'] ?>" <?= $province_id === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?> <?= e($p['name_en'] ?: '') ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
             <div class="form-group">
-              <label>District</label>
+              <label><?= te('District') ?></label>
               <select name="district_id" id="district-select">
-                <option value="">-- select --</option>
+                <option value=""><?= te('-- select --') ?></option>
                 <?php foreach ($districts as $d): ?>
                 <option value="<?= (int)$d['id'] ?>" <?= $district_id === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?> <?= e($d['name_en'] ?: '') ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
             <div class="form-group">
-              <label>Village</label>
+              <label><?= te('Village') ?></label>
               <select name="village_id" id="village-select">
-                <option value="">-- select --</option>
+                <option value=""><?= te('-- select --') ?></option>
                 <?php foreach ($villages as $v): ?>
                 <option value="<?= (int)$v['id'] ?>" <?= $village_id === (int)$v['id'] ? 'selected' : '' ?>><?= e($v['name_lo']) ?> <?= e($v['name_en'] ?: '') ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
             <div class="form-group">
-              <label>Title number</label>
+              <label><?= te('Title number') ?></label>
               <input name="title_no" value="<?= e($val('title_no')) ?>">
             </div>
             <div class="form-group">
-              <label>Title type</label>
+              <label><?= te('Title type') ?></label>
               <select name="title_type">
-                <option value="">-- select --</option>
+                <option value=""><?= te('-- select --') ?></option>
                 <?php foreach ($titleTypes as $v => $lbl): ?>
-                <option value="<?= $v ?>" <?= $val('title_type') === $v ? 'selected' : '' ?>><?= $lbl ?></option>
+                <option value="<?= $v ?>" <?= $val('title_type') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
             <div class="form-group">
-              <label>Book</label>
+              <label><?= te('Book') ?></label>
               <input name="book_no" value="<?= e($val('book_no')) ?>">
             </div>
             <div class="form-group">
-              <label>Volume</label>
+              <label><?= te('Volume') ?></label>
               <input name="volume_no" value="<?= e($val('volume_no')) ?>">
             </div>
             <div class="form-group">
-              <label>Page</label>
+              <label><?= te('Page') ?></label>
               <input name="page_no" value="<?= e($val('page_no')) ?>">
             </div>
             <div class="form-group">
-              <label>Land use</label>
+              <label><?= te('Land use') ?></label>
               <select name="land_use_class">
-                <option value="">-- select --</option>
+                <option value=""><?= te('-- select --') ?></option>
                 <?php foreach ($landUseClasses as $v => $lbl): ?>
-                <option value="<?= $v ?>" <?= $val('land_use_class') === $v ? 'selected' : '' ?>><?= $lbl ?></option>
+                <option value="<?= $v ?>" <?= $val('land_use_class') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
             <div class="form-group">
-              <label>Issued date</label>
+              <label><?= te('Issued date') ?></label>
               <input name="issued_date" type="date" value="<?= e($val('issued_date')) ?>">
             </div>
             <div class="form-group">
-              <label>Status</label>
+              <label><?= te('Status') ?></label>
               <select name="status">
-                <option value="confirmed" <?= ($val('status') ?: 'confirmed') === 'confirmed' ? 'selected' : '' ?>>Confirmed</option>
-                <option value="active" <?= $val('status') === 'active' ? 'selected' : '' ?>>Active</option>
+                <option value="confirmed" <?= ($val('status') ?: 'confirmed') === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option>
+                <option value="active" <?= $val('status') === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option>
               </select>
             </div>
           </div>
 
-          <h3 style="margin-top:20px;">Owner(s)</h3>
+          <h3 style="margin-top:20px;"><?= te('Owner(s)') ?></h3>
           <div id="owners"></div>
-          <button type="button" class="btn btn-blue btn-sm" onclick="addOwner()">+ Add owner</button>
+          <button type="button" class="btn btn-blue btn-sm" onclick="addOwner()"><?= te('+ Add owner') ?></button>
 
           <div class="modal-actions" style="justify-content:flex-start;">
-            <button type="submit" class="btn btn-green">Confirm &amp; Create Parcel</button>
-            <a href="scans.php" class="btn btn-gold">New scan</a>
+            <button type="submit" class="btn btn-green"><?= te('Confirm & Create Parcel') ?></button>
+            <a href="scans.php" class="btn btn-gold"><?= te('New scan') ?></a>
           </div>
         </form>
       </div>
@@ -360,15 +362,21 @@ $landUseClasses = ['residential' => 'Residential', 'agricultural' => 'Agricultur
 </div>
 <script>
 const TOKEN = '<?= e($token) ?>';
+const I18N = <?= json_encode([
+    'select'   => t('-- select --'),
+    'fullName' => t('Full name'),
+    'idNumber' => t('ID number'),
+    'address'  => t('Address / residence'),
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 function escJs(s) { return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 let ownerIndex = 0;
 function ownerRow(i, o) {
   o = o || {};
   return '<div class="owner-row">'
     + '<input type="hidden" name="owners[' + i + '][id]" value="' + escJs(o.id) + '">'
-    + '<div class="form-group"><label>Full name</label><input name="owners[' + i + '][full_name]" value="' + escJs(o.full_name) + '"></div>'
-    + '<div class="form-group"><label>ID number</label><input name="owners[' + i + '][id_number]" value="' + escJs(o.id_number) + '"></div>'
-    + '<div class="form-group"><label>Address / residence</label><input name="owners[' + i + '][address]" value="' + escJs(o.address) + '"></div>'
+    + '<div class="form-group"><label>' + I18N.fullName + '</label><input name="owners[' + i + '][full_name]" value="' + escJs(o.full_name) + '"></div>'
+    + '<div class="form-group"><label>' + I18N.idNumber + '</label><input name="owners[' + i + '][id_number]" value="' + escJs(o.id_number) + '"></div>'
+    + '<div class="form-group"><label>' + I18N.address + '</label><input name="owners[' + i + '][address]" value="' + escJs(o.address) + '"></div>'
     + '<button type="button" class="btn btn-red btn-sm" onclick="this.parentNode.remove()">&times;</button>'
     + '</div>';
 }
@@ -386,7 +394,7 @@ const districtSelect = document.getElementById('district-select');
 const villageSelect = document.getElementById('village-select');
 
 function fillSelect(sel, rows) {
-  sel.innerHTML = '<option value="">-- select --</option>';
+  sel.innerHTML = '<option value=""><?= te('-- select --') ?></option>';
   (rows || []).forEach(r => {
     const o = document.createElement('option');
     o.value = r.id;
@@ -399,8 +407,8 @@ function fillSelect(sel, rows) {
 // them all: pick a province first, then its districts load.
 if (provinceSelect && districtSelect && villageSelect) {
   provinceSelect.addEventListener('change', async () => {
-    villageSelect.innerHTML = '<option value="">-- select --</option>';
-    districtSelect.innerHTML = '<option value="">-- select --</option>';
+    villageSelect.innerHTML = '<option value=""><?= te('-- select --') ?></option>';
+    districtSelect.innerHTML = '<option value=""><?= te('-- select --') ?></option>';
     if (!provinceSelect.value) return;
     const r = await fetch('/api/v1/districts.php?province_id=' + encodeURIComponent(provinceSelect.value), {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
@@ -414,7 +422,7 @@ if (provinceSelect && districtSelect && villageSelect) {
 if (districtSelect && villageSelect) {
   districtSelect.addEventListener('change', async () => {
     const val = districtSelect.value;
-    villageSelect.innerHTML = '<option value="">-- select --</option>';
+    villageSelect.innerHTML = '<option value=""><?= te('-- select --') ?></option>';
     if (!val) return;
     const r = await fetch('/api/v1/villages.php?district_id=' + encodeURIComponent(val), {
       headers: { 'Authorization': 'Bearer ' + TOKEN }

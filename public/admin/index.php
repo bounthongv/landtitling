@@ -5,10 +5,10 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 ?>
 <!DOCTYPE html>
-<html lang="lo">
+<html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard — Land Fee MVP</title>
+<title><?= te('Dashboard') ?> — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -16,27 +16,32 @@ $role = $user['role'];
   <aside class="side">
     <div class="brand">ພະລັງງານການຊຳລະທຳນຽມ</div>
     <div class="side-nav"><?= admin_nav($role) ?></div>
-    <div class="side-foot">Province: <?= e(admin_province_name()) ?></div>
+    <?= admin_side_foot() ?>
   </aside>
   <main class="main">
-    <h1>Dashboard</h1>
-    <?php if ($role === 'admin'): ?><p class="sub">Province officer back-office. Managed by the officer role for day-to-day work.</p><?php endif; ?>
+    <h1><?= te('Dashboard') ?></h1>
+    <?php if ($role === 'admin'): ?><p class="sub"><?= te('Province officer back-office. Managed by the officer role for day-to-day work.') ?></p><?php endif; ?>
 
     <section class="cards">
-      <div class="card stat"><h3>Pending scans</h3><p class="num" id="scan-count">—</p></div>
-      <div class="card stat"><h3>Parcels</h3><p class="num" id="parcel-count">—</p></div>
-      <div class="card stat"><h3>Issued payments</h3><p class="num" id="issued-count">—</p></div>
-      <div class="card stat"><h3>Total fees (kips)</h3><p class="num" id="fee-total">—</p></div>
+      <div class="card stat"><h3><?= te('Pending scans') ?></h3><p class="num" id="scan-count">—</p></div>
+      <div class="card stat"><h3><?= te('Parcels') ?></h3><p class="num" id="parcel-count">—</p></div>
+      <div class="card stat"><h3><?= te('Issued payments') ?></h3><p class="num" id="issued-count">—</p></div>
+      <div class="card stat"><h3><?= te('Total fees (kips)') ?></h3><p class="num" id="fee-total">—</p></div>
     </section>
 
     <div class="grid">
-      <div class="card"><h3>Pending scans to confirm</h3><p class="sub" id="scan-summary">Loading…</p></div>
-      <div class="card"><h3>Zone rates (locational, flat)</h3><p class="sub">Kip per m². Rate depends only on district + road category.</p></div>
+      <div class="card"><h3><?= te('Pending scans to confirm') ?></h3><p class="sub" id="scan-summary"><?= te('Loading…') ?></p></div>
+      <div class="card"><h3><?= te('Zone rates (locational, flat)') ?></h3><p class="sub"><?= te('Kip per m². Rate depends only on district + road category.') ?></p></div>
     </div>
   </main>
 </div>
 <script>
 const TOKEN = '<?= e($_SESSION['admin_token'] ?? '') ?>';
+const I18N = <?= json_encode([
+    'noScans'      => t('No pending scans right now.'),
+    'pendingScans' => t('{n} pending scan(s) to review.'),
+    'kip'          => t('kip'),
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 async function api(path, opts) {
   const r = await fetch(path, {
     ...opts,
@@ -56,13 +61,13 @@ async function api(path, opts) {
   const issued = payResp.data ?? [];
   document.getElementById('issued-count').textContent = issued.length;
   const total = issued.reduce((s, p) => s + (parseFloat(p.fee_total) || 0), 0);
-  document.getElementById('fee-total').textContent = total.toLocaleString('en-LK') + ' kip';
+  document.getElementById('fee-total').textContent = total.toLocaleString('en-US') + ' ' + I18N.kip;
 
   const sc = document.getElementById('scan-summary');
   if (!scanResp.data || scanResp.data.scans.length === 0) {
-    sc.textContent = 'No pending scans right now.';
+    sc.textContent = I18N.noScans;
   } else {
-    sc.innerHTML = '<b>' + scanResp.data.scans.length + '</b> pending scan(s) to review.';
+    sc.textContent = I18N.pendingScans.replace('{n}', scanResp.data.scans.length);
   }
 })();
 </script>

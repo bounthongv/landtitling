@@ -15,7 +15,7 @@ $resp = api_fetch_raw('GET', 'reports.php?' . $qs, $_SESSION['admin_token']);
 if ($resp['code'] !== 200 || $resp['body'] === '') {
     http_response_code(500);
     header('Content-Type: text/plain; charset=UTF-8');
-    echo 'Report failed (HTTP ' . $resp['code'] . ')';
+    echo t('Report failed') . ' (HTTP ' . $resp['code'] . ')';
     exit;
 }
 
