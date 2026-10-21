@@ -33,7 +33,7 @@ $districts = api_call('GET', 'districts.php')['data'] ?? [];
 <div class="app">
   <aside class="side">
     <?= admin_side_top() ?>
-    <div class="side-nav"><?= admin_nav($role) ?></div>
+    <?= admin_nav($role) ?>
     <?= admin_side_foot() ?>
   </aside>
   <main class="main">

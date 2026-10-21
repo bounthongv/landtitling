@@ -48,20 +48,50 @@ function admin_nav($role) {
         'refdata'  => 'Land Lookups',
     ];
 
+    // Icons (inline SVG paths) for each nav item
+    $icons = [
+        'index.php'        => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+        'scans.php'        => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>',
+        'parcels.php'      => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>',
+        'obligations.php'  => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+        'payments.php'     => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
+        'bank_imports.php' => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><line x1="4" y1="10" x2="4" y2="21"/><line x1="8" y1="10" x2="8" y2="21"/><line x1="12" y1="10" x2="12" y2="21"/><line x1="16" y1="10" x2="16" y2="21"/><line x1="20" y1="10" x2="20" y2="21"/></svg>',
+        'reports.php'      => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+        'basic_data.php'   => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>',
+        'users.php'        => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
+    ];
+
     $links = [];
     if ($role === 'admin') {
-        $links[] = '<li><a href="' . $base . '/index.php">' . te('Dashboard') . '</a></li>';
+        $act = ($page === 'index.php') ? ' class="active"' : '';
+        $links[] = '<li' . (($page === 'index.php') ? ' class="active"' : '') . '><a' . $act . ' href="' . $base . '/index.php">' . ($icons['index.php'] ?? '') . '<span>' . te('Dashboard') . '</span></a></li>';
     }
-    $links[] = '<li><a href="' . $base . '/scans.php">' . te('Scan Review') . '</a></li>';
-    $links[] = '<li><a href="' . $base . '/parcels.php">' . te('Parcels') . '</a></li>';
-    $links[] = '<li><a href="' . $base . '/obligations.php">' . te('Obligations') . '</a></li>';
-    $links[] = '<li><a href="' . $base . '/payments.php">' . te('Payment Verify') . '</a></li>';
-    $links[] = '<li><a href="' . $base . '/bank_imports.php">' . te('Bank Import') . '</a></li>';
+
+    $navItems = [
+        'scans.php'        => 'Scan Review',
+        'parcels.php'      => 'Parcels',
+        'obligations.php'  => 'Obligations',
+        'payments.php'     => 'Payment Verify',
+        'bank_imports.php' => 'Bank Import',
+    ];
+    foreach ($navItems as $file => $label) {
+        $act = ($page === $file) ? ' class="active"' : '';
+        $liAct = ($page === $file) ? ' class="active"' : '';
+        $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/' . $file . '">' . ($icons[$file] ?? '') . '<span>' . te($label) . '</span></a></li>';
+    }
 
     if ($role === 'admin') {
         $onBasicData = ($page === 'basic_data.php');
-        $links[] = '<li><a href="' . $base . '/reports.php">' . te('Reports') . '</a></li>';
-        $links[] = '<li class="has-sub"><a href="' . $base . '/basic_data.php' . ($onBasicData ? '?tab=' . urlencode($tab ?: 'province') : '') . '">' . te('Basic Data') . '</a>';
+
+        // Reports
+        $act = ($page === 'reports.php') ? ' class="active"' : '';
+        $liAct = ($page === 'reports.php') ? ' class="active"' : '';
+        $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/reports.php">' . ($icons['reports.php'] ?? '') . '<span>' . te('Reports') . '</span></a></li>';
+
+        // Basic Data with submenu
+        $liCls = $onBasicData ? ' class="has-sub active"' : ' class="has-sub"';
+        $aCls  = $onBasicData ? ' class="active"' : '';
+        $links[] = '<li' . $liCls . '><a' . $aCls . ' href="' . $base . '/basic_data.php' . ($onBasicData ? '?tab=' . urlencode($tab ?: 'province') : '') . '">' . ($icons['basic_data.php'] ?? '') . '<span>' . te('Basic Data') . '</span></a>';
         if ($onBasicData) {
             $links[] = '<ul class="sub-nav">';
             foreach ($basicDataItems as $k => $label) {
@@ -71,9 +101,13 @@ function admin_nav($role) {
             $links[] = '</ul>';
         }
         $links[] = '</li>';
-        $links[] = '<li><a href="' . $base . '/users.php">' . te('Users') . '</a></li>';
+
+        // Users
+        $act = ($page === 'users.php') ? ' class="active"' : '';
+        $liAct = ($page === 'users.php') ? ' class="active"' : '';
+        $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/users.php">' . ($icons['users.php'] ?? '') . '<span>' . te('Users') . '</span></a></li>';
     }
-    return '<ul class="nav">' . implode('', $links) . '</ul>';
+    return '<ul class="side-nav">' . implode('', $links) . '</ul>';
 }
 
 /** Active province name (basic data), falling back to the seeded default. */
