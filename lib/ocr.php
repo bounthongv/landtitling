@@ -296,7 +296,8 @@ If a field is not visible, use null. Be precise - extract exactly what you see."
         ]],
         'generationConfig' => [
             'temperature' => 0.0,
-            'maxOutputTokens' => 4096,
+            'maxOutputTokens' => 8192,
+            'thinkingConfig' => ['thinkingBudget' => 0],  // no reasoning needed for OCR extraction; saves output budget
         ]
     ];
 
