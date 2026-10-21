@@ -23,7 +23,7 @@
 
   .side {
     width: 260px;
-    background: linear-gradient(180deg, var(--sidebar-bg) 0%, #165218 100%);
+    background: linear-gradient(180deg, #2e7d32 0%, #0d3b10 100%);
     color: var(--sidebar-text);
     display: flex;
     flex-direction: column;
