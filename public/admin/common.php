@@ -101,9 +101,9 @@ function admin_side_top() {
            '<div class="brand">' . te('Land Tax Collection System') . '</div>';
 }
 
-/** Sidebar footer: active province name only (no label). */
+/** Sidebar footer: (empty). */
 function admin_side_foot() {
-    return '<div class="side-foot">' . e(admin_province_name()) . '</div>';
+    return '<div class="side-foot"></div>';
 }
 
 // api_call(method, path, body, token) — helper for server-side calls to the JSON API.
