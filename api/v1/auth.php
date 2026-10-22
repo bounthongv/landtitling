@@ -105,28 +105,32 @@ if ($action === 'login') {
     reject_on_errors($err);
 
     $pdo = db_connect();
-    $stmt = $pdo->prepare("SELECT id, username, role, level, district_id, password_hash FROM users WHERE username = :username AND is_active = TRUE");
+    $stmt = $pdo->prepare("SELECT id, username, role, level, district_id, is_super, password_hash FROM users WHERE username = :username AND is_active = TRUE");
     $stmt->execute([':username' => $username]);
     $user = $stmt->fetch();
     if (!$user || !password_verify($password, $user['password_hash'])) {
         json_error('Invalid credentials', 401, 'invalid_credentials');
     }
-    // Resolve the district/province names for the UI (sidebar footer, etc.)
-    $names = ['district_name' => null, 'province_name' => null];
+    // Resolve the district/province names (EN + LO) for the UI (sidebar footer, etc.)
+    $names = ['district_name' => null, 'district_name_lo' => null, 'province_name' => null, 'province_name_lo' => null];
     if (($user['level'] ?? 'district') === 'district' && $user['district_id']) {
-        $dst = $pdo->prepare("SELECT d.name_en AS district_name, p.name_en AS province_name
+        $dst = $pdo->prepare("SELECT d.name_en AS district_name, d.name_lo AS district_name_lo,
+                                     p.name_en AS province_name, p.name_lo AS province_name_lo
                               FROM districts d LEFT JOIN provinces p ON p.id = d.province_id
                               WHERE d.id = :id");
         $dst->execute([':id' => $user['district_id']]);
         if ($dn = $dst->fetch()) {
             $names['district_name'] = $dn['district_name'];
+            $names['district_name_lo'] = $dn['district_name_lo'];
             $names['province_name'] = $dn['province_name'];
+            $names['province_name_lo'] = $dn['province_name_lo'];
         }
     } else {
-        $pst = $pdo->prepare("SELECT name_en FROM provinces WHERE code = '13' LIMIT 1");
+        $pst = $pdo->prepare("SELECT name_en, name_lo FROM provinces WHERE code = '13' LIMIT 1");
         $pst->execute();
         if ($pn = $pst->fetch()) {
             $names['province_name'] = $pn['name_en'];
+            $names['province_name_lo'] = $pn['name_lo'];
         }
     }
     $user['level'] = $user['level'] ?? 'district';
@@ -134,8 +138,10 @@ if ($action === 'login') {
     json_ok(['token' => $token, 'user' => [
         'id' => (int)$user['id'], 'role' => $user['role'], 'level' => $user['level'],
         'district_id' => isset($user['district_id']) ? (int)$user['district_id'] : null,
+        'is_super' => !empty($user['is_super']),
         'username' => $user['username'],
-        'district_name' => $names['district_name'], 'province_name' => $names['province_name'],
+        'district_name' => $names['district_name'], 'district_name_lo' => $names['district_name_lo'],
+        'province_name' => $names['province_name'], 'province_name_lo' => $names['province_name_lo'],
     ]]);
 }
 

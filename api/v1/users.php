@@ -74,7 +74,7 @@ if ($method === 'GET') {
     }
     $w = 'WHERE ' . implode(' AND ', $where);
     $st = $pdo->prepare("SELECT u.id, u.username, u.role, u.level, u.district_id, u.phone, u.email, u.is_active, u.created_at,
-            d.name_en AS district_name,
+            d.name_en AS district_name, d.name_lo AS district_name_lo,
             (SELECT COUNT(*) FROM title_scans s WHERE s.verified_by = u.id) AS scans_verified
         FROM users u
         LEFT JOIN districts d ON d.id = u.district_id

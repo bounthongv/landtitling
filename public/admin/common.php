@@ -134,15 +134,19 @@ function admin_side_top() {
            '<div class="brand">' . te('Land Tax Collection System') . '</div>';
 }
 
-/** Sidebar footer: district + province (district staff) or province only (province staff). */
+/** Sidebar footer: district + province (district staff) or province only (province staff).
+ *  Names follow the current UI language (Lao names when the UI is in Lao). */
 function admin_side_foot() {
     $u = $_SESSION['admin_user'] ?? [];
+    $lo = i18n_current() === 'lo';
+    $district = ($lo && !empty($u['district_name_lo'])) ? $u['district_name_lo'] : ($u['district_name'] ?? '');
+    $province = ($lo && !empty($u['province_name_lo'])) ? $u['province_name_lo'] : ($u['province_name'] ?? '');
     $lines = [];
-    if (!empty($u['district_name'])) {
-        $lines[] = '<div class="side-foot-district">' . e($u['district_name']) . '</div>';
+    if ($district !== '') {
+        $lines[] = '<div class="side-foot-district">' . e($district) . '</div>';
     }
-    if (!empty($u['province_name'])) {
-        $lines[] = '<div class="side-foot-province">' . e($u['province_name']) . '</div>';
+    if ($province !== '') {
+        $lines[] = '<div class="side-foot-province">' . e($province) . '</div>';
     }
     if (!$lines) return '<div class="side-foot"></div>';
     return '<div class="side-foot">' . implode('', $lines) . '</div>';

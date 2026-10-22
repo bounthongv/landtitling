@@ -112,7 +112,11 @@ if ($linkingUser > 0) {
             <td><?= e($u['username']) ?></td>
             <td><?= e(t($u['role'])) ?></td>
             <td><?= e(t($u['level'] ?? 'district')) ?></td>
-            <td><?= e($u['district_name'] ?? ($u['district_id'] ?? '—')) ?></td>
+            <td><?php
+                $dName = $u['district_name'] ?? ($u['district_id'] ?? '—');
+                if (i18n_current() === 'lo' && !empty($u['district_name_lo'])) { $dName = $u['district_name_lo']; }
+                echo e($dName);
+            ?></td>
             <td><?= e($u['email'] ?? '—') ?></td>
             <td><?= e($u['phone']) ?></td>
             <td><?= $u['is_active'] ? '<span class="pill pill-paid">' . te('active') . '</span>' : '<span class="pill pill-rej">' . te('disabled') . '</span>' ?></td>

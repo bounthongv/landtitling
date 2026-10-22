@@ -66,6 +66,7 @@ function auth_issue_token(array $user) {
         'role'        => $user['role'],
         'level'       => $user['level'] ?? 'district',
         'district_id' => isset($user['district_id']) && $user['district_id'] !== null ? (int)$user['district_id'] : null,
+        'is_super'    => !empty($user['is_super']),
         'iat'         => $now,
         'exp'         => $now + $cfg['jwt_ttl'],
     ];
@@ -110,9 +111,12 @@ function require_auth(array $roles = null) {
 function staff_scope(array $payload) {
     $level = $payload['level'] ?? 'district';
     $district_id = isset($payload['district_id']) ? (int)$payload['district_id'] : 0;
-    $can_write = ($level === 'district' && in_array($payload['role'] ?? '', ['admin', 'officer'], true));
+    // Super admin: no district scoping, full write everywhere.
+    $is_super = !empty($payload['is_super']);
+    $can_write = $is_super
+        || ($level === 'district' && in_array($payload['role'] ?? '', ['admin', 'officer'], true));
     return [
-        'district_id' => $level === 'district' && $district_id > 0 ? $district_id : null,
+        'district_id' => !$is_super && $level === 'district' && $district_id > 0 ? $district_id : null,
         'can_write'   => $can_write,
     ];
 }
