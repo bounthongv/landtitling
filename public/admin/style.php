@@ -12,7 +12,7 @@
     --accent: #2e7d32;
     --sidebar-bg: #1b5e20;
     --sidebar-text: #ffffff;
-    --sidebar-muted: #f9a825;
+    --sidebar-muted: #ffeb3b;
     --sidebar-hover: rgba(255,255,255,0.12);
     --sidebar-active: rgba(255,255,255,0.2);
     --sidebar-border: rgba(255,255,255,0.1);
