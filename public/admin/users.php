@@ -121,73 +121,24 @@ if ($linkingUser > 0) {
             <td><?= e($u['phone']) ?></td>
             <td><?= $u['is_active'] ? '<span class="pill pill-paid">' . te('active') . '</span>' : '<span class="pill pill-rej">' . te('disabled') . '</span>' ?></td>
             <td><?= (int)$u['scans_verified'] ?></td>
-            <td><?php if ($role === 'admin'): ?><a href="?tab=staff&edit=<?= (int)$u['id'] ?>"><?= te('Edit') ?></a><?php endif; ?></td>
+            <td><button class="btn btn-blue btn-sm js-modal" type="button"
+                data-form="staff-form" data-title="<?= te('Edit user') ?>" data-submit="<?= te('Update user') ?>" data-do-action="user_update"
+                data-id="<?= (int)$u['id'] ?>" data-username="<?= e($u['username']) ?>"
+                data-role="<?= e($u['role']) ?>" data-level="<?= e($u['level'] ?? 'district') ?>"
+                data-district-id="<?= (int)($u['district_id'] ?? 0) ?>"
+                data-email="<?= e($u['email'] ?? '') ?>" data-phone="<?= e($u['phone']) ?>"
+                data-is-active="<?= $u['is_active'] ? '1' : '0' ?>"><?= te('Edit') ?></button></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
       </table>
 
-      <?php
-      $editId = (int)($_GET['edit'] ?? 0);
-      $edit = null;
-      if ($editId && $role === 'admin') {
-          foreach ($staff as $u) { if ((int)$u['id'] === $editId) { $edit = $u; break; } }
-      }
-      if ($edit): ?>
-        <h3><?= te('Edit: {username}', ['username' => e($edit['username'])]) ?></h3>
-        <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
-          <input type="hidden" name="do_action" value="user_update"><input type="hidden" name="id" value="<?= (int)$edit['id'] ?>">
-          <div class="form-group"><label><?= te('Username') ?></label><input name="username" value="<?= e($edit['username']) ?>"></div>
-          <div class="form-group"><label><?= te('Role') ?></label>
-            <select name="role"><option value="officer" <?= $edit['role'] === 'officer' ? 'selected' : '' ?>><?= te('officer') ?></option>
-            <option value="manager" <?= $edit['role'] === 'manager' ? 'selected' : '' ?>><?= te('manager') ?></option>
-            <option value="admin" <?= $edit['role'] === 'admin' ? 'selected' : '' ?>><?= te('admin') ?></option></select>
-          </div>
-          <div class="form-group"><label><?= te('Level') ?></label>
-            <select name="level"><option value="district" <?= ($edit['level'] ?? 'district') === 'district' ? 'selected' : '' ?>><?= te('district') ?></option>
-            <option value="province" <?= ($edit['level'] ?? '') === 'province' ? 'selected' : '' ?>><?= te('province') ?></option></select>
-          </div>
-          <div class="form-group"><label><?= te('District') ?></label>
-            <select name="district_id"><option value="">— <?= te('None (province level)') ?> —</option>
-            <?php foreach (($districts ?? []) as $d): ?>
-              <option value="<?= (int)$d['id'] ?>" <?= ($edit['district_id'] ?? null) == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option>
-            <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="form-group"><label><?= te('Email') ?></label><input name="email" value="<?= e($edit['email'] ?? '') ?>"></div>
-          <div class="form-group"><label><?= te('Phone') ?></label><input name="phone" value="<?= e($edit['phone']) ?>"></div>
-          <div class="form-group"><label><?= te('New password (blank = keep)') ?></label><input name="password" type="password" minlength="8"></div>
-          <div class="form-group"><label><?= te('Active') ?></label>
-            <select name="is_active"><option value="1" <?= $edit['is_active'] ? 'selected' : '' ?>><?= te('yes') ?></option>
-            <option value="0" <?= !$edit['is_active'] ? 'selected' : '' ?>><?= te('no') ?></option></select>
-          </div>
-          <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Save') ?></button></div>
-        </form>
-      <?php endif; ?>
-
       <?php if ($role === 'admin'): ?>
-      <h3 style="margin-top:18px;"><?= te('New staff account') ?></h3>
-      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
-        <input type="hidden" name="do_action" value="user_create">
-        <div class="form-group"><label><?= te('Username') ?></label><input name="username" required></div>
-        <div class="form-group"><label><?= te('Password') ?></label><input name="password" type="password" minlength="8" required></div>
-        <div class="form-group"><label><?= te('Role') ?></label>
-          <select name="role"><option value="officer"><?= te('officer') ?></option><option value="manager"><?= te('manager') ?></option><option value="admin"><?= te('admin') ?></option></select>
-        </div>
-        <div class="form-group"><label><?= te('Level') ?></label>
-          <select name="level"><option value="district"><?= te('district') ?></option><option value="province"><?= te('province') ?></option></select>
-        </div>
-        <div class="form-group"><label><?= te('District') ?></label>
-          <select name="district_id"><option value="">— <?= te('None (province level)') ?> —</option>
-          <?php foreach (($districts ?? []) as $d): ?>
-            <option value="<?= (int)$d['id'] ?>"><?= e($d['name_lo']) ?></option>
-          <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-group"><label><?= te('Email') ?></label><input name="email" type="email"></div>
-        <div class="form-group"><label><?= te('Phone') ?></label><input name="phone" placeholder="+856..."></div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Create') ?></button></div>
-      </form>
+      <div class="toolbar" style="margin-top:16px;">
+        <h2><?= te('Staff accounts') ?></h2>
+        <button class="btn btn-green js-modal" type="button"
+          data-form="staff-form" data-title="<?= te('Add staff') ?>" data-submit="<?= te('Add staff') ?>" data-do-action="user_create"><?= te('Add staff') ?></button>
+      </div>
       <?php endif; ?>
     </div>
 
@@ -252,6 +203,34 @@ if ($linkingUser > 0) {
 <?php endif; ?>
 
   </main>
-</div>
+
+  <template id="staff-form">
+    <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
+      <input type="hidden" name="do_action">
+      <input type="hidden" name="id" value="0">
+      <div class="form-group"><label><?= te('Username') ?></label><input name="username" required data-readonly="username"></div>
+      <div class="form-group"><label><?= te('Password') ?></label><input name="password" type="password" minlength="8" placeholder="Min 8 chars"></div>
+      <div class="form-group"><label><?= te('Role') ?></label>
+        <select name="role"><option value="officer"><?= te('officer') ?></option><option value="manager"><?= te('manager') ?></option><option value="admin"><?= te('admin') ?></option></select>
+      </div>
+      <div class="form-group"><label><?= te('Level') ?></label>
+        <select name="level"><option value="district"><?= te('district') ?></option><option value="province"><?= te('province') ?></option></select>
+      </div>
+      <div class="form-group"><label><?= te('District') ?></label>
+        <select name="district_id"><option value=""><?= te('None (province level)') ?></option>
+        <?php foreach (($districts ?? []) as $d): ?>
+          <option value="<?= (int)$d['id'] ?>"><?= e($d['name_lo']) ?></option>
+        <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="form-group"><label><?= te('Email') ?></label><input name="email" type="email"></div>
+      <div class="form-group"><label><?= te('Phone') ?></label><input name="phone"></div>
+      <div class="form-group"><label><?= te('Active') ?></label>
+        <select name="is_active"><option value="1"><?= te('yes') ?></option><option value="0"><?= te('no') ?></option></select>
+      </div>
+    </form>
+  </template>
+
+  <?php require __DIR__ . '/modal.php'; ?>
 </body>
 </html>
