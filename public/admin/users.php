@@ -13,7 +13,7 @@ $msgType = 'ok';
 
 // Fetch districts for dropdowns
 $districts = api_call('GET', 'districts.php', null, $token)['data'] ?? [];
-// Fetch provinces for the modal cascade (province → district) and table display.
+// Fetch provinces for the modal cascade (province -> district) and table display.
 $provinces = api_call('GET', 'refdata.php?table=provinces', null, $token)['data'] ?? [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -67,7 +67,7 @@ if ($linkingUser > 0) {
 <html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= te('Users') ?> — Land Fee MVP</title>
+<title><?= te('Users') ?> - Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 </head>
 <body>
@@ -108,19 +108,19 @@ if ($linkingUser > 0) {
         <?php endif; ?>
       </div>
       <table style="margin-bottom:16px;">
-        <thead><tr><th><?= te('Username') ?></th><th><?= te('Role') ?></th><th><?= te('Level') ?></th><th><?= te('Province') ?></th><th><?= te('District') ?></th><th><?= te('Email') ?></th><th><?= te('Phone') ?></th><th><?= te('Active') ?></th><th><?= te('Scans verified') ?></th><th></th></tr></thead>
+        <thead><tr><th><?= te('Username') ?></th><th><?= te('Role') ?></th><th><?= te('Level') ?></th><th><?= te('District') ?></th><th><?= te('Province') ?></th><th><?= te('Email') ?></th><th><?= te('Phone') ?></th><th><?= te('Active') ?></th><th><?= te('Scans verified') ?></th><th></th></tr></thead>
         <tbody>
         <?php foreach ($staff as $u): ?>
           <tr>
             <td><?= e($u['username']) ?></td>
             <td><?= e(t($u['role'])) ?></td>
             <td><?= e(t($u['level'] ?? 'district')) ?></td>
-            <td><?= e($u['province_name'] ?? '—') ?></td>
             <td><?php
                 $dName = $u['district_name'] ?? ($u['district_id'] ?? '—');
                 if (i18n_current() === 'lo' && !empty($u['district_name_lo'])) { $dName = $u['district_name_lo']; }
                 echo e($dName);
             ?></td>
+            <td><?= e($u['province_name'] ?? '—') ?></td>
             <td><?= e($u['email'] ?? '—') ?></td>
             <td><?= e($u['phone']) ?></td>
             <td><?= $u['is_active'] ? '<span class="pill pill-paid">' . te('active') . '</span>' : '<span class="pill pill-rej">' . te('disabled') . '</span>' ?></td>
@@ -223,17 +223,17 @@ if ($linkingUser > 0) {
         <option value="province"><?= te('Province') ?></option>
         <option value="district"><?= te('District') ?></option>
       </select></div>
-      <div class="form-group"><label><?= te("Province") ?></label><select name="province_id" id="modal-province">
-        <?php foreach ($provinces as $p): ?>
-          <option value="
-            <?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option>
-        <?php endforeach; ?>
-      </select></div>
       <div class="form-group"><label><?= te("District") ?></label><select name="district_id" id="modal-district">
         <option value="0"><?= te("---") ?></option>
         <?php foreach ($districts as $d): ?>
           <option value="
             <?= (int)$d['id'] ?>"><?= e($d['name']) ?></option>
+        <?php endforeach; ?>
+      </select></div>
+      <div class="form-group"><label><?= te("Province") ?></label><select name="province_id" id="modal-province">
+        <?php foreach ($provinces as $p): ?>
+          <option value="
+            <?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option>
         <?php endforeach; ?>
       </select></div>
       <div class="form-group"><label><?= te("Email") ?></label><input name="email" type="email"></div>
