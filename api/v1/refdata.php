@@ -133,14 +133,16 @@ $placeholders = [];
 }
 
 if ($method === 'PUT') {
-    // Update by primary key ?id=
-    $id = (int)($_GET['id'] ?? 0);
-    if (!$id) {
-        json_error('id is required', 400, 'missing_id');
+    // Updates key on ?code= (every lookup table is code-keyed) or, for
+    // provinces, on its surrogate ?id= — whichever the caller supplies.
+    $code = trim((string)($_GET['code'] ?? ''));
+    $id   = (int)($_GET['id'] ?? 0);
+    if ($code === '' && !$id) {
+        json_error('code or id is required', 400, 'missing_key');
     }
     $body = read_json_body();
     $sets = [];
-    $params = [':id' => $id];
+    $params = [];
     foreach ($cols as $c) {
         if (!array_key_exists($c, $body)) {
             continue;
@@ -151,9 +153,14 @@ if ($method === 'PUT') {
     if (!$sets) {
         json_error('Nothing to update', 400, 'nothing_to_update');
     }
-    $sets[] = 'updated_at = now()';
+    $where = $code !== '' ? 'code = :code' : 'id = :id';
+    if ($code !== '') {
+        $params[':code'] = $code;
+    } else {
+        $params[':id'] = $id;
+    }
     try {
-        $st = $pdo->prepare("UPDATE $table SET " . implode(', ', $sets) . " WHERE id = :id RETURNING *");
+        $st = $pdo->prepare("UPDATE $table SET " . implode(', ', $sets) . " WHERE $where RETURNING *");
         $st->execute($params);
         $row = $st->fetch();
         if (!$row) {

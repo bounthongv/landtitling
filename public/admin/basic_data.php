@@ -76,8 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $do = $_POST['do_action'] ?? '';
     $table = $_POST['table'] ?? '';
 
-    // Lookup tables via refdata.php
-    if ($do === 'ref_save') {
+    // Lookup tables via refdata.php — creates are ref_add, updates are
+    // ref_update (by code: every refdata table is code-keyed).
+    if ($do === 'ref_add' || $do === 'ref_update') {
         $body = ['code' => $_POST['code'] ?? '', 'name_lo' => $_POST['name_lo'] ?? '',
                  'name_en' => $_POST['name_en'] ?? ''];
         // Optional columns, only when the tab actually posts them (is_active comes
@@ -85,10 +86,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (['note', 'sort_order', 'is_active'] as $extra) {
             if (isset($_POST[$extra])) { $body[$extra] = $_POST[$extra]; }
         }
-        $id = (int)($_POST['id'] ?? 0);
-        $r = $id
-            ? api_call('PUT', 'refdata.php?table=' . urlencode($table) . '&id=' . $id, $body, $token)
-            : api_call('POST', 'refdata.php?table=' . urlencode($table), $body, $token);
+        if ($do === 'ref_add') {
+            $r = api_call('POST', 'refdata.php?table=' . urlencode($table), $body, $token);
+        } else {
+            $r = api_call('PUT', 'refdata.php?table=' . urlencode($table) . '&code=' . urlencode((string)($_POST['code'] ?? '')), $body, $token);
+        }
         $msg = !empty($r['ok']) ? t('{name} saved.', ['name' => t(ucfirst(str_replace('_', ' ', $table)))]) : ($r['error']['message'] ?? t('Save failed'));
         $msgType = !empty($r['ok']) ? 'ok' : 'err';
     }
@@ -301,6 +303,7 @@ $refGroups = [
             <td class="table-actions">
               <button class="btn btn-blue btn-sm js-modal" type="button"
                 data-form="province-form" data-title="<?= te('Edit province') ?>" data-submit="<?= te('Update province') ?>"
+                data-do-action="ref_update"
                 data-id="<?= (int)$p['id'] ?>" data-code="<?= e($p['code']) ?>" data-name-lo="<?= e($p['name_lo']) ?>"
                 data-name-en="<?= e($p['name_en'] ?? '') ?>" data-is-active="<?= $p['is_active'] ? 1 : 0 ?>"><?= te('Edit') ?></button>
               <form method="post">
@@ -316,7 +319,7 @@ $refGroups = [
 
       <template id="province-form">
         <form method="post" class="form-grid">
-          <input type="hidden" name="do_action" value="ref_save"><input type="hidden" name="table" value="provinces">
+          <input type="hidden" name="do_action" value="ref_add"><input type="hidden" name="table" value="provinces">
           <input type="hidden" name="id" value="0">
           <div class="form-group"><label><?= te('Code') ?></label><input name="code" required></div>
           <div class="form-group"><label><?= te('Name (Lao)') ?></label><input name="name_lo" required></div>
@@ -614,6 +617,7 @@ $refGroups = [
         <h2><?= e($cfg['label']) ?></h2>
         <button class="btn btn-green js-modal" type="button"
           data-form="ref-form-<?= e($tbl) ?>"
+          data-do-action="ref_add"
           data-title="<?= te('Add {thing}', ['thing' => $cfg['one']]) ?>"
           data-submit="<?= te('Add {thing}', ['thing' => $cfg['one']]) ?>"
           data-table="<?= e($tbl) ?>"><?= te('Add {thing}', ['thing' => $cfg['one']]) ?></button>
@@ -632,7 +636,8 @@ $refGroups = [
                 data-form="ref-form-<?= e($tbl) ?>"
                 data-title="<?= te('Edit {thing}', ['thing' => $cfg['one']]) ?>"
                 data-submit="<?= te('Update {thing}', ['thing' => $cfg['one']]) ?>"
-                data-table="<?= e($tbl) ?>" data-id="<?= (int)$row['id'] ?>"
+                data-do-action="ref_update"
+                data-table="<?= e($tbl) ?>"
                 data-code="<?= e($row['code']) ?>" data-name-lo="<?= e($row['name_lo']) ?>"
                 data-name-en="<?= e($row['name_en']) ?>"
                 <?php if ($cfg['sort']): ?>data-sort-order="<?= (int)($row['sort_order'] ?? 0) ?>"<?php endif; ?>><?= te('Edit') ?></button>
@@ -652,9 +657,8 @@ $refGroups = [
 
       <template id="ref-form-<?= e($tbl) ?>">
         <form method="post" class="form-grid">
-          <input type="hidden" name="do_action" value="ref_save">
+          <input type="hidden" name="do_action" value="ref_add">
           <input type="hidden" name="table" value="<?= e($tbl) ?>">
-          <input type="hidden" name="id" value="0">
           <div class="form-group"><label><?= te('Code') ?></label><input name="code" required></div>
           <div class="form-group"><label><?= te('Lao') ?></label><input name="name_lo" required></div>
           <div class="form-group"><label><?= te('English') ?></label><input name="name_en" required></div>
