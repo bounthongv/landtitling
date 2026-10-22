@@ -166,7 +166,10 @@
     background: rgba(0,0,0,0.08);
     font-weight: 500;
     letter-spacing: 0.2px;
+    line-height: 1.6;
   }
+  .side-foot-district { font-weight: 600; color: var(--sidebar-text); font-size: 14px; }
+  .side-foot-province { font-size: 12px; opacity: 0.85; }
 
   .main { flex: 1; padding: 32px 40px; overflow: auto; }
   h1 { font-size: 16px; margin: 0 0 8px; font-weight: 700; letter-spacing: -0.3px; }

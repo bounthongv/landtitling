@@ -41,12 +41,12 @@ if ($method === 'GET') {
 
     if ($kind === 'citizens') {
         $where = ["u.role = 'citizen'"];
+        $params = [];
         // District staff see only their own district's citizens.
         if ($scope['district_id'] !== null) {
             $where[] = 'u.district_id = :scope_did';
             $params[':scope_did'] = $scope['district_id'];
         }
-        $params = [];
         if ($q !== '') {
             $where[] = '(u.email ILIKE :q OR u.phone ILIKE :q)';
             $params[':q'] = '%' . $q . '%';
@@ -63,19 +63,22 @@ if ($method === 'GET') {
 
     $where = ["u.role <> 'citizen'"];
     // District staff see only their own district's staff.
+    $params = [];
     if ($scope['district_id'] !== null) {
         $where[] = 'u.district_id = :scope_did';
         $params[':scope_did'] = $scope['district_id'];
     }
-    $params = [];
     if ($q !== '') {
         $where[] = '(u.username ILIKE :q OR u.phone ILIKE :q OR u.email ILIKE :q)';
         $params[':q'] = '%' . $q . '%';
     }
     $w = 'WHERE ' . implode(' AND ', $where);
-    $st = $pdo->prepare("SELECT u.id, u.username, u.role, u.phone, u.email, u.is_active, u.created_at,
+    $st = $pdo->prepare("SELECT u.id, u.username, u.role, u.level, u.district_id, u.phone, u.email, u.is_active, u.created_at,
+            d.name_en AS district_name,
             (SELECT COUNT(*) FROM title_scans s WHERE s.verified_by = u.id) AS scans_verified
-        FROM users u $w ORDER BY u.role, u.username NULLS LAST");
+        FROM users u
+        LEFT JOIN districts d ON d.id = u.district_id
+        $w ORDER BY u.role, u.username NULLS LAST");
     $st->execute($params);
     json_ok($st->fetchAll());
 }
@@ -85,21 +88,31 @@ $action = $body['action'] ?? ($_GET['action'] ?? '');
 
 // ---- Create a staff account ----
 if ($method === 'POST' && $action === 'create') {
+    // Account management is admin-only (district admin: own district; province admin: anywhere).
+    if (($me['role'] ?? '') !== 'admin') {
+        json_error('Only admins can create accounts', 403, 'forbidden');
+    }
     $username = trim((string)($body['username'] ?? ''));
     $password = (string)($body['password'] ?? '');
     $role     = trim((string)($body['role'] ?? 'officer'));
     $phone    = trim((string)($body['phone'] ?? ''));
     $email    = trim((string)($body['email'] ?? ''));
 
-    if (!in_array($role, ['admin', 'officer'], true)) {
-        json_error('Staff role must be admin or officer', 400, 'invalid_role');
+    if (!in_array($role, ['admin', 'officer', 'manager'], true)) {
+        json_error('Staff role must be admin, officer or manager', 400, 'invalid_role');
+    }
+    $level = trim((string)($body['level'] ?? 'district'));
+    if (!in_array($level, ['district', 'province'], true)) {
+        json_error('Level must be district or province', 400, 'invalid_level');
     }
     // District-level staff may only create users in their own district.
     // Province-level staff (district_id null) may specify any district in the province.
     $districtId = null;
-    if ($scope['district_id'] !== null) {
+    if ($level === 'province') {
+        $districtId = null; // province-level users have no district
+    } elseif ($scope['district_id'] !== null) {
         $districtId = $scope['district_id'];
-    } elseif (isset($body['district_id'])) {
+    } elseif (isset($body['district_id']) && (int)$body['district_id'] > 0) {
         $districtId = (int)$body['district_id'];
     }
 
@@ -115,13 +128,13 @@ if ($method === 'POST' && $action === 'create') {
     }
 
     try {
-        $st = $pdo->prepare("INSERT INTO users (role, username, phone, email, password_hash, is_active, district_id)
-            VALUES (:role, :un, :ph, :em, :hash, TRUE, :did)
-            RETURNING id, username, role, phone, email, is_active, district_id");
+        $st = $pdo->prepare("INSERT INTO users (role, username, phone, email, password_hash, is_active, level, district_id)
+            VALUES (:role, :un, :ph, :em, :hash, TRUE, :level, :did)
+            RETURNING id, username, role, level, phone, email, is_active, district_id");
         $st->execute([
             ':role' => $role, ':un' => $username, ':ph' => $phone,
             ':em' => $email ?: null, ':hash' => password_hash($password, PASSWORD_DEFAULT),
-            ':did' => $districtId,
+            ':level' => $level, ':did' => $districtId,
         ]);
         $row = $st->fetch();
         fee_audit($pdo, $me['sub'] ?? null, 'user_create', 'user', (int)$row['id'], ['username' => $username, 'role' => $role]);
@@ -136,6 +149,9 @@ if ($method === 'POST' && $action === 'create') {
 
 // ---- Update a staff account (including password reset) ----
 if ($method === 'POST' && $action === 'update') {
+    if (($me['role'] ?? '') !== 'admin') {
+        json_error('Only admins can modify accounts', 403, 'forbidden');
+    }
     $id = (int)($body['id'] ?? 0);
     if (!$id) {
         json_error('id is required', 400, 'missing_id');
@@ -153,7 +169,7 @@ if ($method === 'POST' && $action === 'update') {
 
     $sets = [];
     $params = [':id' => $id];
-    foreach (['username', 'phone', 'email', 'district_id'] as $f) {
+    foreach (['username', 'phone', 'email'] as $f) {
         if (array_key_exists($f, $body)) {
             $sets[] = "$f = :$f";
             $params[':' . $f] = trim((string)$body[$f]) ?: null;
@@ -163,6 +179,14 @@ if ($method === 'POST' && $action === 'update') {
     if ($scope['district_id'] !== null && array_key_exists('district_id', $body)) {
         json_error('You cannot change a user\'s district', 403, 'read_only');
     }
+    if (array_key_exists('district_id', $body)) {
+        $sets[] = 'district_id = :district_id';
+        $params[':district_id'] = (int)$body['district_id'] > 0 ? (int)$body['district_id'] : null;
+    }
+    if (array_key_exists('level', $body) && in_array($body['level'], ['district', 'province'], true)) {
+        $sets[] = 'level = :level';
+        $params[':level'] = $body['level'];
+    }
     if (!empty($body['password'])) {
         if (mb_strlen((string)$body['password']) < 8) {
             json_error('Password must be at least 8 characters', 400, 'weak_password');
@@ -170,7 +194,7 @@ if ($method === 'POST' && $action === 'update') {
         $sets[] = 'password_hash = :hash';
         $params[':hash'] = password_hash((string)$body['password'], PASSWORD_DEFAULT);
     }
-    if (array_key_exists('role', $body) && in_array($body['role'], ['admin', 'officer', 'citizen'], true)) {
+    if (array_key_exists('role', $body) && in_array($body['role'], ['admin', 'officer', 'manager', 'citizen'], true)) {
         if ($user['role'] === 'citizen') {
             json_error('Citizen accounts cannot be edited here', 400, 'citizen_readonly');
         }

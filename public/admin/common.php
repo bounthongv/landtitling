@@ -62,10 +62,9 @@ function admin_nav($role) {
     ];
 
     $links = [];
-    if ($role === 'admin') {
-        $act = ($page === 'index.php') ? ' class="active"' : '';
-        $links[] = '<li' . (($page === 'index.php') ? ' class="active"' : '') . '><a' . $act . ' href="' . $base . '/index.php">' . ($icons['index.php'] ?? '') . '<span>' . te('Dashboard') . '</span></a></li>';
-    }
+    // Dashboard is visible to all staff roles (read-only stats).
+    $act = ($page === 'index.php') ? ' class="active"' : '';
+    $links[] = '<li' . $act . '><a' . $act . ' href="' . $base . '/index.php">' . ($icons['index.php'] ?? '') . '<span>' . te('Dashboard') . '</span></a></li>';
 
     $navItems = [
         'scans.php'        => 'Scan Review',
@@ -80,13 +79,12 @@ function admin_nav($role) {
         $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/' . $file . '">' . ($icons[$file] ?? '') . '<span>' . te($label) . '</span></a></li>';
     }
 
+    // Reports — read-only, visible to all staff roles.
+    $act = ($page === 'reports.php') ? ' class="active"' : '';
+    $links[] = '<li' . $act . '><a' . $act . ' href="' . $base . '/reports.php">' . ($icons['reports.php'] ?? '') . '<span>' . te('Reports') . '</span></a></li>';
+
     if ($role === 'admin') {
         $onBasicData = ($page === 'basic_data.php');
-
-        // Reports
-        $act = ($page === 'reports.php') ? ' class="active"' : '';
-        $liAct = ($page === 'reports.php') ? ' class="active"' : '';
-        $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/reports.php">' . ($icons['reports.php'] ?? '') . '<span>' . te('Reports') . '</span></a></li>';
 
         // Basic Data with submenu
         $liCls = $onBasicData ? ' class="has-sub active"' : ' class="has-sub"';
@@ -101,12 +99,11 @@ function admin_nav($role) {
             $links[] = '</ul>';
         }
         $links[] = '</li>';
-
-        // Users
-        $act = ($page === 'users.php') ? ' class="active"' : '';
-        $liAct = ($page === 'users.php') ? ' class="active"' : '';
-        $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/users.php">' . ($icons['users.php'] ?? '') . '<span>' . te('Users') . '</span></a></li>';
     }
+
+    // Users — visible to all staff (view list); create/edit is admin-only (enforced in the API).
+    $act = ($page === 'users.php') ? ' class="active"' : '';
+    $links[] = '<li' . $act . '><a' . $act . ' href="' . $base . '/users.php">' . ($icons['users.php'] ?? '') . '<span>' . te('Users') . '</span></a></li>';
     // Logout link at the bottom
     $links[] = '<li class="logout-li"><a href="' . $base . '/logout.php"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>' . te('Logout') . '</span></a></li>';
     return '<ul class="side-nav">' . implode('', $links) . '</ul>';
@@ -137,9 +134,18 @@ function admin_side_top() {
            '<div class="brand">' . te('Land Tax Collection System') . '</div>';
 }
 
-/** Sidebar footer: (empty). */
+/** Sidebar footer: district + province (district staff) or province only (province staff). */
 function admin_side_foot() {
-    return '<div class="side-foot"></div>';
+    $u = $_SESSION['admin_user'] ?? [];
+    $lines = [];
+    if (!empty($u['district_name'])) {
+        $lines[] = '<div class="side-foot-district">' . e($u['district_name']) . '</div>';
+    }
+    if (!empty($u['province_name'])) {
+        $lines[] = '<div class="side-foot-province">' . e($u['province_name']) . '</div>';
+    }
+    if (!$lines) return '<div class="side-foot"></div>';
+    return '<div class="side-foot">' . implode('', $lines) . '</div>';
 }
 
 // api_call(method, path, body, token) — helper for server-side calls to the JSON API.

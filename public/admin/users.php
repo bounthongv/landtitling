@@ -24,14 +24,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($do === 'user_create') {
         $r = api_call('POST', 'users.php', ['action' => 'create',
             'username' => $_POST['username'] ?? '', 'password' => $_POST['password'] ?? '',
-            'role' => $_POST['role'] ?? 'officer', 'phone' => $_POST['phone'] ?? '',
-            'email' => $_POST['email'] ?? ''], $token);
+            'role' => $_POST['role'] ?? 'officer', 'level' => $_POST['level'] ?? 'district',
+            'district_id' => (int)($_POST['district_id'] ?? 0),
+            'phone' => $_POST['phone'] ?? '', 'email' => $_POST['email'] ?? ''], $token);
         $msg = !empty($r['ok']) ? t('Account created.') : ($r['error']['message'] ?? t('Create failed'));
     } elseif ($do === 'user_update') {
         $body = ['action' => 'update', 'id' => (int)($_POST['id'] ?? 0)];
-        foreach (['username', 'role', 'phone', 'email'] as $f) {
+        foreach (['username', 'role', 'phone', 'email', 'level'] as $f) {
             if (isset($_POST[$f])) { $body[$f] = $_POST[$f]; }
         }
+        if (isset($_POST['district_id'])) { $body['district_id'] = (int)$_POST['district_id']; }
         if (!empty($_POST['password'])) { $body['password'] = $_POST['password']; }
         if (isset($_POST['is_active'])) { $body['is_active'] = $_POST['is_active'] === '1'; }
         $r = api_call('POST', 'users.php', $body, $token);
@@ -115,7 +117,7 @@ if ($linkingUser > 0) {
             <td><?= e($u['phone']) ?></td>
             <td><?= $u['is_active'] ? '<span class="pill pill-paid">' . te('active') . '</span>' : '<span class="pill pill-rej">' . te('disabled') . '</span>' ?></td>
             <td><?= (int)$u['scans_verified'] ?></td>
-            <td><a href="?tab=staff&edit=<?= (int)$u['id'] ?>"><?= te('Edit') ?></a></td>
+            <td><?php if ($role === 'admin'): ?><a href="?tab=staff&edit=<?= (int)$u['id'] ?>"><?= te('Edit') ?></a><?php endif; ?></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
@@ -124,7 +126,7 @@ if ($linkingUser > 0) {
       <?php
       $editId = (int)($_GET['edit'] ?? 0);
       $edit = null;
-      if ($editId) {
+      if ($editId && $role === 'admin') {
           foreach ($staff as $u) { if ((int)$u['id'] === $editId) { $edit = $u; break; } }
       }
       if ($edit): ?>
@@ -159,6 +161,7 @@ if ($linkingUser > 0) {
         </form>
       <?php endif; ?>
 
+      <?php if ($role === 'admin'): ?>
       <h3 style="margin-top:18px;"><?= te('New staff account') ?></h3>
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="user_create">
@@ -181,6 +184,7 @@ if ($linkingUser > 0) {
         <div class="form-group"><label><?= te('Phone') ?></label><input name="phone" placeholder="+856..."></div>
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Create') ?></button></div>
       </form>
+      <?php endif; ?>
     </div>
 
 <?php else: ?>
