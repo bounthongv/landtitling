@@ -26,6 +26,8 @@ BEGIN;
 -- constraint; drop any existing one and re-add with manager included.
 -- ------------------------------------------------------------------------
 DO $$
+DECLARE
+    c RECORD;
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'landfee.users'::regclass AND contype = 'c') THEN
         FOR c IN
