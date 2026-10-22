@@ -24,6 +24,7 @@ jobs:
           ssh -i "$TMP_KEY" -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "
             mkdir -p /var/www/html/landtax
             cd /var/www/html/landtax
+            git config --global --add safe.directory /var/www/html/landtax || true
             if [ ! -d .git ]; then git init && git remote add origin https://github.com/bounthongv/landtitling.git; fi
             git fetch origin
             git reset --hard origin/main
@@ -31,11 +32,13 @@ jobs:
             git clean -fd
             # Ensure API symlink exists for /api/v1 access
             ln -sfn ../api /var/www/html/landtax/public/api
-            chown -R apis:www-data /var/www/html/landtax
           "
 
-          # Clear OPcache and restart
+          # Clear OPcache and fix ownership. The tree may be owned by www-data
+          # (e.g. after a manual copy), which makes a non-sudo chown fail and
+          # abort the deploy — so chown through sudo.
           ssh -i "$TMP_KEY" -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" "
+            sudo chown -R apis:www-data /var/www/html/landtax
             sudo systemctl restart apache2
           "
 
