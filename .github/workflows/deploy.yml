@@ -29,6 +29,8 @@ jobs:
             git reset --hard origin/main
             # Remove untracked files that conflict with repo
             git clean -fd
+            # Ensure API symlink exists for /api/v1 access
+            ln -sfn ../api /var/www/html/landtax/public/api
             chown -R apis:www-data /var/www/html/landtax
           "
 
