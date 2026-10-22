@@ -3,9 +3,6 @@
 // and citizen accounts (read-only, plus linking a login to an owner record).
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
-// District admin/officer/manager and province admin/officer/manager can manage users.
-// District admin: create users in own district; province admin: create users anywhere.
-// All can view within their scope.
 $allowedRoles = ['admin', 'officer', 'manager'];
 if (!in_array($role, $allowedRoles, true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
@@ -16,11 +13,12 @@ $msgType = 'ok';
 
 // Fetch districts for dropdowns
 $districts = api_call('GET', 'districts.php', null, $token)['data'] ?? [];
+// Fetch provinces for the modal cascade (province → district) and table display.
+$provinces = api_call('GET', 'refdata.php?table=provinces', null, $token)['data'] ?? [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $do = $_POST['do_action'] ?? '';
     $r = ['ok' => false, 'error' => ['message' => t('Unknown action')]];
-
     if ($do === 'user_create') {
         $r = api_call('POST', 'users.php', ['action' => 'create',
             'username' => $_POST['username'] ?? '', 'password' => $_POST['password'] ?? '',
@@ -58,7 +56,6 @@ $citizens = $tab === 'citizens'
     ? api_call('GET', 'users.php?kind=citizens' . ($q !== '' ? '&q=' . urlencode($q) : ''), null, $token)['data'] ?? []
     : [];
 
-// Owner search for the link form
 $ownerQ = trim((string)($_GET['owner_q'] ?? ''));
 $candidates = [];
 $linkingUser = (int)($_GET['link_user'] ?? 0);
@@ -83,16 +80,13 @@ if ($linkingUser > 0) {
   <main class="main">
     <h1><?= te('Users') ?></h1>
     <p class="sub"><?= te('Staff accounts sign in with a username and password. Citizen accounts sign in with an emailed OTP, and need their login linked to an owner record before they can see any land.') ?></p>
-
     <div class="form-box" style="padding:0;">
       <table><tbody><tr>
         <td style="border:none;padding:0"><a class="btn <?= $tab === 'staff' ? 'btn-green' : '' ?> btn-sm" href="?tab=staff"><?= te('Staff') ?></a></td>
         <td style="border:none;padding:0"><a class="btn <?= $tab === 'citizens' ? 'btn-green' : '' ?> btn-sm" href="?tab=citizens"><?= te('Citizens') ?></a></td>
       </tr></tbody></table>
     </div>
-
     <?php if ($msg): ?><p class="flash <?= e($msgType) ?>"><?= e($msg) ?></p><?php endif; ?>
-
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
         <input type="hidden" name="tab" value="<?= e($tab) ?>">
@@ -103,15 +97,25 @@ if ($linkingUser > 0) {
 
 <?php if ($tab === 'staff'): ?>
     <div class="form-box">
-      <h2><?= te('Staff accounts') ?></h2>
+      <div class="toolbar">
+        <h2><?= te('Staff accounts') ?></h2>
+        <?php if ($role === 'admin'): ?>
+        <button class="btn btn-green js-modal" type="button"
+          data-form="staff-form"
+          data-title="<?= te('Add staff') ?>"
+          data-submit="<?= te('Add staff') ?>"
+          data-do-action="user_create"><?= te('Add staff') ?></button>
+        <?php endif; ?>
+      </div>
       <table style="margin-bottom:16px;">
-        <thead><tr><th><?= te('Username') ?></th><th><?= te('Role') ?></th><th><?= te('Level') ?></th><th><?= te('District') ?></th><th><?= te('Email') ?></th><th><?= te('Phone') ?></th><th><?= te('Active') ?></th><th><?= te('Scans verified') ?></th><th></th></tr></thead>
+        <thead><tr><th><?= te('Username') ?></th><th><?= te('Role') ?></th><th><?= te('Level') ?></th><th><?= te('Province') ?></th><th><?= te('District') ?></th><th><?= te('Email') ?></th><th><?= te('Phone') ?></th><th><?= te('Active') ?></th><th><?= te('Scans verified') ?></th><th></th></tr></thead>
         <tbody>
         <?php foreach ($staff as $u): ?>
           <tr>
             <td><?= e($u['username']) ?></td>
             <td><?= e(t($u['role'])) ?></td>
             <td><?= e(t($u['level'] ?? 'district')) ?></td>
+            <td><?= e($u['province_name'] ?? '—') ?></td>
             <td><?php
                 $dName = $u['district_name'] ?? ($u['district_id'] ?? '—');
                 if (i18n_current() === 'lo' && !empty($u['district_name_lo'])) { $dName = $u['district_name_lo']; }
@@ -122,24 +126,23 @@ if ($linkingUser > 0) {
             <td><?= $u['is_active'] ? '<span class="pill pill-paid">' . te('active') . '</span>' : '<span class="pill pill-rej">' . te('disabled') . '</span>' ?></td>
             <td><?= (int)$u['scans_verified'] ?></td>
             <td><button class="btn btn-blue btn-sm js-modal" type="button"
-                data-form="staff-form" data-title="<?= te('Edit user') ?>" data-submit="<?= te('Update user') ?>" data-do-action="user_update"
-                data-id="<?= (int)$u['id'] ?>" data-username="<?= e($u['username']) ?>"
-                data-role="<?= e($u['role']) ?>" data-level="<?= e($u['level'] ?? 'district') ?>"
+                data-form="staff-form"
+                data-title="<?= te('Edit user') ?>"
+                data-submit="<?= te('Update user') ?>"
+                data-do-action="user_update"
+                data-id="<?= (int)$u['id'] ?>"
+                data-username="<?= e($u['username']) ?>"
+                data-role="<?= e($u['role']) ?>"
+                data-level="<?= e($u['level'] ?? 'district') ?>"
+                data-province-id="<?= (int)($u['province_id'] ?? 0) ?>"
                 data-district-id="<?= (int)($u['district_id'] ?? 0) ?>"
-                data-email="<?= e($u['email'] ?? '') ?>" data-phone="<?= e($u['phone']) ?>"
+                data-email="<?= e($u['email'] ?? '') ?>"
+                data-phone="<?= e($u['phone']) ?>"
                 data-is-active="<?= $u['is_active'] ? '1' : '0' ?>"><?= te('Edit') ?></button></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
       </table>
-
-      <?php if ($role === 'admin'): ?>
-      <div class="toolbar" style="margin-top:16px;">
-        <h2><?= te('Staff accounts') ?></h2>
-        <button class="btn btn-green js-modal" type="button"
-          data-form="staff-form" data-title="<?= te('Add staff') ?>" data-submit="<?= te('Add staff') ?>" data-do-action="user_create"><?= te('Add staff') ?></button>
-      </div>
-      <?php endif; ?>
     </div>
 
 <?php else: ?>
@@ -168,7 +171,8 @@ if ($linkingUser > 0) {
     <div class="form-box">
       <h2><?= te('Link citizen #{id} to an owner', ['id' => (int)$linkingUser]) ?></h2>
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:12px;">
-        <input type="hidden" name="tab" value="citizens"><input type="hidden" name="link_user" value="<?= (int)$linkingUser ?>">
+        <input type="hidden" name="tab" value="citizens">
+        <input type="hidden" name="link_user" value="<?= (int)$linkingUser ?>">
         <div class="form-group"><label><?= te('Search owners') ?></label><input name="owner_q" value="<?= e($ownerQ) ?>"></div>
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Search') ?></button></div>
       </form>
@@ -203,34 +207,86 @@ if ($linkingUser > 0) {
 <?php endif; ?>
 
   </main>
+  <div class="footer"></div>
+</div>
 
   <template id="staff-form">
-    <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
-      <input type="hidden" name="do_action">
-      <input type="hidden" name="id" value="0">
-      <div class="form-group"><label><?= te('Username') ?></label><input name="username" required data-readonly="username"></div>
-      <div class="form-group"><label><?= te('Password') ?></label><input name="password" type="password" minlength="8" placeholder="Min 8 chars"></div>
-      <div class="form-group"><label><?= te('Role') ?></label>
-        <select name="role"><option value="officer"><?= te('officer') ?></option><option value="manager"><?= te('manager') ?></option><option value="admin"><?= te('admin') ?></option></select>
-      </div>
-      <div class="form-group"><label><?= te('Level') ?></label>
-        <select name="level"><option value="district"><?= te('district') ?></option><option value="province"><?= te('province') ?></option></select>
-      </div>
-      <div class="form-group"><label><?= te('District') ?></label>
-        <select name="district_id"><option value=""><?= te('None (province level)') ?></option>
-        <?php foreach (($districts ?? []) as $d): ?>
-          <option value="<?= (int)$d['id'] ?>"><?= e($d['name_lo']) ?></option>
+    <div class="form-grid">
+      <div class="form-group"><label><?= te("Username") ?></label><input name="username" data-do-readonly="username"></div>
+      <div class="form-group"><label><?= te("Password") ?></label><input name="password" type="password"></div>
+      <div class="form-group"><label><?= te("Role") ?></label><select name="role">
+        <option value="officer"><?= te('Officer') ?></option>
+        <option value="manager"><?= te('Manager') ?></option>
+        <option value="admin"><?= te('Admin') ?></option>
+      </select></div>
+      <div class="form-group"><label><?= te("Level") ?></label><select name="level">
+        <option value="province"><?= te('Province') ?></option>
+        <option value="district"><?= te('District') ?></option>
+      </select></div>
+      <div class="form-group"><label><?= te("Province") ?></label><select name="province_id" id="modal-province">
+        <?php foreach ($provinces as $p): ?>
+          <option value="
+            <?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option>
         <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="form-group"><label><?= te('Email') ?></label><input name="email" type="email"></div>
-      <div class="form-group"><label><?= te('Phone') ?></label><input name="phone"></div>
-      <div class="form-group"><label><?= te('Active') ?></label>
-        <select name="is_active"><option value="1"><?= te('yes') ?></option><option value="0"><?= te('no') ?></option></select>
-      </div>
-    </form>
+      </select></div>
+      <div class="form-group"><label><?= te("District") ?></label><select name="district_id" id="modal-district">
+        <option value="0"><?= te("---") ?></option>
+        <?php foreach ($districts as $d): ?>
+          <option value="
+            <?= (int)$d['id'] ?>"><?= e($d['name']) ?></option>
+        <?php endforeach; ?>
+      </select></div>
+      <div class="form-group"><label><?= te("Email") ?></label><input name="email" type="email"></div>
+      <div class="form-group"><label><?= te("Phone") ?></label><input name="phone"></div>
+      <div class="form-group"><label><?= te("Active") ?></label>
+        <input type="checkbox" name="is_active" value="1"></div>
+    </div>
+    <input type="hidden" name="do_action" value="user_create">
+    <input type="hidden" name="id" value="0">
   </template>
 
-  <?php require __DIR__ . '/modal.php'; ?>
+  <script>
+  (function(){
+    var provSelect = document.getElementById("modal-province");
+    var distSelect = document.getElementById("modal-district");
+    var _allDistricts = [];
+    <?php foreach ($districts as $d): ?>
+    _allDistricts.push({"
+      id": <?= (int)$d['id'] ?>, "code": "<?= str_replace(chr(39), chr(92).chr(39), $d['code']) ?>", "name": "<?= str_replace(chr(39), chr(92).chr(39), $d['name']) ?>", "province_id": <?= (int)$d['province_id'] ?>});
+    <?php endforeach; ?>
+    function applyProvince(){
+      var pid = provSelect ? provSelect.value : "0";
+      if(!distSelect) return;
+      distSelect.innerHTML = "";
+      _allDistricts.forEach(function(d){
+        if(pid && String(d.province_id) !== String(pid)) return;
+        var o = document.createElement("option");
+        o.value = d.id; o.textContent = d.name; distSelect.appendChild(o);
+      });
+    }
+    if(provSelect && distSelect){
+      provSelect.addEventListener("change", applyProvince);
+    }
+    if(window._modalOnShow) {
+      window._modalOnShow.push(function(tpl, row){
+        if(tpl.id !== "staff-form") return;
+        if(row){
+          if(provSelect && row.dataset.provinceId) {
+            provSelect.value = row.dataset.provinceId;
+          }
+          applyProvince();
+          if(distSelect && row.dataset.districtId) {
+            distSelect.value = row.dataset.districtId;
+          }
+        } else {
+          if(provSelect) provSelect.value = "0";
+          applyProvince();
+        }
+      });
+    }
+  })()
+  </script>
+
+<?php require __DIR__ . "/modal.php"; ?>
 </body>
 </html>
