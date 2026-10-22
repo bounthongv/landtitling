@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <title><?= te('Officer Login') ?> — Land Tax MVP</title>
 <style>
   body { font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; background: #eef3ea; color: #1a2e1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-  .card { background: #1b5e20; padding: 36px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.2); width: 380px; color: #fff; }
+  .card { background: #1b5e20; padding: 36px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.2); width: 380px; color: #fff; font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; }
   .title-wrap { text-align: center; margin-bottom: 24px; }
   h1 { font-size: 26px; color: #fff; margin: 0 0 6px 0; }
   .sub { color: rgba(255,255,255,0.85); font-size: 15px; margin: 0; }
