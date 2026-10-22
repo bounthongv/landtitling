@@ -1,5 +1,18 @@
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@300;400;500;600;700&display=swap');
+  @font-face {
+    font-family: 'Noto Sans Lao';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/NotoSansLao-Regular.ttf') format('truetype');
+  }
+  @font-face {
+    font-family: 'Noto Sans Lao';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/NotoSansLao-Bold.ttf') format('truetype');
+  }
   :root {
     --green: #1b5e20;
     --gold: #f9a825;
