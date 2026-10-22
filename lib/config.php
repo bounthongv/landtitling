@@ -37,8 +37,9 @@ return [
     // API base (same origin as this app, /api/v1) — dynamic so it works locally + prod.
     // API_BASE env override is for local dev/testing when the API runs on a different port.
     'api_base'     => getenv('API_BASE') ?: ($__scheme . '://' . $__host . '/api/v1'),
-    // Admin public base path.
-    'admin_base'   => '/public/admin',
+    // Admin base path — the app files live under /public/, so the admin
+    // dashboard URL is /admin (not /public/admin which would double-prefix the docroot).
+    'admin_base'   => '/admin',
     // Dev-only: echo the OTP back in the API response so the login screen can show it.
     // MUST be unset/false in production, otherwise any caller can read the code.
     'otp_debug'    => (getenv('OTP_DEBUG') ?: '0') === '1',

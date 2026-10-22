@@ -221,6 +221,10 @@
   .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(2px); }
   .modal-bg.show { display: flex; }
   .modal { background: #fff; border-radius: 16px; padding: 28px; max-width: 560px; width: 94%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+
+  /* Logout link — red tint to distinguish from nav items */
+  .side-nav li.logout-li a { color: #ef9a9a; }
+  .side-nav li.logout-li a:hover { color: #ffcdd2; background: rgba(198,40,40,0.15); }
   .modal h2 { margin-top: 0; font-size: 20px; font-weight: 700; }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 

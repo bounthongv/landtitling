@@ -107,6 +107,8 @@ function admin_nav($role) {
         $liAct = ($page === 'users.php') ? ' class="active"' : '';
         $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/users.php">' . ($icons['users.php'] ?? '') . '<span>' . te('Users') . '</span></a></li>';
     }
+    // Logout link at the bottom
+    $links[] = '<li class="logout-li"><a href="' . $base . '/logout.php"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>' . te('Logout') . '</span></a></li>';
     return '<ul class="side-nav">' . implode('', $links) . '</ul>';
 }
 
