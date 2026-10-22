@@ -33,6 +33,8 @@
   }
   * { box-sizing: border-box; }
   body { font-family: 'Phetsarath OT', 'Noto Sans Lao', 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; line-height: 1.5; font-size: 16px; }
+  /* form controls don't inherit font-family by default (browsers force Arial/system) */
+  button, input, select, textarea, label { font-family: inherit; }
   .app { display: flex; min-height: 100vh; }
 
   .side {

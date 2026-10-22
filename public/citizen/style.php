@@ -25,11 +25,13 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif;
+    font-family: 'Phetsarath OT', 'Noto Sans Lao', 'Segoe UI', sans-serif;
     background: var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
   }
+  /* form controls don't inherit font-family by default (browsers force Arial/system) */
+  button, input, select, textarea, label { font-family: inherit; }
   .app { max-width: 480px; margin: 0 auto; min-height: 100vh; }
   header.app-header {
     background: var(--green);
