@@ -25,7 +25,10 @@ jobs:
             mkdir -p /var/www/html/landtax
             cd /var/www/html/landtax
             if [ ! -d .git ]; then git init && git remote add origin https://github.com/bounthongv/landtitling.git; fi
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
+            # Remove untracked files that conflict with repo
+            git clean -fd
             chown -R apis:www-data /var/www/html/landtax
           "
 
