@@ -9,6 +9,10 @@ require_once __DIR__ . '/../../lib/validate.php';
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Auth: all staff can read; writes are province-level only
+$me = require_auth(['admin', 'officer', 'manager']);
+$scope = staff_scope($me);
+
 // ---- GET: list (public) ----
 if ($method === 'GET') {
     $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
@@ -51,9 +55,6 @@ if ($method === 'GET') {
 }
 
 // ---- Writes: admin only (province level) ---
-$me = require_auth(['admin', 'officer', 'manager']);
-$scope = staff_scope($me);
-
 // District staff cannot manage districts — that's a province-level function.
 if ($scope['district_id'] !== null) {
     // They can only see their own district (handled in GET above).
