@@ -42,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   .title-wrap { text-align: center; margin-bottom: 24px; }
   h1 { font-size: 26px; color: #fff; margin: 0 0 6px 0; }
   .sub { color: rgba(255,255,255,0.85); font-size: 15px; margin: 0; }
+  .card button, .card input { font-family: inherit; }
   .form-group { margin-bottom: 16px; }
   label { font-size: 15px; color: rgba(255,255,255,0.9); display: block; margin-bottom: 4px; }
   input { width: 100%; padding: 11px; box-sizing: border-box; border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; font-size: 15px; background: rgba(255,255,255,0.15); color: #fff; }
