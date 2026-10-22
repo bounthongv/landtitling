@@ -265,6 +265,8 @@ if ($linkingUser > 0) {
       });
     }
     if(provSelect && distSelect){
+      // Set initial state and filter districts immediately (not just on change).
+      applyProvince();
       provSelect.addEventListener("change", applyProvince);
     }
     if(window._modalOnShow) {
