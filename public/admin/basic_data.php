@@ -512,12 +512,12 @@ $refGroups = [
           <div class="form-group"><label><?= te('Code') ?></label><input name="code" required></div>
           <div class="form-group"><label><?= te('Name (Lao)') ?></label><input name="name_lo" required></div>
           <div class="form-group"><label><?= te('Name (EN)') ?></label><input name="name_en"></div>
+          <div class="form-group"><label><?= te('District') ?></label>
+            <select name="district_id" required id="v-modal-district"><?= district_options($districtsAll, $provinces) ?></select>
+          </div>
           <div class="form-group"><label><?= te('Province') ?></label>
             <select name="province_id" required id="v-modal-province"><?php foreach ($provinces as $p): ?>
               <option value="<?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option><?php endforeach; ?></select>
-          </div>
-          <div class="form-group"><label><?= te('District') ?></label>
-            <select name="district_id" required id="v-modal-district"><?= district_options($districtsAll, $provinces) ?></select>
           </div>
         </form>
       </template>
