@@ -35,20 +35,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="<?= i18n_current() ?>">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= te('Officer Login') ?> — Land Fee MVP</title>
+<title><?= te('Officer Login') ?> — Land Tax MVP</title>
 <style>
-  body { font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; background: #eef3ea; color: #1a2e1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-  .card { background: #fff; padding: 28px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.12); width: 360px; }
-  h1 { font-size: 20px; color: #1b5e20; margin-top: 0; }
-  .sub { color: #555; font-size: 13px; margin-bottom: 20px; }
+  body { font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; background: #1b5e20; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .card { background: #fff; padding: 32px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.2); width: 380px; }
+  .title-wrap { text-align: center; margin-bottom: 24px; }
+  h1 { font-size: 22px; color: #1b5e20; margin: 0 0 4px 0; }
+  .sub { color: #555; font-size: 14px; margin: 0; }
   .form-group { margin-bottom: 16px; }
-  label { font-size: 13px; color: #333; display: block; margin-bottom: 4px; }
-  input { width: 100%; padding: 9px; box-sizing: border-box; border: 1px solid #bbb; border-radius: 4px; }
-  button { background: #1b5e20; color: #fff; padding: 10px 14px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; width: 100%; }
+  label { font-size: 14px; color: #333; display: block; margin-bottom: 4px; }
+  input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #bbb; border-radius: 4px; font-size: 14px; }
+  button { background: #1b5e20; color: #fff; padding: 11px 14px; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; width: 100%; }
   button:hover { background: #2e7d32; }
-  .msg { color: #b71c1c; background: #fdecea; padding: 10px; border-radius: 4px; font-size: 13px; margin-bottom: 12px; }
-  .foot { font-size: 12px; color: #777; text-align: center; margin-top: 16px; }
-  .lang-switch { text-align: right; font-size: 12px; margin-bottom: 10px; }
+  .msg { color: #b71c1c; background: #fdecea; padding: 10px; border-radius: 4px; font-size: 14px; margin-bottom: 12px; }
+  .foot { font-size: 13px; color: #777; text-align: center; margin-top: 18px; }
+  .lang-switch { text-align: right; font-size: 13px; margin-bottom: 10px; }
   .lang-switch a { color: #1b5e20; text-decoration: none; padding: 2px 6px; border-radius: 3px; }
   .lang-switch a:hover { background: #e8f0e6; }
   .lang-switch a.active { background: #1b5e20; color: #fff; font-weight: 700; }
@@ -58,8 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 <div class="card">
   <?= lang_switch('login.php') ?>
-  <h1><?= te('Officer Login') ?></h1>
-  <p class="sub"><?= te('Land Fee Payment — Savannakhet Province') ?></p>
+  <div class="title-wrap">
+    <h1><?= te('Officer Login') ?></h1>
+    <p class="sub"><?= te('Land Tax Payment — Savannakhet Province') ?></p>
+  </div>
   <?php if ($error): ?><div class="msg"><?= e($error) ?></div><?php endif; ?>
   <form method="post">
     <div class="form-group"><label><?= te('Username') ?></label><input name="username" value="sav_officer" required></div>
