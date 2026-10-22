@@ -37,23 +37,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= te('Officer Login') ?> — Land Tax MVP</title>
 <style>
-  body { font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; background: #1b5e20; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-  .card { background: #fff; padding: 32px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.2); width: 380px; }
+  body { font-family: 'Segoe UI', 'Noto Sans Lao', sans-serif; background: #eef3ea; color: #1a2e1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .card { background: #1b5e20; padding: 32px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.2); width: 380px; color: #fff; }
   .title-wrap { text-align: center; margin-bottom: 24px; }
-  h1 { font-size: 22px; color: #1b5e20; margin: 0 0 4px 0; }
-  .sub { color: #555; font-size: 14px; margin: 0; }
+  h1 { font-size: 22px; color: #fff; margin: 0 0 4px 0; }
+  .sub { color: rgba(255,255,255,0.85); font-size: 14px; margin: 0; }
   .form-group { margin-bottom: 16px; }
-  label { font-size: 14px; color: #333; display: block; margin-bottom: 4px; }
-  input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #bbb; border-radius: 4px; font-size: 14px; }
-  button { background: #1b5e20; color: #fff; padding: 11px 14px; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; width: 100%; }
-  button:hover { background: #2e7d32; }
-  .msg { color: #b71c1c; background: #fdecea; padding: 10px; border-radius: 4px; font-size: 14px; margin-bottom: 12px; }
-  .foot { font-size: 13px; color: #777; text-align: center; margin-top: 18px; }
+  label { font-size: 14px; color: rgba(255,255,255,0.9); display: block; margin-bottom: 4px; }
+  input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; font-size: 14px; background: rgba(255,255,255,0.15); color: #fff; }
+  input::placeholder { color: rgba(255,255,255,0.5); }
+  button { background: #fff; color: #1b5e20; padding: 11px 14px; border: none; border-radius: 4px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; }
+  button:hover { background: #e8f5e9; }
+  .msg { color: #ffcdd2; background: rgba(183,28,28,0.6); padding: 10px; border-radius: 4px; font-size: 14px; margin-bottom: 12px; }
+  .foot { font-size: 13px; color: rgba(255,255,255,0.7); text-align: center; margin-top: 18px; }
+  .foot code { background: rgba(255,255,255,0.15); padding: 1px 4px; border-radius: 3px; }
   .lang-switch { text-align: right; font-size: 13px; margin-bottom: 10px; }
-  .lang-switch a { color: #1b5e20; text-decoration: none; padding: 2px 6px; border-radius: 3px; }
-  .lang-switch a:hover { background: #e8f0e6; }
-  .lang-switch a.active { background: #1b5e20; color: #fff; font-weight: 700; }
-  .lang-switch span { color: #999; margin: 0 2px; }
+  .lang-switch a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 2px 6px; border-radius: 3px; }
+  .lang-switch a:hover { background: rgba(255,255,255,0.15); }
+  .lang-switch a.active { background: rgba(255,255,255,0.25); color: #fff; font-weight: 700; }
+  .lang-switch span { color: rgba(255,255,255,0.5); margin: 0 2px; }
 </style>
 </head>
 <body>
