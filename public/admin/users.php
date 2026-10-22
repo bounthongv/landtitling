@@ -211,6 +211,7 @@ if ($linkingUser > 0) {
 </div>
 
   <template id="staff-form">
+    <form method="post">
     <div class="form-grid">
       <div class="form-group"><label><?= te("Username") ?></label><input name="username" data-do-readonly="username"></div>
       <div class="form-group"><label><?= te("Password") ?></label><input name="password" type="password"></div>
@@ -243,6 +244,7 @@ if ($linkingUser > 0) {
     </div>
     <input type="hidden" name="do_action" value="user_create">
     <input type="hidden" name="id" value="0">
+    </form>
   </template>
 
   <script>
