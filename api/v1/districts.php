@@ -18,6 +18,11 @@ if ($method === 'GET') {
         $where = 'WHERE d.province_id = :pid';
         $params[':pid'] = $province_id;
     }
+    // District staff see only their own district.
+    if ($scope['district_id'] !== null) {
+        $where = ($where ? $where . ' AND ' : 'WHERE ') . 'd.id = :scope_did';
+        $params[':scope_did'] = $scope['district_id'];
+    }
 
     // Sortable columns, whitelisted to a fixed expression map — the key is never
     // interpolated into SQL, only the mapped expression is. Default stays name_lo,
@@ -45,8 +50,18 @@ if ($method === 'GET') {
     json_ok($stmt->fetchAll());
 }
 
-// ---- Writes: admin only ----
-$me = require_auth(['admin']);
+// ---- Writes: admin only (province level) ---
+$me = require_auth(['admin', 'officer', 'manager']);
+$scope = staff_scope($me);
+
+// District staff cannot manage districts — that's a province-level function.
+if ($scope['district_id'] !== null) {
+    // They can only see their own district (handled in GET above).
+    // Any write attempt by district staff is rejected.
+    if ($method !== 'GET') {
+        json_error('District management is a province-level function', 403, 'read_only');
+    }
+}
 
 /** Usage counts, so a refused delete explains itself. */
 function district_usage(PDO $pdo, int $id): array {

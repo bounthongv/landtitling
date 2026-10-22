@@ -62,10 +62,12 @@ function auth_issue_token(array $user) {
     $cfg = require __DIR__ . '/config.php';
     $now = time();
     $payload = [
-        'sub'  => (int)$user['id'],
-        'role' => $user['role'],
-        'iat'  => $now,
-        'exp'  => $now + $cfg['jwt_ttl'],
+        'sub'         => (int)$user['id'],
+        'role'        => $user['role'],
+        'level'       => $user['level'] ?? 'district',
+        'district_id' => isset($user['district_id']) && $user['district_id'] !== null ? (int)$user['district_id'] : null,
+        'iat'         => $now,
+        'exp'         => $now + $cfg['jwt_ttl'],
     ];
     return jwt_encode($payload, $cfg['jwt_secret']);
 }
@@ -94,4 +96,50 @@ function require_auth(array $roles = null) {
         json_error('Forbidden', 403, 'forbidden');
     }
     return $payload;
+}
+
+/**
+ * Staff access scope for a decoded JWT payload.
+ *
+ * Returns ['district_id' => int|null, 'can_write' => bool]:
+ *  - district-level staff: district_id is set; only district admin/officer
+ *    may write records (managers are read-only).
+ *  - province-level staff: district_id null (whole province); province users
+ *    are read-only for records — data entry happens at district level.
+ */
+function staff_scope(array $payload) {
+    $level = $payload['level'] ?? 'district';
+    $district_id = isset($payload['district_id']) ? (int)$payload['district_id'] : 0;
+    $can_write = ($level === 'district' && in_array($payload['role'] ?? '', ['admin', 'officer'], true));
+    return [
+        'district_id' => $level === 'district' && $district_id > 0 ? $district_id : null,
+        'can_write'   => $can_write,
+    ];
+}
+
+/**
+ * Require that the caller is staff who may write records (district admin/officer).
+ * Sends 403 otherwise. Returns the staff_scope() array.
+ */
+function require_staff_write(array $payload) {
+    $scope = staff_scope($payload);
+    if (!$scope['can_write']) {
+        json_error('You do not have permission to modify records', 403, 'read_only');
+    }
+    return $scope;
+}
+
+/**
+ * District filter clause + params for a query on the given table alias.
+ * Province-level staff (district_id null) get an empty clause (no filter).
+ */
+function district_filter_clause(array $payload, string $alias = 'p') {
+    $scope = staff_scope($payload);
+    if ($scope['district_id'] === null) {
+        return ['clause' => '', 'params' => []];
+    }
+    return [
+        'clause' => $alias . ".district_id = :" . $alias . "_district",
+        'params' => [$alias . '_district' => $scope['district_id']],
+    ];
 }

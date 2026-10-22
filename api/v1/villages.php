@@ -23,7 +23,11 @@ if ($method === 'GET') {
         $where[] = 'd.province_id = :pid';
         $params[':pid'] = $province_id;
     }
-    if ($district_id) {
+    // District staff see only their own district's villages.
+    if ($scope['district_id'] !== null) {
+        $where[] = 'v.district_id = :scope_did';
+        $params[':scope_did'] = $scope['district_id'];
+    } elseif ($district_id) {
         $where[] = 'v.district_id = :did';
         $params[':did'] = $district_id;
     }
@@ -60,8 +64,14 @@ if ($method === 'GET') {
     json_ok($st->fetchAll());
 }
 
-// ---- Writes: admin only ----
-$me = require_auth(['admin']);
+// ---- Writes: admin only (province level) ---
+$me = require_auth(['admin', 'officer', 'manager']);
+$scope = staff_scope($me);
+
+// District staff cannot manage villages — that's a province-level function.
+if ($scope['district_id'] !== null && $method !== 'GET') {
+    json_error('Village management is a province-level function', 403, 'read_only');
+}
 
 if ($method === 'POST' && !isset($_GET['id'])) {
     $body = read_json_body();

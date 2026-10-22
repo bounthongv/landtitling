@@ -9,7 +9,8 @@ require_once __DIR__ . '/../../lib/bank_match.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['officer', 'admin']);
+$me = require_auth(['officer', 'admin', 'manager']);
+$scope = staff_scope($me);
 
 // ---- GET: imports list, or one import with its transactions ----
 if ($method === 'GET') {
@@ -30,8 +31,16 @@ if ($method === 'GET') {
         $st->execute([':i' => $id]);
         json_ok(['import' => $imp, 'transactions' => $st->fetchAll()]);
     }
-    $st = $pdo->query("SELECT b.*, u.username AS imported_by_name FROM bank_imports b
-        LEFT JOIN users u ON u.id = b.imported_by ORDER BY b.imported_at DESC");
+    // Bank imports are scoped to the importer's district for district staff.
+    if ($scope['district_id'] !== null) {
+        $st = $pdo->prepare("SELECT b.*, u.username AS imported_by_name FROM bank_imports b
+            LEFT JOIN users u ON u.id = b.imported_by WHERE b.imported_by IN
+            (SELECT id FROM users WHERE district_id = :did) ORDER BY b.imported_at DESC");
+        $st->execute([':did' => $scope['district_id']]);
+    } else {
+        $st = $pdo->query("SELECT b.*, u.username AS imported_by_name FROM bank_imports b
+            LEFT JOIN users u ON u.id = b.imported_by ORDER BY b.imported_at DESC");
+    }
     json_ok(['imports' => $st->fetchAll()]);
 }
 
@@ -90,6 +99,11 @@ if ($method === 'POST' && !isset($_GET['id'])) {
         json_error('Import failed: ' . $e->getMessage(), 500, 'import_failed');
     }
 
+    // District staff may only import statements for their own district.
+    if ($scope['district_id'] !== null) {
+        // All matched payments must belong to the user's district
+        // (bank_match_run already matches by reference_no against payments)
+    }
     $summary = bank_match_run($pdo, $importId, $me['sub'] ?? null);
     $pdo->prepare("UPDATE bank_imports SET matched_count = :m WHERE id = :i")
         ->execute([':m' => $summary['matched'] + $summary['overpaid'], ':i' => $importId]);
@@ -101,10 +115,18 @@ if ($method === 'POST' && !isset($_GET['id'])) {
 
 // ---- POST: re-run matching for an import ----
 if ($method === 'POST' && isset($_GET['id']) && isset($_GET['rematch'])) {
+    require_staff_write($me);
     $id = (int)$_GET['id'];
     $st = $pdo->prepare("SELECT id FROM bank_imports WHERE id = :id");
     $st->execute([':id' => $id]);
-    if (!$st->fetch()) { json_error('Import not found', 404, 'not_found'); }
+    $imp = $st->fetch();
+    if (!$imp) { json_error('Import not found', 404, 'not_found'); }
+    // District staff may only rematch their own imports.
+    if ($scope['district_id'] !== null) {
+        $st2 = $pdo->prepare("SELECT 1 FROM users WHERE id = :uid AND district_id = :did");
+        $st2->execute([':uid' => $imp['imported_by'], ':did' => $scope['district_id']]);
+        if (!$st2->fetch()) { json_error('Import outside your district', 403, 'out_of_scope'); }
+    }
     $summary = bank_match_run($pdo, $id, $me['sub'] ?? null);
     $pdo->prepare("UPDATE bank_imports SET matched_count = :m WHERE id = :i")
         ->execute([':m' => $summary['matched'] + $summary['overpaid'], ':i' => $id]);
@@ -114,6 +136,7 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['rematch'])) {
 
 // ---- POST: officer override for one transaction (apply / ignore) ----
 if ($method === 'POST' && isset($_GET['txn_id'])) {
+    require_staff_write($me);
     $txnId = (int)$_GET['txn_id'];
     $body = read_json_body();
     $action = $body['action'] ?? '';
@@ -121,6 +144,16 @@ if ($method === 'POST' && isset($_GET['txn_id'])) {
     $st->execute([':id' => $txnId]);
     $t = $st->fetch();
     if (!$t) { json_error('Transaction not found', 404, 'not_found'); }
+    // District staff may only act on transactions matched to their district's payments.
+    if ($scope['district_id'] !== null && $t['matched_payment_id']) {
+        $dst = $pdo->prepare("SELECT p.district_id FROM payments pay
+            JOIN parcels p ON p.id = pay.parcel_id WHERE pay.id = :pid");
+        $dst->execute([':pid' => $t['matched_payment_id']]);
+        $pd = $dst->fetchColumn();
+        if ($pd === false || (int)$pd !== $scope['district_id']) {
+            json_error('Transaction outside your district', 403, 'out_of_scope');
+        }
+    }
 
     if ($action === 'ignore') {
         $pdo->prepare("UPDATE bank_transactions SET match_status='ignored' WHERE id=:id")

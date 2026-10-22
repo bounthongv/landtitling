@@ -7,7 +7,8 @@ require_once __DIR__ . '/../../lib/fee.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['officer', 'admin']);
+$me = require_auth(['officer', 'admin', 'manager']);
+$scope = staff_scope($me);
 
 // ---- GET: list obligations (filters: fee_year, district_id, parcel_id, status, overdue) ----
 if ($method === 'GET') {
@@ -30,6 +31,11 @@ if ($method === 'GET') {
     }
     if ($overdue) {
         $where[] = 'o.due_date < CURRENT_DATE';
+    }
+    // District staff see only their own district's obligations.
+    if ($scope['district_id'] !== null) {
+        $where[] = 'o.district_id = :scope_did';
+        $params[':scope_did'] = $scope['district_id'];
     }
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
@@ -56,9 +62,18 @@ if ($method === 'POST') {
     $action = $body['action'] ?? 'generate';
 
     if ($action === 'generate') {
+        require_staff_write($me);   // only district admin/officer assess fees
         $year       = (int)($body['fee_year'] ?? date('Y'));
         $districtId = (int)($body['district_id'] ?? 0);
         $parcelId   = (int)($body['parcel_id'] ?? 0);
+
+        // District staff may only assess their own district's parcels.
+        if ($scope['district_id'] !== null) {
+            if ($districtId && $districtId !== $scope['district_id']) {
+                json_error('You can only assess fees for your own district', 403, 'out_of_scope');
+            }
+            $districtId = $scope['district_id'];
+        }
 
         $sql    = "SELECT id FROM parcels WHERE status = 'confirmed'";
         $params = [];
@@ -92,10 +107,19 @@ if ($method === 'POST') {
 
     // ---- POST: recompute one parcel's obligation (audited) ----
     if ($action === 'recompute') {
+        require_staff_write($me);   // only district admin/officer recompute fees
         $parcelId = (int)($body['parcel_id'] ?? 0);
         $year     = (int)($body['fee_year'] ?? date('Y'));
         if ($parcelId <= 0) {
             json_error('parcel_id is required', 400, 'missing_parcel_id');
+        }
+        if ($scope['district_id'] !== null) {
+            $dst = $pdo->prepare("SELECT district_id FROM parcels WHERE id = :id");
+            $dst->execute([':id' => $parcelId]);
+            $pd = $dst->fetchColumn();
+            if ($pd === false || (int)$pd !== $scope['district_id']) {
+                json_error('Parcel outside your district', 403, 'out_of_scope');
+            }
         }
 
         $stmt = $pdo->prepare("SELECT amount_due, amount_paid, status

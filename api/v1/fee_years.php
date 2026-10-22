@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../lib/validate.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['officer', 'admin']);
+$me = require_auth(['officer', 'admin', 'manager']);
 
 // ---- GET: list fee years with obligation counts ----
 if ($method === 'GET') {

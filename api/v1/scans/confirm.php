@@ -9,15 +9,24 @@ require_once __DIR__ . '/../../../lib/fee.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['officer', 'admin']);
+$me = require_auth(['officer', 'admin', 'manager']);
+$scope = require_staff_write($me);   // only district admin/officer confirm scans
 
 $id = (int)($_GET['id'] ?? '0');
 if (!$id) { json_error('Scan id required', 400, 'missing_id'); }
 
-$stmt = $pdo->prepare("SELECT id, parcel_id FROM title_scans WHERE id = :id");
+$stmt = $pdo->prepare("SELECT ts.id, ts.parcel_id, ts.district_id, p.district_id AS parcel_district
+                       FROM title_scans ts LEFT JOIN parcels p ON p.id = ts.parcel_id
+                       WHERE ts.id = :id");
 $stmt->execute([':id' => $id]);
 $scan = $stmt->fetch();
 if (!$scan) { json_error('Scan not found', 404, 'not_found'); }
+// District staff may only confirm scans that belong to their own district.
+$scanDistrict = $scan['district_id'] !== null ? (int)$scan['district_id']
+    : ($scan['parcel_district'] !== null ? (int)$scan['parcel_district'] : null);
+if ($scope['district_id'] !== null && $scanDistrict !== $scope['district_id']) {
+    json_error('Scan outside your district', 403, 'out_of_scope');
+}
 
 if ($method !== 'POST') { json_error('Method not allowed', 405, 'method_not_allowed'); }
 
@@ -56,6 +65,11 @@ reject_on_errors($errors);
 
 $districtId = (int)$district;
 $villageId  = (int)$village;
+
+// District staff may only place a confirmed parcel in their own district.
+if ($scope['district_id'] !== null && $districtId !== $scope['district_id']) {
+    json_error('You can only confirm parcels into your own district', 403, 'out_of_scope');
+}
 
 $st = $pdo->prepare("SELECT id FROM villages WHERE id = :id AND district_id = :did");
 $st->execute([':id' => $villageId, ':did' => $districtId]);
@@ -156,9 +170,9 @@ foreach ($owners as $o) {
 }
 
 // ---- Link the scan to the parcel and mark it confirmed ----
-$pdo->prepare("UPDATE title_scans SET parcel_id=:pid, status='confirmed', verified_by=:v,
+$pdo->prepare("UPDATE title_scans SET parcel_id=:pid, status='confirmed', district_id=:did, verified_by=:v,
     verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=:id")
-    ->execute([':pid' => $parcelId, ':v' => $me['sub'], ':id' => $id]);
+    ->execute([':pid' => $parcelId, ':did' => $districtId, ':v' => $me['sub'], ':id' => $id]);
 
 // ---- Assess the current-year obligation so the fee is visible immediately ----
 $obligationId = null;

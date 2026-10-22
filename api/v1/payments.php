@@ -31,6 +31,26 @@ function payment_context(PDO $pdo, array $payment): array {
     return $out;
 }
 
+/**
+ * District scope check for staff acting on a payment.
+ * Province-level staff (district_id null) may act anywhere in the province;
+ * district-level staff only on their own district's parcels.
+ */
+function payment_in_scope(array $me, $districtId): bool {
+    $scope = staff_scope($me);
+    if ($scope['district_id'] === null) { return true; }
+    return $districtId !== null && (int)$districtId === $scope['district_id'];
+}
+
+/** District id of the parcel behind a payment row. */
+function payment_district(PDO $pdo, array $payment): ?int {
+    $st = $pdo->prepare("SELECT p.district_id FROM payments pay
+        JOIN parcels p ON p.id = pay.parcel_id WHERE pay.id = :id");
+    $st->execute([':id' => (int)$payment['id']]);
+    $d = $st->fetchColumn();
+    return $d === false ? null : (int)$d;
+}
+
 // ---- CREATE a payment (settlement) against an obligation ----
 if ($method === 'POST' && !isset($_GET['id'])) {
     $me = require_auth(['citizen', 'officer', 'admin']);
@@ -55,6 +75,17 @@ if ($method === 'POST' && !isset($_GET['id'])) {
     $st->execute([':id' => $obligationId]);
     $ob = $st->fetch();
     if (!$ob) { json_error('Obligation not found', 404, 'obligation_not_found'); }
+
+    // District staff may only raise payments for their own district's parcels.
+    if ($me['role'] !== 'citizen') {
+        $st2 = $pdo->prepare("SELECT p.district_id FROM parcels p WHERE p.id = :id");
+        $st2->execute([':id' => (int)$ob['parcel_id']]);
+        $obDistrict = $st2->fetchColumn();
+        $obDistrict = $obDistrict === false ? null : (int)$obDistrict;
+        if (!payment_in_scope($me, $obDistrict)) {
+            json_error('Payment outside your district', 403, 'out_of_scope');
+        }
+    }
 
     // Settle against what is still outstanding.
     $outstanding = round(((float)$ob['amount_due'] + (float)$ob['penalty']) - (float)$ob['amount_paid'], 2);
@@ -91,7 +122,7 @@ if ($method === 'POST' && !isset($_GET['id'])) {
 
 // ---- Printable slip ----
 if ($method === 'GET' && isset($_GET['id']) && isset($_GET['slip'])) {
-    $me = require_auth(['citizen', 'officer', 'admin']);
+    $me = require_auth(['citizen', 'officer', 'admin', 'manager']);
     $id = (int)$_GET['id'];
     $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
     $st->execute([':id' => $id]);
@@ -103,6 +134,8 @@ if ($method === 'GET' && isset($_GET['id']) && isset($_GET['slip'])) {
         if (!$owns) {
             json_error('Forbidden', 403, 'forbidden');
         }
+    } elseif (!payment_in_scope($me, payment_district($pdo, $payment))) {
+        json_error('Payment outside your district', 403, 'out_of_scope');
     }
     $ctx = payment_context($pdo, $payment);
     $slip = $payment;
@@ -124,7 +157,11 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
     }
     $st = $pdo->prepare("SELECT id FROM payments WHERE id = :id");
     $st->execute([':id' => $id]);
-    if (!$st->fetch()) { json_error('Payment not found', 404, 'not_found'); }
+    $pRow = $st->fetch();
+    if (!$pRow) { json_error('Payment not found', 404, 'not_found'); }
+    if ($me['role'] !== 'citizen' && !payment_in_scope($me, payment_district($pdo, $pRow))) {
+        json_error('Payment outside your district', 403, 'out_of_scope');
+    }
 
     $cfg = require __DIR__ . '/../../lib/config.php';
     $uploadDir = $cfg['uploads'];
@@ -145,12 +182,16 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
 // ---- VERIFY (officer) ----
 if ($method === 'POST' && isset($_GET['id']) && isset($_GET['verify'])) {
     $me = require_auth(['officer', 'admin']);
+    require_staff_write($me);
     $id = (int)$_GET['id'];
     $body = read_json_body();
     $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
     $st->execute([':id' => $id]);
     $payment = $st->fetch();
     if (!$payment) { json_error('Payment not found', 404, 'not_found'); }
+    if (!payment_in_scope($me, payment_district($pdo, $payment))) {
+        json_error('Payment outside your district', 403, 'out_of_scope');
+    }
     if ($payment['status'] === 'PAID') { json_error('Already paid', 409, 'already_paid'); }
     if ($payment['status'] === 'REJECTED') { json_error('Payment was rejected', 409, 'rejected'); }
 
@@ -167,12 +208,16 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['verify'])) {
 // ---- REJECT (officer) ----
 if ($method === 'POST' && isset($_GET['id']) && isset($_GET['reject'])) {
     $me = require_auth(['officer', 'admin']);
+    require_staff_write($me);
     $id = (int)$_GET['id'];
     $body = read_json_body();
     $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
     $st->execute([':id' => $id]);
     $payment = $st->fetch();
     if (!$payment) { json_error('Payment not found', 404, 'not_found'); }
+    if (!payment_in_scope($me, payment_district($pdo, $payment))) {
+        json_error('Payment outside your district', 403, 'out_of_scope');
+    }
     if ($payment['status'] !== 'ISSUED') { json_error('Payment is not in ISSUED state', 409, 'bad_state'); }
 
     $pdo->prepare("UPDATE payments SET status='REJECTED', verified_by=:v, verify_method='manual',
@@ -188,12 +233,16 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['reject'])) {
 // ---- WAIVE the obligation behind a payment (officer) ----
 if ($method === 'POST' && isset($_GET['id']) && isset($_GET['waive'])) {
     $me = require_auth(['officer', 'admin']);
+    require_staff_write($me);
     $id = (int)$_GET['id'];
     $body = read_json_body();
     $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
     $st->execute([':id' => $id]);
     $payment = $st->fetch();
     if (!$payment) { json_error('Payment not found', 404, 'not_found'); }
+    if (!payment_in_scope($me, payment_district($pdo, $payment))) {
+        json_error('Payment outside your district', 403, 'out_of_scope');
+    }
     if (empty($payment['obligation_id'])) { json_error('Payment has no obligation', 409, 'no_obligation'); }
 
     $pdo->prepare("UPDATE fee_obligations SET status='WAIVED', updated_at=now() WHERE id=:id")
@@ -206,7 +255,7 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['waive'])) {
 
 // ---- LIST ----
 if ($method === 'GET') {
-    $me = require_auth(['citizen', 'officer', 'admin']);
+    $me = require_auth(['citizen', 'officer', 'admin', 'manager']);
     $status   = $_GET['status'] ?? null;
     $feeYear  = isset($_GET['fee_year']) ? (int)$_GET['fee_year'] : 0;
     $district = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
@@ -216,6 +265,14 @@ if ($method === 'GET') {
     if ($status !== null && $status !== '') { $where[] = 'pay.status = :s'; $params[':s'] = $status; }
     if ($feeYear)  { $where[] = 'pay.fee_year = :fy'; $params[':fy'] = $feeYear; }
     if ($district) { $where[] = 'par.district_id = :did'; $params[':did'] = $district; }
+    // District staff see only their own district's payments.
+    if ($me['role'] !== 'citizen') {
+        $scope = staff_scope($me);
+        if ($scope['district_id'] !== null) {
+            $where[] = 'par.district_id = :scope_did';
+            $params[':scope_did'] = $scope['district_id'];
+        }
+    }
     if ($me['role'] === 'citizen') {
         // A citizen sees payments only for parcels they own (owners.citizen_user_id).
         // Note payer_owner_id points at owners.id, NOT users.id — it cannot be used to

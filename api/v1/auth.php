@@ -105,14 +105,38 @@ if ($action === 'login') {
     reject_on_errors($err);
 
     $pdo = db_connect();
-    $stmt = $pdo->prepare("SELECT id, role, password_hash FROM users WHERE username = :username AND is_active = TRUE");
+    $stmt = $pdo->prepare("SELECT id, username, role, level, district_id, password_hash FROM users WHERE username = :username AND is_active = TRUE");
     $stmt->execute([':username' => $username]);
     $user = $stmt->fetch();
     if (!$user || !password_verify($password, $user['password_hash'])) {
         json_error('Invalid credentials', 401, 'invalid_credentials');
     }
+    // Resolve the district/province names for the UI (sidebar footer, etc.)
+    $names = ['district_name' => null, 'province_name' => null];
+    if (($user['level'] ?? 'district') === 'district' && $user['district_id']) {
+        $dst = $pdo->prepare("SELECT d.name_en AS district_name, p.name_en AS province_name
+                              FROM districts d LEFT JOIN provinces p ON p.id = d.province_id
+                              WHERE d.id = :id");
+        $dst->execute([':id' => $user['district_id']]);
+        if ($dn = $dst->fetch()) {
+            $names['district_name'] = $dn['district_name'];
+            $names['province_name'] = $dn['province_name'];
+        }
+    } else {
+        $pst = $pdo->prepare("SELECT name_en FROM provinces WHERE code = '13' LIMIT 1");
+        $pst->execute();
+        if ($pn = $pst->fetch()) {
+            $names['province_name'] = $pn['name_en'];
+        }
+    }
+    $user['level'] = $user['level'] ?? 'district';
     $token = auth_issue_token($user);
-    json_ok(['token' => $token, 'user' => ['id' => (int)$user['id'], 'role' => $user['role']]]);
+    json_ok(['token' => $token, 'user' => [
+        'id' => (int)$user['id'], 'role' => $user['role'], 'level' => $user['level'],
+        'district_id' => isset($user['district_id']) ? (int)$user['district_id'] : null,
+        'username' => $user['username'],
+        'district_name' => $names['district_name'], 'province_name' => $names['province_name'],
+    ]]);
 }
 
 json_error('Unknown auth action', 400, 'bad_action');

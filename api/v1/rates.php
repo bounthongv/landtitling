@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../lib/slip.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['officer', 'admin']);
+$me = require_auth(['officer', 'admin', 'manager']);
 
 // ---- GET: list zones (active first) ----
 if ($method === 'GET') {

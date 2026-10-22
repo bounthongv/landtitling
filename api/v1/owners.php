@@ -10,7 +10,8 @@ require_once __DIR__ . '/../../lib/validate.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['officer', 'admin']);
+$me = require_auth(['officer', 'admin', 'manager']);
+$scope = staff_scope($me);
 
 $roles = ['owner', 'co_owner', 'representative'];
 $ownerTypes = ['individual', 'organization', 'joint'];
@@ -28,26 +29,46 @@ function owner_fields(array $in): array {
 }
 
 if ($method === 'GET' && isset($_GET['parcel_id'])) {
+    $pid = (int)$_GET['parcel_id'];
+    // District staff may only view owners of parcels in their district.
+    if ($scope['district_id'] !== null) {
+        $dst = $pdo->prepare("SELECT district_id FROM parcels WHERE id = :pid");
+        $dst->execute([':pid' => $pid]);
+        $pd = $dst->fetchColumn();
+        if ($pd === false || (int)$pd !== $scope['district_id']) {
+            json_error('Parcel outside your district', 403, 'out_of_scope');
+        }
+    }
     $st = $pdo->prepare("SELECT o.*, po.share_pct, po.role
         FROM parcel_owners po JOIN owners o ON o.id = po.owner_id
         WHERE po.parcel_id = :pid ORDER BY o.full_name");
-    $st->execute([':pid' => (int)$_GET['parcel_id']]);
+    $st->execute([':pid' => $pid]);
     $rows = $st->fetchAll();
     json_ok(['owners' => $rows], 200, ['count' => count($rows)]);
 }
 
 if ($method === 'GET' && isset($_GET['id'])) {
+    $oid = (int)$_GET['id'];
     $st = $pdo->prepare("SELECT * FROM owners WHERE id = :id");
-    $st->execute([':id' => (int)$_GET['id']]);
+    $st->execute([':id' => $oid]);
     $owner = $st->fetch();
     if (!$owner) { json_error('Owner not found', 404, 'not_found'); }
+    // District staff may only view owners whose parcels are in their district.
+    if ($scope['district_id'] !== null) {
+        $dst = $pdo->prepare("SELECT 1 FROM parcel_owners po
+            JOIN parcels p ON p.id = po.parcel_id
+            WHERE po.owner_id = :oid AND p.district_id = :did LIMIT 1");
+        $dst->execute([':oid' => $oid, ':did' => $scope['district_id']]);
+        if (!$dst->fetch()) { json_error('Owner outside your district', 403, 'out_of_scope'); }
+    }
     $st = $pdo->prepare("SELECT po.parcel_id, po.role, po.share_pct, p.parcel_no
         FROM parcel_owners po JOIN parcels p ON p.id = po.parcel_id WHERE po.owner_id = :id");
-    $st->execute([':id' => (int)$_GET['id']]);
+    $st->execute([':id' => $oid]);
     json_ok(['owner' => $owner, 'parcels' => $st->fetchAll()]);
 }
 
 if ($method === 'POST' || $method === 'PUT') {
+    require_staff_write($me);
     $in = read_json_body();
     $f = owner_fields($in);
     if ($f['full_name'] === '') { json_error('Owner full name is required', 422, 'validation_failed', ['full_name' => 'owner full name is required']); }
@@ -56,6 +77,10 @@ if ($method === 'POST' || $method === 'PUT') {
     if ($method === 'POST') {
         $st = $pdo->prepare("INSERT INTO owners (full_name, id_number, id_type, phone, address, village_id, district_id, owner_type)
             VALUES (:fn, :idn, :idt, :ph, :ad, :vid, :did, :ot) RETURNING *");
+        // District staff may only create owners in their own district.
+        if ($scope['district_id'] !== null && $f['district_id'] !== $scope['district_id']) {
+            json_error('Owner must be in your district', 403, 'out_of_scope');
+        }
         $st->execute([
             ':fn' => $f['full_name'], ':idn' => $f['id_number'], ':idt' => $f['id_type'],
             ':ph' => $f['phone'], ':ad' => $f['address'], ':vid' => $f['village_id'],
@@ -66,6 +91,10 @@ if ($method === 'POST' || $method === 'PUT') {
     } else {
         $ownerId = (int)($_GET['id'] ?? 0);
         if (!$ownerId) { json_error('Owner id required', 400, 'missing_id'); }
+        // District staff may only update owners in their own district.
+        if ($scope['district_id'] !== null && $f['district_id'] !== $scope['district_id']) {
+            json_error('Owner must be in your district', 403, 'out_of_scope');
+        }
         $st = $pdo->prepare("UPDATE owners SET full_name=:fn, id_number=:idn, id_type=:idt, phone=:ph,
             address=:ad, village_id=:vid, district_id=:did, owner_type=:ot, updated_at=CURRENT_TIMESTAMP
             WHERE id=:id RETURNING *");
@@ -80,6 +109,15 @@ if ($method === 'POST' || $method === 'PUT') {
 
     // Optional link to a parcel
     if (!empty($in['parcel_id'])) {
+        // District staff may only link to parcels in their own district.
+        if ($scope['district_id'] !== null) {
+            $dst = $pdo->prepare("SELECT district_id FROM parcels WHERE id = :pid");
+            $dst->execute([':pid' => (int)$in['parcel_id']]);
+            $pd = $dst->fetchColumn();
+            if ($pd === false || (int)$pd !== $scope['district_id']) {
+                json_error('Parcel outside your district', 403, 'out_of_scope');
+            }
+        }
         $role = in_array($in['role'] ?? '', $roles, true) ? $in['role'] : 'owner';
         $share = (isset($in['share_pct']) && $in['share_pct'] !== '') ? (float)$in['share_pct'] : null;
         $pdo->prepare("INSERT INTO parcel_owners (parcel_id, owner_id, share_pct, role)

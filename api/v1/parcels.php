@@ -6,7 +6,9 @@ require_once __DIR__ . '/../../lib/validate.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['citizen', 'officer', 'admin']);
+$me = require_auth(['citizen', 'officer', 'admin', 'manager']);
+$staff = $me['role'] !== 'citizen';
+$scope = staff_scope($me);
 
 // ---- GET: list/search / fetch by id ----
 if ($method === 'GET') {
@@ -51,6 +53,13 @@ if ($method === 'GET') {
                 json_error('Forbidden', 403, 'forbidden');
             }
         }
+        if ($staff && $scope['district_id'] !== null) {
+            foreach ($rows as $row) {
+                if ((int)$row['district_id'] !== $scope['district_id']) {
+                    json_error('Parcel outside your district', 403, 'out_of_scope');
+                }
+            }
+        }
         json_ok(['parcels' => $rows, 'count' => count($rows)], 200);
     }
 
@@ -59,6 +68,10 @@ if ($method === 'GET') {
     if ($district) { $where[] = 'p.district_id = :district'; $params[':district'] = (int)$district; }
     if ($parcel_no !== '') { $where[] = 'p.parcel_no ILIKE :parcel'; $params[':parcel'] = '%' . $parcel_no . '%'; }
     if ($status) { $where[] = 'p.status = :status'; $params[':status'] = $status; }
+    if ($staff && $scope['district_id'] !== null) {
+        $where[] = 'p.district_id = :scope_district';
+        $params[':scope_district'] = $scope['district_id'];
+    }
 
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name
@@ -73,9 +86,9 @@ if ($method === 'GET') {
     json_ok(['parcels' => $parcels, 'count' => count($parcels)], 200);
 }
 
-// ---- POST: create (officer via OCR confirm) ----//
+// ---- POST: create (officer via OCR confirm) ----
 if ($method === 'POST') {
-    $me = require_auth(['officer', 'admin']);
+    require_staff_write($me);   // only district admin/officer create records
     $body = read_json_body();
     $parcel_no = trim($body['parcel_no'] ?? '');
     $area = $body['area_sqm'] ?? 0;
@@ -92,6 +105,11 @@ if ($method === 'POST') {
         'district_id' => validate_int($district, 'district'),
     ]);
     reject_on_errors($err);
+
+    // District staff may only create parcels in their own district.
+    if ($scope['district_id'] !== null && (int)$district !== $scope['district_id']) {
+        json_error('You can only create parcels in your own district', 403, 'out_of_scope');
+    }
 
     $stmt = $pdo->prepare("INSERT INTO parcels (parcel_no, area_sqm, zone_code, road_category, village_id, district_id, status, scanned_at, ocr_confidence)
         VALUES (:pn, :a, :zc, :rc, :vid, :did, 'confirmed', CURRENT_TIMESTAMP, 0) RETURNING id");

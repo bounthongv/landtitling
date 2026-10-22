@@ -10,7 +10,8 @@ require_once __DIR__ . '/../../lib/fee.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['admin']);
+$me = require_auth(['admin', 'officer', 'manager']);
+$scope = staff_scope($me);
 
 // ---- GET: owner candidates (for linking), staff, or citizens ----
 if ($method === 'GET') {
@@ -40,6 +41,11 @@ if ($method === 'GET') {
 
     if ($kind === 'citizens') {
         $where = ["u.role = 'citizen'"];
+        // District staff see only their own district's citizens.
+        if ($scope['district_id'] !== null) {
+            $where[] = 'u.district_id = :scope_did';
+            $params[':scope_did'] = $scope['district_id'];
+        }
         $params = [];
         if ($q !== '') {
             $where[] = '(u.email ILIKE :q OR u.phone ILIKE :q)';
@@ -56,6 +62,11 @@ if ($method === 'GET') {
     }
 
     $where = ["u.role <> 'citizen'"];
+    // District staff see only their own district's staff.
+    if ($scope['district_id'] !== null) {
+        $where[] = 'u.district_id = :scope_did';
+        $params[':scope_did'] = $scope['district_id'];
+    }
     $params = [];
     if ($q !== '') {
         $where[] = '(u.username ILIKE :q OR u.phone ILIKE :q OR u.email ILIKE :q)';
@@ -83,6 +94,15 @@ if ($method === 'POST' && $action === 'create') {
     if (!in_array($role, ['admin', 'officer'], true)) {
         json_error('Staff role must be admin or officer', 400, 'invalid_role');
     }
+    // District-level staff may only create users in their own district.
+    // Province-level staff (district_id null) may specify any district in the province.
+    $districtId = null;
+    if ($scope['district_id'] !== null) {
+        $districtId = $scope['district_id'];
+    } elseif (isset($body['district_id'])) {
+        $districtId = (int)$body['district_id'];
+    }
+
     $err = collect_errors([
         'username' => validate_required($username, 'username'),
         'password' => mb_strlen($password) < 8 ? 'password must be at least 8 characters' : null,
@@ -95,12 +115,13 @@ if ($method === 'POST' && $action === 'create') {
     }
 
     try {
-        $st = $pdo->prepare("INSERT INTO users (role, username, phone, email, password_hash, is_active)
-            VALUES (:role, :un, :ph, :em, :hash, TRUE)
-            RETURNING id, username, role, phone, email, is_active");
+        $st = $pdo->prepare("INSERT INTO users (role, username, phone, email, password_hash, is_active, district_id)
+            VALUES (:role, :un, :ph, :em, :hash, TRUE, :did)
+            RETURNING id, username, role, phone, email, is_active, district_id");
         $st->execute([
             ':role' => $role, ':un' => $username, ':ph' => $phone,
             ':em' => $email ?: null, ':hash' => password_hash($password, PASSWORD_DEFAULT),
+            ':did' => $districtId,
         ]);
         $row = $st->fetch();
         fee_audit($pdo, $me['sub'] ?? null, 'user_create', 'user', (int)$row['id'], ['username' => $username, 'role' => $role]);
@@ -119,20 +140,28 @@ if ($method === 'POST' && $action === 'update') {
     if (!$id) {
         json_error('id is required', 400, 'missing_id');
     }
-    $st = $pdo->prepare("SELECT id, username, role, is_active FROM users WHERE id = :id");
+    $st = $pdo->prepare("SELECT id, username, role, is_active, district_id FROM users WHERE id = :id");
     $st->execute([':id' => $id]);
     $user = $st->fetch();
     if (!$user) {
         json_error('User not found', 404, 'not_found');
     }
+    // District staff may only modify users in their own district.
+    if ($scope['district_id'] !== null && (int)$user['district_id'] !== $scope['district_id']) {
+        json_error('User outside your district', 403, 'out_of_scope');
+    }
 
     $sets = [];
     $params = [':id' => $id];
-    foreach (['username', 'phone', 'email'] as $f) {
+    foreach (['username', 'phone', 'email', 'district_id'] as $f) {
         if (array_key_exists($f, $body)) {
             $sets[] = "$f = :$f";
             $params[':' . $f] = trim((string)$body[$f]) ?: null;
         }
+    }
+    // District staff may not change district_id of another user.
+    if ($scope['district_id'] !== null && array_key_exists('district_id', $body)) {
+        json_error('You cannot change a user\'s district', 403, 'read_only');
     }
     if (!empty($body['password'])) {
         if (mb_strlen((string)$body['password']) < 8) {

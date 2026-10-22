@@ -5,12 +5,19 @@ require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 
 $pdo = db_connect();
-$me = require_auth(['citizen', 'officer', 'admin']);
+$me = require_auth(['citizen', 'officer', 'admin', 'manager']);
+$scope = staff_scope($me);
 
 // Officers may pass ?user_id= to inspect a specific citizen; citizens are always self-scoped.
 $userId = (int)$me['sub'];
 if ($me['role'] !== 'citizen' && !empty($_GET['user_id'])) {
     $userId = (int)$_GET['user_id'];
+    // District staff may only inspect citizens in their own district.
+    if ($scope['district_id'] !== null) {
+        $dst = $pdo->prepare("SELECT 1 FROM users WHERE id = :uid AND district_id = :did");
+        $dst->execute([':uid' => $userId, ':did' => $scope['district_id']]);
+        if (!$dst->fetch()) { json_error('Citizen outside your district', 403, 'out_of_scope'); }
+    }
 }
 
 $stmt = $pdo->prepare("SELECT p.id AS parcel_id, p.parcel_no, p.sub_parcel_no, p.area_sqm,

@@ -6,7 +6,8 @@ require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/validate.php';
 
-$me = require_auth(['officer', 'admin']);
+$me = require_auth(['officer', 'admin', 'manager']);
+$scope = staff_scope($me);
 $pdo = db_connect();
 
 $report  = $_GET['report'] ?? 'collection';
@@ -20,8 +21,13 @@ $actor    = trim((string)($_GET['actor'] ?? ''));
 $action   = trim((string)($_GET['action'] ?? ''));
 
 /** Shared parcel-side filters (parcel join alias `par`). */
-function rep_parcel_filters(&$where, &$params, $district, $road) {
+function rep_parcel_filters(&$where, &$params, $district, $road, $scopeDistrict = null) {
     if ($district) { $where[] = 'par.district_id = :did';   $params[':did'] = $district; }
+    // District staff are scoped to their own district regardless of the filter.
+    if ($scopeDistrict !== null) {
+        $where[] = 'par.district_id = :scope_did';
+        $params[':scope_did'] = $scopeDistrict;
+    }
     if ($road !== '') {
         $where[] = 'par.road_category = :rc';
         $params[':rc'] = $road;
@@ -34,7 +40,7 @@ switch ($report) {
 case 'collection': {
     $where = ["pay.status = 'PAID'"];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id']);
     if ($year)   { $where[] = 'o.fee_year = :fy';       $params[':fy'] = $year; }
     if ($from)   { $where[] = 'pay.paid_at >= :from';    $params[':from'] = $from . ' 00:00:00'; }
     if ($to)     { $where[] = 'pay.paid_at <= :to';      $params[':to']   = $to . ' 23:59:59'; }
@@ -70,9 +76,9 @@ case 'collection': {
 
 // ---- Arrears & aging: unpaid/partial obligations, years behind ----
 case 'arrears': {
-    $where = ["o.status IN ('UNPAID','PARTIAL')"];
+    $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id']);
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
     $w = 'WHERE ' . implode(' AND ', $where);
 
@@ -115,7 +121,7 @@ case 'arrears': {
 case 'registration': {
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id']);
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     $stmt = $pdo->prepare("SELECT d.name_lo AS district,
@@ -162,7 +168,12 @@ case 'registration': {
 case 'register': {
     $where = [];
     $params = [];
-    if ($district) { $where[] = 'p.district_id = :did'; $params[':did'] = $district; }
+    // District staff see only their own district regardless of the explicit filter.
+    if ($scope['district_id'] !== null) {
+        $where[] = 'p.district_id = :scope_did';
+        $params[':scope_did'] = $scope['district_id'];
+    }
+    if ($district && $scope['district_id'] === null) { $where[] = 'p.district_id = :did'; $params[':did'] = $district; }
     if ($road !== '') { $where[] = 'p.road_category = :rc'; $params[':rc'] = $road; }
     if (($s = trim((string)($_GET['status'] ?? ''))) !== '') {
         $where[] = 'p.status = :st'; $params[':st'] = $s;
@@ -267,7 +278,7 @@ case 'audit': {
 case 'mof': {
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id']);
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 

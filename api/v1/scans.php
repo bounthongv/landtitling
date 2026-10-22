@@ -8,7 +8,8 @@ require_once __DIR__ . '/../../lib/auth.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
-$me = require_auth(['officer', 'admin']);
+$me = require_auth(['officer', 'admin', 'manager']);
+$scope = staff_scope($me);
 
 /**
  * Normalize Lao land use description to internal code.
@@ -65,13 +66,19 @@ function normalize_land_use_class(string $raw): string {
 // ---- GET: single scan (for the review form) ----//
 if ($method === 'GET' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
-    $stmt = $pdo->prepare("
-        SELECT ts.*, p.parcel_no, p.sub_parcel_no, p.area_sqm, p.road_category,
+    $sql = "SELECT ts.*, p.parcel_no, p.sub_parcel_no, p.area_sqm, p.road_category,
                p.village_id, p.district_id, p.status AS parcel_status
         FROM title_scans ts
         LEFT JOIN parcels p ON p.id = ts.parcel_id
-        WHERE ts.id = :id");
-    $stmt->execute([':id' => $id]);
+        WHERE ts.id = :id";
+    $params = [':id' => $id];
+    // District staff may only open their own district's scans.
+    if ($scope['district_id'] !== null) {
+        $sql .= " AND COALESCE(ts.district_id, p.district_id) = :district";
+        $params[':district'] = $scope['district_id'];
+    }
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     $row = $stmt->fetch();
     if (!$row) { json_error('Scan not found', 404, 'not_found'); }
 
@@ -116,6 +123,11 @@ if ($method === 'GET') {
         $where = "ts.status = :s";
         $params = [':s' => $status];
     }
+    // District staff see only their own district's scans.
+    if ($scope['district_id'] !== null) {
+        $where .= " AND COALESCE(ts.district_id, p.district_id) = :district";
+        $params[':district'] = $scope['district_id'];
+    }
     $stmt = $pdo->prepare("
         SELECT ts.id, ts.image_path, ts.status, ts.overall_confidence, ts.parcel_id, ts.created_at,
                p.parcel_no, p.area_sqm, p.road_category, p.status AS parcel_status,
@@ -123,7 +135,7 @@ if ($method === 'GET') {
         FROM title_scans ts
         LEFT JOIN parcels p ON p.id = ts.parcel_id
         LEFT JOIN villages v ON p.village_id = v.id
-        LEFT JOIN districts d ON p.district_id = d.id
+        LEFT JOIN districts d ON COALESCE(ts.district_id, p.district_id) = d.id
         WHERE $where
         ORDER BY ts.created_at DESC
         LIMIT 100");
@@ -134,6 +146,7 @@ if ($method === 'GET') {
 
 // ---- POST: upload + OCR (creates a scan in ocr_done state) ----//
 if ($method === 'POST') {
+    require_staff_write($me);   // only district admin/officer upload title scans
     if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
         json_error('No image uploaded', 400, 'no_file');
     }
@@ -252,9 +265,9 @@ if ($method === 'POST') {
 
     $stmt = $pdo->prepare("
         INSERT INTO title_scans
-            (parcel_id, image_path, status, ocr_engine, ocr_raw, ocr_words, parsed_fields, field_confidence, overall_confidence, created_by)
+            (parcel_id, image_path, status, ocr_engine, ocr_raw, ocr_words, parsed_fields, field_confidence, overall_confidence, created_by, district_id)
         VALUES
-            (NULL, :p, 'parsed', :eng, :raw, :words::jsonb, :fields::jsonb, :conf::jsonb, :overall, :u)
+            (NULL, :p, 'parsed', :eng, :raw, :words::jsonb, :fields::jsonb, :conf::jsonb, :overall, :u, :district)
         RETURNING id, image_path, status, ocr_engine, ocr_raw, parsed_fields, field_confidence, overall_confidence, created_at");
     $stmt->execute([
         ':p'       => $webPath,
@@ -265,6 +278,8 @@ if ($method === 'POST') {
         ':conf'    => json_encode($fieldConf, JSON_UNESCAPED_UNICODE),
         ':overall' => $overall,
         ':u'       => $me['sub'],
+        // The queue is scoped per district: an upload belongs to the uploader's district.
+        ':district' => $scope['district_id'],
     ]);
     json_ok($stmt->fetch(), 201);
 }

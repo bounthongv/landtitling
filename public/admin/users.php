@@ -3,12 +3,19 @@
 // and citizen accounts (read-only, plus linking a login to an owner record).
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
-if ($role !== 'admin') { http_response_code(403); exit(t('Admins only.')); }
+// District admin/officer/manager and province admin/officer/manager can manage users.
+// District admin: create users in own district; province admin: create users anywhere.
+// All can view within their scope.
+$allowedRoles = ['admin', 'officer', 'manager'];
+if (!in_array($role, $allowedRoles, true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
 
 $tab = $_GET['tab'] ?? 'staff';
 $msg = '';
 $msgType = 'ok';
+
+// Fetch districts for dropdowns
+$districts = api_call('GET', 'districts.php', null, $token)['data'] ?? [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $do = $_POST['do_action'] ?? '';
@@ -96,12 +103,14 @@ if ($linkingUser > 0) {
     <div class="form-box">
       <h2><?= te('Staff accounts') ?></h2>
       <table style="margin-bottom:16px;">
-        <thead><tr><th><?= te('Username') ?></th><th><?= te('Role') ?></th><th><?= te('Email') ?></th><th><?= te('Phone') ?></th><th><?= te('Active') ?></th><th><?= te('Scans verified') ?></th><th></th></tr></thead>
+        <thead><tr><th><?= te('Username') ?></th><th><?= te('Role') ?></th><th><?= te('Level') ?></th><th><?= te('District') ?></th><th><?= te('Email') ?></th><th><?= te('Phone') ?></th><th><?= te('Active') ?></th><th><?= te('Scans verified') ?></th><th></th></tr></thead>
         <tbody>
         <?php foreach ($staff as $u): ?>
           <tr>
             <td><?= e($u['username']) ?></td>
             <td><?= e(t($u['role'])) ?></td>
+            <td><?= e(t($u['level'] ?? 'district')) ?></td>
+            <td><?= e($u['district_name'] ?? ($u['district_id'] ?? '—')) ?></td>
             <td><?= e($u['email'] ?? '—') ?></td>
             <td><?= e($u['phone']) ?></td>
             <td><?= $u['is_active'] ? '<span class="pill pill-paid">' . te('active') . '</span>' : '<span class="pill pill-rej">' . te('disabled') . '</span>' ?></td>
@@ -125,7 +134,19 @@ if ($linkingUser > 0) {
           <div class="form-group"><label><?= te('Username') ?></label><input name="username" value="<?= e($edit['username']) ?>"></div>
           <div class="form-group"><label><?= te('Role') ?></label>
             <select name="role"><option value="officer" <?= $edit['role'] === 'officer' ? 'selected' : '' ?>><?= te('officer') ?></option>
+            <option value="manager" <?= $edit['role'] === 'manager' ? 'selected' : '' ?>><?= te('manager') ?></option>
             <option value="admin" <?= $edit['role'] === 'admin' ? 'selected' : '' ?>><?= te('admin') ?></option></select>
+          </div>
+          <div class="form-group"><label><?= te('Level') ?></label>
+            <select name="level"><option value="district" <?= ($edit['level'] ?? 'district') === 'district' ? 'selected' : '' ?>><?= te('district') ?></option>
+            <option value="province" <?= ($edit['level'] ?? '') === 'province' ? 'selected' : '' ?>><?= te('province') ?></option></select>
+          </div>
+          <div class="form-group"><label><?= te('District') ?></label>
+            <select name="district_id"><option value="">— <?= te('None (province level)') ?> —</option>
+            <?php foreach (($districts ?? []) as $d): ?>
+              <option value="<?= (int)$d['id'] ?>" <?= ($edit['district_id'] ?? null) == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option>
+            <?php endforeach; ?>
+            </select>
           </div>
           <div class="form-group"><label><?= te('Email') ?></label><input name="email" value="<?= e($edit['email'] ?? '') ?>"></div>
           <div class="form-group"><label><?= te('Phone') ?></label><input name="phone" value="<?= e($edit['phone']) ?>"></div>
@@ -144,7 +165,17 @@ if ($linkingUser > 0) {
         <div class="form-group"><label><?= te('Username') ?></label><input name="username" required></div>
         <div class="form-group"><label><?= te('Password') ?></label><input name="password" type="password" minlength="8" required></div>
         <div class="form-group"><label><?= te('Role') ?></label>
-          <select name="role"><option value="officer"><?= te('officer') ?></option><option value="admin"><?= te('admin') ?></option></select>
+          <select name="role"><option value="officer"><?= te('officer') ?></option><option value="manager"><?= te('manager') ?></option><option value="admin"><?= te('admin') ?></option></select>
+        </div>
+        <div class="form-group"><label><?= te('Level') ?></label>
+          <select name="level"><option value="district"><?= te('district') ?></option><option value="province"><?= te('province') ?></option></select>
+        </div>
+        <div class="form-group"><label><?= te('District') ?></label>
+          <select name="district_id"><option value="">— <?= te('None (province level)') ?> —</option>
+          <?php foreach (($districts ?? []) as $d): ?>
+            <option value="<?= (int)$d['id'] ?>"><?= e($d['name_lo']) ?></option>
+          <?php endforeach; ?>
+          </select>
         </div>
         <div class="form-group"><label><?= te('Email') ?></label><input name="email" type="email"></div>
         <div class="form-group"><label><?= te('Phone') ?></label><input name="phone" placeholder="+856..."></div>
