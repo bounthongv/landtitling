@@ -12,6 +12,7 @@ $pdo = db_connect();
 
 $report  = $_GET['report'] ?? 'collection';
 $format  = $_GET['format'] ?? 'json';
+$province = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
 $district = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
 $year     = isset($_GET['fee_year'])    ? (int)$_GET['fee_year']    : 0;
 $road     = trim((string)($_GET['road_category'] ?? ''));
@@ -20,8 +21,24 @@ $to       = trim((string)($_GET['to'] ?? ''));
 $actor    = trim((string)($_GET['actor'] ?? ''));
 $action   = trim((string)($_GET['action'] ?? ''));
 
+// Province-level users are scoped to Savannakhet (id=1) until multi-province rollout.
+// Super admin sees all; district users are already district-scoped.
+$level = $me['level'] ?? 'district';
+$is_super = !empty($me['is_super']);
+if (!$is_super && $level === 'province') {
+    $province = 1; // Savannakhet
+} elseif (!$is_super) {
+    $province = 0; // district staff: the district scope filter already restricts them
+}
+
 /** Shared parcel-side filters (parcel join alias `par`). */
-function rep_parcel_filters(&$where, &$params, $district, $road, $scopeDistrict = null) {
+function rep_parcel_filters(&$where, &$params, $district, $road, $scopeDistrict = null, $province = 0) {
+    // Province filter via subquery: the summary queries join `par` but not `districts`,
+    // so an alias-based filter would break them.
+    if ($province) {
+        $where[] = 'par.district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
+        $params[':prov'] = $province;
+    }
     if ($district) { $where[] = 'par.district_id = :did';   $params[':did'] = $district; }
     // District staff are scoped to their own district regardless of the filter.
     if ($scopeDistrict !== null) {
@@ -40,7 +57,7 @@ switch ($report) {
 case 'collection': {
     $where = ["pay.status = 'PAID'"];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road, $scope['district_id']);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
     if ($year)   { $where[] = 'o.fee_year = :fy';       $params[':fy'] = $year; }
     if ($from)   { $where[] = 'pay.paid_at >= :from';    $params[':from'] = $from . ' 00:00:00'; }
     if ($to)     { $where[] = 'pay.paid_at <= :to';      $params[':to']   = $to . ' 23:59:59'; }
@@ -78,9 +95,10 @@ case 'collection': {
 case 'arrears': {
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road, $scope['district_id']);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
-    $w = 'WHERE ' . implode(' AND ', $where);
+    // No filter at all (e.g. super admin, nothing selected) must not emit a bare WHERE.
+    $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     $stmt = $pdo->prepare("SELECT par.parcel_no, d.name_lo AS district, v.name_lo AS village,
             o.fee_year, o.due_date, o.amount_due, o.amount_paid, o.penalty,
@@ -121,33 +139,59 @@ case 'arrears': {
 case 'registration': {
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road, $scope['district_id']);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
+    // NOTE: parcels are aliased `par` here — rep_parcel_filters() emits `par.*` clauses.
     $stmt = $pdo->prepare("SELECT d.name_lo AS district,
             COUNT(*) AS parcels,
-            COALESCE(SUM(p.area_sqm),0) AS total_area_sqm,
-            COUNT(*) FILTER (WHERE p.status = 'confirmed') AS confirmed,
-            COUNT(*) FILTER (WHERE p.status = 'draft')     AS draft,
-            COUNT(DISTINCT p.road_category) AS road_categories
-        FROM parcels p JOIN districts d ON d.id = p.district_id
+            COALESCE(SUM(par.area_sqm),0) AS total_area_sqm,
+            COUNT(*) FILTER (WHERE par.status = 'confirmed') AS confirmed,
+            COUNT(*) FILTER (WHERE par.status = 'draft')     AS draft,
+            COUNT(DISTINCT par.road_category) AS road_categories
+        FROM parcels par JOIN districts d ON d.id = par.district_id
         $w GROUP BY d.name_lo ORDER BY d.name_lo");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
-    $sParcels = (int)($pdo->query("SELECT COUNT(*) FROM parcels")->fetchColumn());
-    $sScans   = (int)($pdo->query("SELECT COUNT(*) FROM title_scans")->fetchColumn());
-    $sPending = (int)($pdo->query("SELECT COUNT(*) FROM title_scans WHERE parcel_id IS NULL")->fetchColumn());
-    $sAvgConf = $pdo->query("SELECT COALESCE(AVG(overall_confidence),0) FROM title_scans
-                             WHERE overall_confidence > 0")->fetchColumn();
+    // Summary counters must respect the same scope as the rows, otherwise a
+    // district officer sees province-wide totals next to their own rows.
+    $parcelWhere = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+    $sParcelStmt = $pdo->prepare("SELECT COUNT(*) FROM parcels par $parcelWhere");
+    $sParcelStmt->execute($params);
+    $sParcels = (int)$sParcelStmt->fetchColumn();
 
-    $confRows = $pdo->query("SELECT CASE
+    $scanWhere = '';
+    $scanParams = [];
+    if ($scope['district_id'] !== null) {
+        $scanWhere = 'WHERE district_id = :scope_did';
+        $scanParams[':scope_did'] = $scope['district_id'];
+    } elseif ($province) {
+        $scanWhere = 'WHERE district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
+        $scanParams[':prov'] = $province;
+    }
+    $sScansStmt = $pdo->prepare("SELECT COUNT(*) FROM title_scans $scanWhere");
+    $sScansStmt->execute($scanParams);
+    $sScans = (int)$sScansStmt->fetchColumn();
+
+    $sPendingStmt = $pdo->prepare("SELECT COUNT(*) FROM title_scans $scanWhere" . ($scanWhere ? ' AND' : ' WHERE') . ' parcel_id IS NULL');
+    $sPendingStmt->execute($scanParams);
+    $sPending = (int)$sPendingStmt->fetchColumn();
+
+    $sAvgStmt = $pdo->prepare("SELECT COALESCE(AVG(overall_confidence),0) FROM title_scans "
+        . ($scanWhere ? $scanWhere . ' AND' : ' WHERE') . ' overall_confidence > 0');
+    $sAvgStmt->execute($scanParams);
+    $sAvgConf = $sAvgStmt->fetchColumn();
+
+    $confStmt = $pdo->prepare("SELECT CASE
                 WHEN overall_confidence >= 80 THEN '80-100 (high)'
                 WHEN overall_confidence >= 50 THEN '50-79 (medium)'
                 WHEN overall_confidence >  0 THEN '1-49 (low)'
                 ELSE '0 (unparsed)' END AS bucket,
             COUNT(*) AS scans
-        FROM title_scans GROUP BY 1 ORDER BY 1")->fetchAll();
+        FROM title_scans $scanWhere GROUP BY 1 ORDER BY 1");
+    $confStmt->execute($scanParams);
+    $confRows = $confStmt->fetchAll();
 
     $result = [
         'columns' => ['District', 'Parcels', 'Total area (m²)', 'Confirmed', 'Draft', 'Road categories'],
@@ -168,6 +212,11 @@ case 'registration': {
 case 'register': {
     $where = [];
     $params = [];
+    // Province filter
+    if ($province) {
+        $where[] = 'p.district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
+        $params[':prov'] = $province;
+    }
     // District staff see only their own district regardless of the explicit filter.
     if ($scope['district_id'] !== null) {
         $where[] = 'p.district_id = :scope_did';
@@ -209,21 +258,56 @@ case 'register': {
 
 // ---- Bank reconciliation ----
 case 'bank': {
-    $rows = $pdo->query("SELECT b.id AS import_id, b.filename, b.imported_at, t.match_status,
+    // Bank rows are only attributable to a district through the payment they
+    // matched, so district staff see their own district's matched transactions
+    // (unmatched rows belong to no district and stay hidden from them).
+    $bankWhere = '';
+    $bankParams = [];
+    if ($scope['district_id'] !== null) {
+        $bankWhere = 'WHERE t.matched_payment_id IN (
+            SELECT pay.id FROM payments pay JOIN parcels par ON par.id = pay.parcel_id
+            WHERE par.district_id = :scope_did)';
+        $bankParams[':scope_did'] = $scope['district_id'];
+    } elseif ($province) {
+        $bankWhere = 'WHERE t.matched_payment_id IN (
+            SELECT pay.id FROM payments pay JOIN parcels par ON par.id = pay.parcel_id
+            WHERE par.district_id IN (SELECT id FROM districts WHERE province_id = :prov))';
+        $bankParams[':prov'] = $province;
+    }
+    $w = $bankWhere;
+
+    // Payments-side clause for the collected total (same scope, different table).
+    $payWhere = '';
+    if ($scope['district_id'] !== null) {
+        $payWhere = 'AND par.district_id = :scope_did';
+    } elseif ($province) {
+        $payWhere = 'AND par.district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
+    }
+
+    $stmt = $pdo->prepare("SELECT b.id AS import_id, b.filename, b.imported_at, t.match_status,
             COUNT(*) AS rows_count, COALESCE(SUM(t.amount),0) AS total_kip
         FROM bank_transactions t JOIN bank_imports b ON b.id = t.import_id
+        $w
         GROUP BY b.id, b.filename, b.imported_at, t.match_status
-        ORDER BY b.imported_at DESC, t.match_status")->fetchAll();
+        ORDER BY b.imported_at DESC, t.match_status");
+    $stmt->execute($bankParams);
+    $rows = $stmt->fetchAll();
 
-    $stmtRows = $pdo->query("SELECT match_status, COUNT(*) AS n, COALESCE(SUM(amount),0) AS total
-        FROM bank_transactions GROUP BY match_status")->fetchAll();
+    $stmtRows = $pdo->prepare("SELECT match_status, COUNT(*) AS n, COALESCE(SUM(amount),0) AS total
+        FROM bank_transactions t $w GROUP BY match_status");
+    $stmtRows->execute($bankParams);
+    $stmtRows = $stmtRows->fetchAll();
     $byStatus = [];
     $matchedTotal = 0.0;
     foreach ($stmtRows as $s) {
         $byStatus[$s['match_status']] = ['rows' => (int)$s['n'], 'total_kip' => (float)$s['total']];
         if ($s['match_status'] === 'matched') { $matchedTotal = (float)$s['total']; }
     }
-    $collected = (float)($pdo->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='PAID'")->fetchColumn());
+    $collectedStmt = $pdo->prepare("SELECT COALESCE(SUM(pay.amount),0) FROM payments pay
+        JOIN parcels par ON par.id = pay.parcel_id
+        WHERE pay.status='PAID' $payWhere");
+    $collectedStmt->execute($bankParams);
+    $collected = (float)$collectedStmt->fetchColumn();
 
     $result = [
         'columns' => ['Import', 'File', 'Imported', 'Match status', 'Rows', 'Total (kip)'],
@@ -260,6 +344,15 @@ case 'audit': {
     if ($action !== '') { $where[] = 'a.action ILIKE :act'; $params[':act'] = '%'.$action.'%'; }
     if ($from) { $where[] = 'a.at >= :from'; $params[':from'] = $from . ' 00:00:00'; }
     if ($to)   { $where[] = 'a.at <= :to';   $params[':to']   = $to . ' 23:59:59'; }
+    // Scope by the actor's district: district staff only see their own district's
+    // audit trail, province staff see their province's, super admin sees all.
+    if ($scope['district_id'] !== null) {
+        $where[] = 'u.district_id = :scope_did';
+        $params[':scope_did'] = $scope['district_id'];
+    } elseif ($province) {
+        $where[] = '(u.district_id IS NULL OR u.district_id IN (SELECT id FROM districts WHERE province_id = :prov))';
+        $params[':prov'] = $province;
+    }
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $stmt = $pdo->prepare("SELECT a.id, a.at, u.username, a.action, a.entity, a.entity_id, a.detail
         FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id $w
@@ -278,7 +371,7 @@ case 'audit': {
 case 'mof': {
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road, $scope['district_id']);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
