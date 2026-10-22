@@ -32,7 +32,7 @@
     --sidebar-border: rgba(255,255,255,0.1);
   }
   * { box-sizing: border-box; }
-  body { font-family: 'Segoe UI', 'Noto Sans Lao', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; line-height: 1.5; font-size: 16px; }
+  body { font-family: 'Phetsarath OT', 'Noto Sans Lao', 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; line-height: 1.5; font-size: 16px; }
   .app { display: flex; min-height: 100vh; }
 
   .side {
