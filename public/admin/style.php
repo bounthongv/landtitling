@@ -247,6 +247,22 @@
   .modal h2 { margin-top: 0; font-size: 20px; font-weight: 700; }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
+  /* The dialog scrolls its body so Cancel/Save stay reachable on long forms. */
+  .modal { display: flex; flex-direction: column; max-height: 92vh; }
+  .modal #modal-content { overflow-y: auto; }
+  .modal .form-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .modal .form-group { margin-bottom: 12px; }
+  .modal .form-group:last-child { margin-bottom: 0; }
+  /* Long option lists (148 districts) scroll instead of covering the screen. */
+  select { max-height: 260px; }
+  .modal input[readonly] { background: #f2f4f1; color: var(--muted); cursor: not-allowed; }
+
+  /* Page toolbar: section title on the left, primary action on the right. */
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .toolbar h2 { margin: 0; font-size: 18px; font-weight: 700; }
+  .table-actions { white-space: nowrap; }
+  .table-actions form { display: inline; }
+
   .empty { color: var(--muted); text-align: center; padding: 40px 0; }
   .conf-badge { background: #e8f5e9; color: #2e7d32; border-radius: 999px; font-size: 11px; padding: 3px 10px; font-weight: 600; }
   .ocr-box { background: #f4f4f4; border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; white-space: pre-wrap; max-height: 260px; overflow: auto; }

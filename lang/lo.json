@@ -401,5 +401,19 @@
   "province": "ແຂວງ",
   "manager": "ຜູ້ບໍລິຫານ",
   "None (province level)": "ບໍ່ມີ (ລະດັບແຂວງ)",
-  "Insufficient permissions.": "ບໍ່ມີສິດໃນການເຂົ້າເຖິງ."
+  "Insufficient permissions.": "ບໍ່ມີສິດໃນການເຂົ້າເຖິງ.",
+  "No data.": "ບໍ່ມີຂໍ້ມູນ.",
+  "road category": "ປະເພດທາງ",
+  "title type": "ປະເພດເອກະສານ",
+  "land use class": "ປະເພດການໃຊ້ທີ່ດິນ",
+  "Add {thing}": "ເພີ່ມ{thing}",
+  "Edit {thing}": "ແກ້ໄຂ{thing}",
+  "Update {thing}": "ອັບເດດ{thing}",
+  "Edit province": "ແກ້ໄຂແຂວງ",
+  "Edit district": "ແກ້ໄຂເມືອງ",
+  "Edit village": "ແກ້ໄຂບ້ານ",
+  "Edit zone": "ແກ້ໄຂໂຊນ",
+  "Add fee year": "ເພີ່ມປີຄ່າຂອງ",
+  "Edit fee year": "ແກ້ໄຂປີຄ່າຂອງ",
+  "Update fee year": "ອັບເດດປີຄ່າຂອງ"
 }
