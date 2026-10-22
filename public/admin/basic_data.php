@@ -475,8 +475,8 @@ $refGroups = [
           <th><?= th_sort('code', t('Code'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th><?= th_sort('name_lo', t('Lao'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th><?= th_sort('name_en', t('English'), $vSort, $vDir, $tab, $vExtra) ?></th>
-          <th><?= th_sort('province', t('Province'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th><?= th_sort('district', t('District'), $vSort, $vDir, $tab, $vExtra) ?></th>
+          <th><?= th_sort('province', t('Province'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th><?= th_sort('parcels', t('Parcels'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th style="width:150px"><?= te('Actions') ?></th>
         </tr></thead>
@@ -486,8 +486,8 @@ $refGroups = [
             <td><?= e($v['code']) ?></td>
             <td><?= e($v['name_lo']) ?></td>
             <td><?= e($v['name_en']) ?></td>
-            <td><?= e($v['province_name'] ?? '—') ?></td>
             <td><?= e($v['district_name']) ?></td>
+            <td><?= e($v['province_name'] ?? '—') ?></td>
             <td><?= (int)$v['parcel_count'] ?></td>
             <td class="table-actions">
               <button class="btn btn-blue btn-sm js-modal" type="button"
