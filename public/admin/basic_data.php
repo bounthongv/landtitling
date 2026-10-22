@@ -230,7 +230,7 @@ $years       = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?
 // narrowing with the province/district filter or search. The filter form carries
 // sort/dir so submitting it keeps the current sort; the sort links carry the
 // filter so sorting keeps the current filter.
-$vSortable = ['code', 'name_lo', 'name_en', 'district', 'parcels'];
+$vSortable = ['code', 'name_lo', 'name_en', 'province', 'district', 'parcels'];
 $vSort = (string)($_GET['sort'] ?? 'code');
 $vDir  = strtolower((string)($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
 if (!in_array($vSort, $vSortable, true)) { $vSort = 'code'; }
@@ -428,7 +428,7 @@ $refGroups = [
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
       </form>
       <script>
-      // Province -> district cascade: hide the groups of the other provinces.
+      // Province -> district cascade in the filter form.
       (function(){
         const prov = document.getElementById('v-province');
         const dist = document.getElementById('v-district');
@@ -448,6 +448,24 @@ $refGroups = [
         prov.addEventListener('change', filterDistricts);
         filterDistricts();
       })();
+      // Province -> district cascade in the modal form.
+      (function(){
+        const mProv = document.getElementById('v-modal-province');
+        const mDist = document.getElementById('v-modal-district');
+        if (!mProv || !mDist) return;
+        function filterModalDistricts(){
+          const pid = mProv.value;
+          [...mDist.querySelectorAll('optgroup')].forEach(g => {
+            g.style.display = (pid && g.dataset.province !== pid) ? 'none' : '';
+          });
+          const sel = mDist.selectedOptions[0];
+          if (sel && sel.parentElement && sel.parentElement.tagName === 'OPTGROUP'
+              && sel.parentElement.style.display === 'none') {
+            mDist.value = '';
+          }
+        }
+        mProv.addEventListener('change', filterModalDistricts);
+      })();
       </script>
       <p class="sub"><?= count($villages) >= 500
           ? te('{n} village(s) shown (first 500 — narrow with the district filter or search)', ['n' => count($villages)])
@@ -457,6 +475,7 @@ $refGroups = [
           <th><?= th_sort('code', t('Code'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th><?= th_sort('name_lo', t('Lao'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th><?= th_sort('name_en', t('English'), $vSort, $vDir, $tab, $vExtra) ?></th>
+          <th><?= th_sort('province', t('Province'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th><?= th_sort('district', t('District'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th><?= th_sort('parcels', t('Parcels'), $vSort, $vDir, $tab, $vExtra) ?></th>
           <th style="width:150px"><?= te('Actions') ?></th>
@@ -467,13 +486,15 @@ $refGroups = [
             <td><?= e($v['code']) ?></td>
             <td><?= e($v['name_lo']) ?></td>
             <td><?= e($v['name_en']) ?></td>
+            <td><?= e($v['province_name'] ?? '—') ?></td>
             <td><?= e($v['district_name']) ?></td>
             <td><?= (int)$v['parcel_count'] ?></td>
             <td class="table-actions">
               <button class="btn btn-blue btn-sm js-modal" type="button"
                 data-form="village-form" data-title="<?= te('Edit village') ?>" data-submit="<?= te('Update village') ?>"
                 data-id="<?= (int)$v['id'] ?>" data-code="<?= e($v['code']) ?>" data-name-lo="<?= e($v['name_lo']) ?>"
-                data-name-en="<?= e($v['name_en'] ?? '') ?>" data-district-id="<?= (int)$v['district_id'] ?>"><?= te('Edit') ?></button>
+                data-name-en="<?= e($v['name_en'] ?? '') ?>" data-district-id="<?= (int)$v['district_id'] ?>"
+                data-province-id="<?= (int)($v['province_id'] ?? 0) ?>"><?= te('Edit') ?></button>
               <form method="post">
                 <input type="hidden" name="do_action" value="village_delete"><input type="hidden" name="id" value="<?= (int)$v['id'] ?>">
                 <button class="btn btn-red btn-sm" type="submit"><?= te('Delete') ?></button>
@@ -491,8 +512,12 @@ $refGroups = [
           <div class="form-group"><label><?= te('Code') ?></label><input name="code" required></div>
           <div class="form-group"><label><?= te('Name (Lao)') ?></label><input name="name_lo" required></div>
           <div class="form-group"><label><?= te('Name (EN)') ?></label><input name="name_en"></div>
+          <div class="form-group"><label><?= te('Province') ?></label>
+            <select name="province_id" required id="v-modal-province"><?php foreach ($provinces as $p): ?>
+              <option value="<?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option><?php endforeach; ?></select>
+          </div>
           <div class="form-group"><label><?= te('District') ?></label>
-            <select name="district_id" required><?= district_options($districtsAll, $provinces) ?></select>
+            <select name="district_id" required id="v-modal-district"><?= district_options($districtsAll, $provinces) ?></select>
           </div>
         </form>
       </template>

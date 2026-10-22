@@ -44,6 +44,7 @@ if ($method === 'GET') {
         'code'     => 'v.code',
         'name_lo'  => 'v.name_lo',
         'name_en'  => 'v.name_en',
+        'province' => 'p.name_lo',
         'district' => 'd.name_lo',
         'parcels'  => 'parcel_count',
     ];
@@ -57,8 +58,10 @@ if ($method === 'GET') {
 
     $st = $pdo->prepare("SELECT v.id, v.district_id, v.code, v.name_lo, v.name_en,
             d.name_lo AS district_name, d.province_id AS province_id,
+            p.name_lo AS province_name,
             (SELECT COUNT(*) FROM parcels p WHERE p.village_id = v.id) AS parcel_count
         FROM villages v JOIN districts d ON d.id = v.district_id
+        LEFT JOIN provinces p ON p.id = d.province_id
         $w ORDER BY $orderBy LIMIT $limit");
     $st->execute($params);
     json_ok($st->fetchAll());
