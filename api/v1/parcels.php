@@ -86,35 +86,156 @@ if ($method === 'GET') {
     json_ok(['parcels' => $parcels, 'count' => count($parcels)], 200);
 }
 
-// ---- POST: create (officer via OCR confirm) ----
+// ---- POST: create/update parcel with full data and owners ----
 if ($method === 'POST') {
-    require_staff_write($me);   // only district admin/officer create records
+    require_staff_write($me);   // only district admin/officer create/update records
     $body = read_json_body();
-    $parcel_no = trim($body['parcel_no'] ?? '');
-    $area = $body['area_sqm'] ?? 0;
-    $zone = trim($body['zone_code'] ?? '');
-    $road = $body['road_category'] ?? ''; // optional legacy field, kept for display
-    $village = $body['village_id'] ?? null;
-    $district = $body['district_id'] ?? null;
-
-    $err = collect_errors([
-        'parcel_no' => validate_required($parcel_no, 'parcel no'),
-        'area_sqm' => validate_positive($area, 'area'),
-        'zone_code' => validate_required($zone, 'zone code'),
-        'village_id' => validate_int($village, 'village'),
-        'district_id' => validate_int($district, 'district'),
-    ]);
-    reject_on_errors($err);
-
-    // District staff may only create parcels in their own district.
-    if ($scope['district_id'] !== null && (int)$district !== $scope['district_id']) {
-        json_error('You can only create parcels in your own district', 403, 'out_of_scope');
+    $parcelData = $body['parcel'] ?? [];
+    $ownersData = $body['owners'] ?? [];
+    
+    // Extract fields
+    $parcelNo = trim((string)($parcelData['parcel_no'] ?? ''));
+    $subPar = trim((string)($parcelData['sub_parcel_no'] ?? '')) ?: null;
+    $province = trim((string)($parcelData['province'] ?? '')) ?: 'Savannakhet';
+    $area = $parcelData['area_sqm'] ?? '';
+    $zone = trim((string)($parcelData['zone_code'] ?? '')) ?: null;
+    $road = trim((string)($parcelData['road_category'] ?? '')) ?: null;
+    $village = $parcelData['village_id'] ?? '';
+    $district = $parcelData['district_id'] ?? '';
+    $titleNo = trim((string)($parcelData['title_no'] ?? '')) ?: null;
+    $titleType = trim((string)($parcelData['title_type'] ?? '')) ?: null;
+    $bookNo = trim((string)($parcelData['book_no'] ?? '')) ?: null;
+    $volumeNo = trim((string)($parcelData['volume_no'] ?? '')) ?: null;
+    $pageNo = trim((string)($parcelData['page_no'] ?? '')) ?: null;
+    $landUse = trim((string)($parcelData['land_use_class'] ?? '')) ?: null;
+    $issuedDate = null;
+    if (($d = trim((string)($parcelData['issued_date'] ?? ''))) !== '') {
+        $dt = DateTime::createFromFormat('Y-m-d', $d);
+        if ($dt && $dt->format('Y-m-d') === $d) $issuedDate = $d;
     }
-
-    $stmt = $pdo->prepare("INSERT INTO parcels (parcel_no, area_sqm, zone_code, road_category, village_id, district_id, status, scanned_at, ocr_confidence)
-        VALUES (:pn, :a, :zc, :rc, :vid, :did, 'confirmed', CURRENT_TIMESTAMP, 0) RETURNING id");
-    $stmt->execute([':pn' => $parcel_no, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road ?: null, ':vid' => (int)$village, ':did' => (int)$district]);
-    $id = (int)$stmt->fetch()['id'];
-    json_ok(['id' => $id], 201);
+    $status = trim((string)($parcelData['status'] ?? 'confirmed'));
+    
+    // Validation
+    $errors = collect_errors([
+        'parcel_no' => validate_required($parcelNo, 'parcel no'),
+        'area_sqm' => validate_required($area, 'area') ?: validate_positive($area, 'area'),
+        'district_id' => validate_required($district, 'district') ?: validate_int($district, 'district'),
+        'village_id' => validate_required($village, 'village') ?: validate_int($village, 'village'),
+    ]);
+    reject_on_errors($errors);
+    
+    $districtId = (int)$district;
+    $villageId = (int)$village;
+    
+    // Check district staff scope
+    if ($scope['district_id'] !== null && $districtId !== $scope['district_id']) {
+        json_error('You can only manage parcels in your own district', 403, 'out_of_scope');
+    }
+    
+    // Check village belongs to district
+    $st = $pdo->prepare("SELECT id FROM villages WHERE id = :id AND district_id = :did");
+    $st->execute([':id' => $villageId, ':did' => $districtId]);
+    if (!$st->fetch()) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
+    
+    // Check if parcel exists (update mode)
+    $existingId = (int)($parcelData['id'] ?? 0);
+    
+    // Build columns
+    $cols = [
+        ':pn' => $parcelNo, ':spn' => $subPar, ':prov' => $province, ':vid' => $villageId,
+        ':did' => $districtId, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road, 
+        ':tn' => $titleNo, ':tt' => $titleType, ':bn' => $bookNo, ':von' => $volumeNo, 
+        ':pg' => $pageNo, ':lu' => $landUse, ':idate' => $issuedDate, ':st' => $status
+    ];
+    
+    $parcelId = null;
+    
+    try {
+        if ($existingId) {
+            // Update existing
+            $cols[':id'] = $existingId;
+            $sql = "UPDATE parcels SET 
+                parcel_no=:pn, sub_parcel_no=:spn, province=:prov, village_id=:vid, 
+                district_id=:did, area_sqm=:a, zone_code=:zc, road_category=:rc, 
+                title_no=:tn, title_type=:tt, book_no=:bn, volume_no=:von, page_no=:pg, 
+                land_use_class=:lu, issued_date=:idate, status=:st, updated_at=CURRENT_TIMESTAMP 
+                WHERE id=:id";
+            $pdo->prepare($sql)->execute($cols);
+            $parcelId = $existingId;
+        } else {
+            // Insert new
+            $sql = "INSERT INTO parcels (
+                parcel_no, sub_parcel_no, province, village_id, district_id, area_sqm, 
+                zone_code, road_category, title_no, title_type, book_no, volume_no, page_no, 
+                land_use_class, issued_date, status, created_at, updated_at
+            ) VALUES (
+                :pn, :spn, :prov, :vid, :did, :a, :zc, :rc, :tn, :tt, :bn, :von, :pg, 
+                :lu, :idate, :st, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            ) RETURNING id";
+            $st = $pdo->prepare($sql);
+            $st->execute($cols);
+            $parcelId = (int)$st->fetch()['id'];
+        }
+    } catch (PDOException $e) {
+        if ($e->getCode() === '23505') {
+            json_error('A parcel with this number already exists in this village', 409, 'duplicate_parcel');
+        }
+        json_error('Failed to save parcel: ' . $e->getMessage(), 500, 'parcel_failed');
+    }
+    
+    // Handle owners (replace existing owners with provided list)
+    $ownerIds = [];
+    $pdo->prepare("DELETE FROM parcel_owners WHERE parcel_id = :pid")->execute([':pid' => $parcelId]);
+    
+    foreach ($ownersData as $o) {
+        $fullName = trim((string)($o['full_name'] ?? ''));
+        if ($fullName === '') continue;
+        
+        $idNumber = trim((string)($o['id_number'] ?? '')) ?: null;
+        $idType = trim((string)($o['id_type'] ?? '')) ?: null;
+        $phone = trim((string)($o['phone'] ?? '')) ?: null;
+        $address = trim((string)($o['address'] ?? '')) ?: null;
+        $oVillage = !empty($o['village_id']) ? (int)$o['village_id'] : $villageId;
+        $oDistrict = !empty($o['district_id']) ? (int)$o['district_id'] : $districtId;
+        $ownerType = in_array($o['owner_type'] ?? '', ['individual', 'organization', 'joint'], true)
+            ? $o['owner_type'] : 'individual';
+        $role = in_array($o['role'] ?? '', ['owner', 'co_owner', 'representative'], true)
+            ? $o['role'] : 'owner';
+        $share = (isset($o['share_pct']) && $o['share_pct'] !== '') ? (float)$o['share_pct'] : null;
+        
+        $existingOwnerId = !empty($o['id']) ? (int)$o['id'] : 0;
+        
+        if ($existingOwnerId) {
+            $pdo->prepare("UPDATE owners SET full_name=:fn, id_number=:idn, id_type=:idt, phone=:ph,
+                address=:ad, village_id=:vid, district_id=:did, owner_type=:ot, updated_at=CURRENT_TIMESTAMP
+                WHERE id=:id")->execute([
+                ':fn' => $fullName, ':idn' => $idNumber, ':idt' => $idType, ':ph' => $phone,
+                ':ad' => $address, ':vid' => $oVillage, ':did' => $oDistrict, ':ot' => $ownerType,
+                ':id' => $existingOwnerId,
+            ]);
+            $ownerId = $existingOwnerId;
+        } else {
+            $st = $pdo->prepare("INSERT INTO owners (full_name, id_number, id_type, phone, address, village_id, district_id, owner_type)
+                VALUES (:fn, :idn, :idt, :ph, :ad, :vid, :did, :ot) RETURNING id");
+            $st->execute([
+                ':fn' => $fullName, ':idn' => $idNumber, ':idt' => $idType, ':ph' => $phone,
+                ':ad' => $address, ':vid' => $oVillage, ':did' => $oDistrict, ':ot' => $ownerType,
+            ]);
+            $ownerId = (int)$st->fetch()['id'];
+        }
+        
+        $pdo->prepare("INSERT INTO parcel_owners (parcel_id, owner_id, share_pct, role)
+            VALUES (:pid, :oid, :sh, :role)
+            ON CONFLICT (parcel_id, owner_id) DO UPDATE SET share_pct = EXCLUDED.share_pct, role = EXCLUDED.role")
+            ->execute([':pid' => $parcelId, ':oid' => $ownerId, ':sh' => $share, ':role' => $role]);
+        
+        $ownerIds[] = $ownerId;
+    }
+    
+    json_ok([
+        'parcel_id' => $parcelId,
+        'owner_ids' => $ownerIds,
+        'status' => 'success'
+    ]);
 }
 json_error('Method not allowed', 405, 'method_not_allowed');
