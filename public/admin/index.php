@@ -20,13 +20,13 @@ $role = $user['role'];
   </aside>
   <main class="main">
     <h1><?= te('Dashboard') ?></h1>
-    <?php if ($role === 'admin'): ?><p class="sub"><?= te('Province officer back-office. Managed by the officer role for day-to-day work.') ?></p><?php endif; ?>
+    <?php if ($role === 'admin'): ?><p class="sub"><?= te('Back-Office System. Managed by the provincial/district officer for day-to-day work.') ?></p><?php endif; ?>
 
     <section class="cards">
       <div class="card stat"><h3><?= te('Pending scans') ?></h3><p class="num" id="scan-count">—</p></div>
       <div class="card stat"><h3><?= te('Parcels') ?></h3><p class="num" id="parcel-count">—</p></div>
       <div class="card stat"><h3><?= te('Issued payments') ?></h3><p class="num" id="issued-count">—</p></div>
-      <div class="card stat"><h3><?= te('Total fees (kips)') ?></h3><p class="num" id="fee-total">—</p></div>
+      <div class="card stat"><h3><?= te('Total taxes (kips)') ?></h3><p class="num" id="fee-total">—</p></div>
     </section>
 
     <div class="grid">
