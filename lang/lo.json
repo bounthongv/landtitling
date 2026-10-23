@@ -419,7 +419,7 @@
   "Update fee year": "ອັບເດດປີຄ່າຂອງ",
   "Acquired (#20)": "ວິທີການໄດ້ມາ (#20)",
   "Add parcels via Scan, Manual, or Import": "ເພີ່ມຕອນດິນຜ່ານການສະແກນ, ປ້ອນມື ຫຼື ນຳເຂົ້າ",
-  "Add spouse": "ເພີ່ມຄົນຮັກ",
+  "Add spouse": "ທີ່ຢູ່ຄົນຮັກ (ທີ່ຢູ່ຜົວຫລືເມຍ)",
   "Apply to form": "ນຳໃຊ້ກັບແບບຟອມ",
   "Book no (#24)": "ເລກປຶ້ມ (#24)",
   "Certificate / Title": "ເອກະສານ / ໜັງສື",
@@ -469,5 +469,7 @@
   "Spouse name": "ຊື່ຄົນຮັກ",
   "Spouse DOB": "ວັນທີເກີດຄົນຮັກ",
   "Spouse nationality": "ອາຊະພົນຄົນຮັກ",
-  "Spouse occupation": "ອາຊີບຄົນຮັກ"
+  "Spouse occupation": "ອາຊີບຄົນຮັກ",
+  "Sub-parcel No": "ເລກຕອນດິນຍ່ອຍ",
+  "Spouse Address": "ທີ່ຢູ່ຄົນຮັກ (ທີ່ຢູ່ຜົວຫລືເມຍ)"
 }

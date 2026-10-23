@@ -260,7 +260,7 @@ $parsedLabels = [
             <h3><?= te('Owner(s)') ?></h3>
             <div id="owners-container"></div>
             <button type="button" class="btn-add" id="add-owner" style="margin-bottom:8px;"><?= te('+ Add owner') ?></button>
-            <button type="button" class="btn-add" id="add-spouse" style="margin-bottom:8px; margin-left: 8px; background:#555;"><?= te('Add spouse') ?></button>
+            <button type="button" class="btn-add" id="add-spouse" style="margin-bottom:8px; margin-left: 8px; background:#555;"><?= te('Spouse Address') ?></button>
           </div>
 
           <div class="form-actions">
