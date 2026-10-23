@@ -149,10 +149,17 @@ CREATE TABLE owners (
   id_type VARCHAR(30),                       -- national_id / passport / family_book
   phone VARCHAR(20),
   address TEXT,                              -- residence (from the title)
+  date_of_birth DATE,                        -- #8/#17
+  nationality VARCHAR(60),                   -- #10/#18
+  occupation VARCHAR(100),                   -- #11/#19
+  address_village VARCHAR(100),              -- #12
+  address_unit VARCHAR(50),                  -- #13
+  address_district VARCHAR(100),             -- #14
+  address_province VARCHAR(100),             -- #15
   village_id INT,
   district_id INT,
   owner_type VARCHAR(20) NOT NULL DEFAULT 'individual'
-    CHECK (owner_type IN ('individual','organization','joint')),
+    CHECK (owner_type IN ('individual','organization','joint','spouse')),  -- spouse = co-owner row (#16-#19)
   citizen_user_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -185,6 +192,17 @@ CREATE TABLE parcels (
   page_no VARCHAR(30),
   land_use_class VARCHAR(30),
   issued_date DATE,
+  -- full certificate field set (see sql/migrations/005_land_title_fields.sql)
+  order_no VARCHAR(50),                     -- #2 issued order no.
+  location_code VARCHAR(30),                -- #30 e.g. 10.002.0027
+  unit_no VARCHAR(30),                      -- #6
+  acquisition_method VARCHAR(80),           -- #20 how acquired
+  ownership_status VARCHAR(120),            -- #21 e.g. original asset-wife
+  zone_text VARCHAR(120),                   -- #23 descriptive zone (distinct from zone_code)
+  map_ref_no VARCHAR(40),                  -- #26 e.g. A250-038
+  map_parcel_no VARCHAR(40),                -- #27
+  map_scale VARCHAR(20),                   -- #29 e.g. 1/8000
+  issued_place VARCHAR(120),                -- footer: issued at (province)
   geo_lat DECIMAL(9,6),
   geo_lng DECIMAL(9,6),
   status VARCHAR(20) NOT NULL DEFAULT 'draft'

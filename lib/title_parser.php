@@ -328,6 +328,60 @@ function title_parse_text($text, PDO $pdo, array $ctx = []) {
     }
     if ($addr = $first('/ທີ່ຢູ່\s*[:：]?\s*([\x{0E80}-\x{0EFF}0-9 \t,.\/]{2,80})/u', $flat)) {
         $set('owner_address', trim(preg_replace('/\s+/u', ' ', $addr)), 50);
+        // Structured address segment (#12-#15): "ບ້ານ X ໜ່ວຍ Y ເມືອງ Z ແຂວງ W"
+        if ($av = $first('/ບ້ານ\s*[:：]?\s*([\x{0E80}-\x{0EFF}]{2,20})/u', $addr)) $set('owner_address_village', $av, 40);
+        if ($au = $first('/ໜ່ວຍ\s*[:：]?\s*(\d{1,4})/u', $addr))               $set('owner_address_unit', $au, 55);
+        if ($ad = $first('/ເມືອງ\s*[:：]?\s*([\x{0E80}-\x{0EFF}]{2,20})/u', $addr)) $set('owner_address_district', $ad, 40);
+        if ($ap = $first('/ແຂວງ\s*[:：]?\s*([\x{0E80}-\x{0EFF}]{2,20})/u', $addr)) $set('owner_address_province', $ap, 40);
+    }
+
+    // --- Identity extras (#8, #10, #11) ---
+    // Date of birth: the FIRST dd/mm/yyyy on the document (owner block precedes the footer).
+    if (preg_match_all('/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/', $flat, $dm, PREG_SET_ORDER)) {
+        $valid = [];
+        foreach ($dm as $d) {
+            if (checkdate((int)$d[2], (int)$d[1], (int)$d[3])) {
+                $valid[] = sprintf('%04d-%02d-%02d', $d[3], $d[2], $d[1]);
+            }
+        }
+        if (count($valid) >= 2) {
+            $set('date_of_birth', $valid[0], 45);
+            if ($valid[1] !== $valid[0]) $set('issued_date', $valid[1], 60);
+        } elseif (count($valid) === 1) {
+            // Only one date: keep the legacy behaviour (issued date), not DOB.
+            $set('issued_date', $valid[0], 60);
+        }
+    }
+    if ($nat = $first('/(?:ເຊື້ອເຜົາ|ສັນຊາຕາ)\s*[:：]?\s*([\x{0E80}-\x{0EFF}]{2,15})/u', $flat)) {
+        $set('nationality', $nat, 45);
+    }
+    if ($occ = $first('/ອາຊີບ\s*[:：]?\s*([\x{0E80}-\x{0EFF}]{2,25})/u', $flat)) {
+        $set('occupation', $occ, 45);
+    }
+
+    // --- Acquisition / ownership / descriptive zone (#20, #21, #23) ---
+    if ($am = $first('/ການ\s*(ໂອນ|ຖອນ|ຊື້|ຂາຍ|ຫຼັກ)\s*/u', $flat)) {
+        $set('acquisition_method', 'ການ' . $am, 40);
+    }
+    if ($os = $first('/ສະຖານະ\s*[:：]?\s*([\x{0E80}-\x{0EFF} -]{2,40})/u', $flat)) {
+        $set('ownership_status', title_trim_value($os), 40);
+    }
+    if ($zt = $first('/ເຂດ\s*[:：]?\s*([\x{0E80}-\x{0EFF}\w \-]{2,40})/u', $flat)) {
+        $set('zone_text', title_trim_value($zt), 45);
+    }
+
+    // --- Map / registration block (#26, #27, #29) ---
+    if ($mr = $first('/([A-Z]{1,2}\d{2,4}[-\/.:]\d{1,4})/ui', $flat)) {
+        $set('map_ref_no', strtoupper($mr), 65);
+    }
+    if ($mp = $first('/ຕົ້ນດິນ\s*ເລກ[\x{0E80}-\x{0EFF}]{0,4}\s*[:：]?\s*(\d{1,5})/u', $flat)) {
+        $set('map_parcel_no', $mp, 50);
+    }
+    if ($ms = $first('/1\s*[\/.]?(\d{2,5})/u', $flat)) {
+        $set('map_scale', '1/' . $ms, 55);
+    }
+    if ($ip = $first('/ອອກ(?:ໃຫ້|ແກ່)?\s*ທີ່\s*[:：]?\s*([\x{0E80}-\x{0EFF}]{2,30})/u', $flat)) {
+        $set('issued_place', title_trim_value($ip), 40);
     }
 
     // --- Resolve geography to ids ---

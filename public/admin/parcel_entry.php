@@ -9,18 +9,49 @@ $allowedRoles = ['officer', 'admin', 'manager'];
 if (!in_array($role, $allowedRoles, true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
 
-// Field labels for the OCR results table (same canonical keys the OCR produces).
+// OCR result field labels (same canonical keys title_parser produces).
 $parsedLabels = [
-    'parcel_no'      => t('Parcel no'), 'sub_parcel_no' => t('Sub-parcel'),
-    'area_sqm'       => t('Area (m²)'), 'title_no' => t('Title no'),
-    'title_type'     => t('Title type'), 'book_no' => t('Book'),
-    'volume_no'      => t('Volume'), 'page_no' => t('Page'),
-    'land_use_class' => t('Land use'), 'issued_date' => t('Issued date'),
-    'province'       => t('Province'), 'district_name' => t('District (text)'),
-    'village_name'   => t('Village (text)'), 'district_id' => t('District id'),
-    'village_id'     => t('Village id'), 'owner_name' => t('Owner name'),
-    'owner_names'    => t('Owner(s)'), 'owner_id_number' => t('Owner ID'),
-    'owner_address'  => t('Owner address'), 'road_category' => t('Road category'),
+    'parcel_no'            => t('Parcel no'),
+    'sub_parcel_no'        => t('Sub-parcel'),
+    'area_sqm'             => t('Area (m²)'),
+    'title_no'             => t('Title no'),
+    'title_type'           => t('Title type'),
+    'book_no'              => t('Book'),
+    'volume_no'            => t('Volume'),
+    'page_no'              => t('Page'),
+    'land_use_class'       => t('Land use'),
+    'issued_date'          => t('Issued date'),
+    'province'             => t('Province'),
+    'district_name'        => t('District (text)'),
+    'village_name'         => t('Village (text)'),
+    'district_id'          => t('District id'),
+    'village_id'           => t('Village id'),
+    'owner_name'           => t('Owner name'),
+    'owner_names'          => t('Owner(s)'),
+    'owner_id_number'      => t('Owner ID'),
+    'owner_address'        => t('Owner address'),
+    'road_category'        => t('Road category'),
+    'order_no'             => t('Order no.'),
+    'location_code'        => t('Location code'),
+    'unit_no'              => t('Unit'),
+    'acquisition_method'   => t('Acquired'),
+    'ownership_status'     => t('Ownership status'),
+    'zone_text'            => t('Zone (desc)'),
+    'map_ref_no'           => t('Map ref'),
+    'map_parcel_no'        => t('Map parcel no.'),
+    'map_scale'            => t('Map scale'),
+    'issued_place'         => t('Issued at'),
+    'date_of_birth'        => t('Date of birth'),
+    'nationality'          => t('Nationality'),
+    'occupation'           => t('Occupation'),
+    'owner_address_village'=> t('Addr village'),
+    'owner_address_unit'   => t('Addr unit'),
+    'owner_address_district'=> t('Addr district'),
+    'owner_address_province'=> t('Addr province'),
+    'spouse_name'          => t('Spouse name'),
+    'spouse_dob'           => t('Spouse DOB'),
+    'spouse_nationality'   => t('Spouse nationality'),
+    'spouse_occupation'    => t('Spouse occupation'),
 ];
 ?>
 <!DOCTYPE html>
@@ -30,13 +61,13 @@ $parsedLabels = [
 <title><?= te('Parcel Entry') ?> - Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 <style>
-  .entry-page { max-width: 1100px; margin: 0 auto; }
+  .entry-page { max-width: 1200px; margin: 0 auto; }
   .entry-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .entry-tabs button { padding: 9px 18px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; font-size: 14px; }
   .entry-tabs button.active { background: #4a7c59; color: #fff; border-color: #4a7c59; }
   .entry-tools { background: #f5f5f5; padding: 14px; margin-bottom: 14px; border-radius: 4px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .entry-tools .grow { flex: 1; }
-  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
   .form-group { margin-bottom: 0; }
   .form-group label { display: block; font-size: 13px; margin-bottom: 4px; font-weight: 500; }
   .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; }
@@ -44,12 +75,15 @@ $parsedLabels = [
   .preview-box { padding: 10px 12px; margin-top: 14px; font-size: 13px; border-radius: 4px; background: #fafafa; border: 1px solid #ddd; }
   .preview-box.ok { background: #eaf4ea; border-color: #2e7d32; }
   .preview-box.err { background: #fdecea; border-color: #c62828; }
-  .owner-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
-  .owner-row input { padding: 8px; border: 1px solid #ccc; border-radius: 3px; flex: 1; min-width: 130px; }
-  .owner-row .fn { flex: 2; }
-  .owner-row label { font-size: 12px; color: #666; flex: 0 0 auto; }
-  .btn-remove { background: #d32f2f; color: #fff; border: none; padding: 4px 8px; font-size: 12px; border-radius: 3px; cursor: pointer; }
-  .btn-add { background: #4a7c59; color: #fff; border: none; padding: 6px 10px; font-size: 13px; border-radius: 3px; cursor: pointer; }
+  .owner-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-start; flex-wrap: wrap; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eee; }
+  .owner-row input, .owner-row select { padding: 7px 8px; border: 1px solid #ccc; border-radius: 3px; }
+  .owner-row .col { display: flex; flex-direction: column; gap: 4px; }
+  .owner-row .col label { font-size: 12px; color: #666; font-weight: 400; }
+  .owner-row .col input { min-width: 110px; }
+  .owner-row .col.fn { flex: 2; min-width: 200px; }
+  .owner-row .col.id { flex: 1; min-width: 130px; }
+  .btn-remove { background: #d32f2f; color: #fff; border: none; padding: 6px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; }
+  .btn-add { background: #4a7c59; color: #fff; border: none; padding: 7px 12px; font-size: 13px; border-radius: 3px; cursor: pointer; }
   .ocr-method { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; }
   .ocr-method label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
   .scan-results { display: none; margin-top: 16px; }
@@ -65,6 +99,8 @@ $parsedLabels = [
   .conf-low  { background: #ffcdd2; color: #b71c1c; }
   .conf-none { background: #eee; color: #888; }
   .overall { font-weight: 600; }
+  .field-set { margin-bottom: 22px; }
+  .field-set h3 { margin: 0 0 10px 0; font-size: 15px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -87,92 +123,145 @@ $parsedLabels = [
 
       <!-- ===== MANUAL / shared form ===== -->
       <div class="form-box" data-content="manual">
-        <h3><?= te('Parcel Information') ?></h3>
         <form id="parcel-form">
-          <div class="form-grid">
-            <div class="form-group">
-              <label><?= te('District') ?></label>
-              <select name="district_id" id="district-select" required>
-                <option value=""><?= te('-- select district --') ?></option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label><?= te('Village') ?></label>
-              <select name="village_id" id="village-select" required>
-                <option value=""><?= te('-- select --') ?></option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label><?= te('Parcel No') ?></label>
-              <input name="parcel_no" type="text" required>
-            </div>
-            <div class="form-group">
-              <label><?= te('Sub-parcel No') ?></label>
-              <input name="sub_parcel_no" type="text">
-            </div>
-            <div class="form-group">
-              <label><?= te('Area (m²)') ?></label>
-              <input name="area_sqm" type="number" step="0.01" min="0" required>
-            </div>
-            <div class="form-group">
-              <label><?= te('Zone Code') ?></label>
-              <input name="zone_code" type="text" placeholder="<?= te('e.g. B3') ?>">
-            </div>
-            <div class="form-group">
-              <label><?= te('Road Category') ?></label>
-              <select name="road_category">
-                <option value=""><?= te('-- select --') ?></option>
-                <option value="main"><?= te('Main') ?></option>
-                <option value="branch"><?= te('Branch') ?></option>
-                <option value="alley"><?= te('Alley') ?></option>
-                <option value="none"><?= te('None') ?></option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label><?= te('Title Type') ?></label>
-              <select name="title_type">
-                <option value=""><?= te('-- select --') ?></option>
-                <option value="land_title"><?= te('Land title') ?></option>
-                <option value="survey_cert"><?= te('Survey certificate') ?></option>
-                <option value="concession"><?= te('Concession') ?></option>
-                <option value="other"><?= te('Other') ?></option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label><?= te('Title No') ?></label>
-              <input name="title_no" type="text">
-            </div>
-            <div class="form-group">
-              <label><?= te('Book No') ?></label>
-              <input name="book_no" type="text">
-            </div>
-            <div class="form-group">
-              <label><?= te('Volume') ?></label>
-              <input name="volume_no" type="text">
-            </div>
-            <div class="form-group">
-              <label><?= te('Page') ?></label>
-              <input name="page_no" type="text">
-            </div>
-            <div class="form-group">
-              <label><?= te('Land Use') ?></label>
-              <select name="land_use_class">
-                <option value=""><?= te('-- select --') ?></option>
-                <option value="residential"><?= te('Residential') ?></option>
-                <option value="agricultural"><?= te('Agricultural') ?></option>
-                <option value="commercial"><?= te('Commercial') ?></option>
-                <option value="other"><?= te('Other') ?></option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label><?= te('Issued Date') ?></label>
-              <input name="issued_date" type="date">
+          <div class="field-set">
+            <h3><?= te('Geography') ?></h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label><?= te('District') ?></label>
+                <select name="district_id" id="district-select" required>
+                  <option value=""><?= te('-- select district --') ?></option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label><?= te('Village') ?></label>
+                <select name="village_id" id="village-select" required>
+                  <option value=""><?= te('-- select --') ?></option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <h3 style="margin-top:24px;"><?= te('Owner(s)') ?></h3>
-          <div id="owners-container"></div>
-          <button type="button" class="btn-add" id="add-owner" style="margin-bottom:8px;"><?= te('+ Add owner') ?></button>
+          <div class="field-set">
+            <h3><?= te('Parcel Identification') ?></h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label><?= te('Parcel No') ?></label>
+                <input name="parcel_no" type="text" required>
+              </div>
+              <div class="form-group">
+                <label><?= te('Sub-parcel No') ?></label>
+                <input name="sub_parcel_no" type="text">
+              </div>
+              <div class="form-group">
+                <label><?= te('Location code (#30)') ?></label>
+                <input name="location_code" type="text" placeholder="e.g. 10.002.0027">
+              </div>
+              <div class="form-group">
+                <label><?= te('Order no. (#2)') ?></label>
+                <input name="order_no" type="text">
+              </div>
+              <div class="form-group">
+                <label><?= te('Unit (#6)') ?></label>
+                <input name="unit_no" type="text">
+              </div>
+              <div class="form-group">
+                <label><?= te('Area (m²)') ?></label>
+                <input name="area_sqm" type="number" step="0.01" min="0" required>
+              </div>
+              <div class="form-group">
+                <label><?= te('Zone Code (LLR7)') ?></label>
+                <input name="zone_code" type="text" placeholder="e.g. B3">
+              </div>
+              <div class="form-group">
+                <label><?= te('Zone text (#23)') ?></label>
+                <input name="zone_text" type="text" placeholder="e.g. plain land-country side">
+              </div>
+              <div class="form-group">
+                <label><?= te('Road Category') ?></label>
+                <select name="road_category">
+                  <option value=""><?= te('-- select --') ?></option>
+                  <option value="main"><?= te('Main') ?></option>
+                  <option value="branch"><?= te('Branch') ?></option>
+                  <option value="alley"><?= te('Alley') ?></option>
+                  <option value="none"><?= te('None') ?></option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label><?= te('Map ref (#26)') ?></label>
+                <input name="map_ref_no" type="text" placeholder="e.g. A250-038">
+              </div>
+              <div class="form-group">
+                <label><?= te('Map parcel (#27)') ?></label>
+                <input name="map_parcel_no" type="text">
+              </div>
+              <div class="form-group">
+                <label><?= te('Map scale (#29)') ?></label>
+                <input name="map_scale" type="text" placeholder="e.g. 1/8000">
+              </div>
+            </div>
+          </div>
+
+          <div class="field-set">
+            <h3><?= te('Certificate / Title') ?></h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label><?= te('Title Type') ?></label>
+                <select name="title_type">
+                  <option value=""><?= te('-- select --') ?></option>
+                  <option value="land_title"><?= te('Land title') ?></option>
+                  <option value="survey_cert"><?= te('Survey certificate') ?></option>
+                  <option value="concession"><?= te('Concession') ?></option>
+                  <option value="other"><?= te('Other') ?></option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label><?= te('Title No') ?></label>
+                <input name="title_no" type="text">
+              </div>
+              <div class="form-group">
+                <label><?= te('Book no (#24)') ?></label>
+                <input name="book_no" type="text">
+              </div>
+              <div class="form-group">
+                <label><?= te('Leaf no (#25)') ?></label>
+                <input name="page_no" type="text">
+              </div>
+              <div class="form-group">
+                <label><?= te('Land Use (#22)') ?></label>
+                <select name="land_use_class">
+                  <option value=""><?= te('-- select --') ?></option>
+                  <option value="residential"><?= te('Residential') ?></option>
+                  <option value="agricultural"><?= te('Agricultural') ?></option>
+                  <option value="commercial"><?= te('Commercial') ?></option>
+                  <option value="other"><?= te('Other') ?></option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label><?= te('Acquired (#20)') ?></label>
+                <input name="acquisition_method" type="text" placeholder="e.g. transfer">
+              </div>
+              <div class="form-group">
+                <label><?= te('Ownership status (#21)') ?></label>
+                <input name="ownership_status" type="text" placeholder="e.g. original asset-female">
+              </div>
+              <div class="form-group">
+                <label><?= te('Issued Date') ?></label>
+                <input name="issued_date" type="date">
+              </div>
+              <div class="form-group">
+                <label><?= te('Issued at (footer)') ?></label>
+                <input name="issued_place" type="text" placeholder="e.g. ວຽງຈັນ">
+              </div>
+            </div>
+          </div>
+
+          <div class="field-set">
+            <h3><?= te('Owner(s)') ?></h3>
+            <div id="owners-container"></div>
+            <button type="button" class="btn-add" id="add-owner" style="margin-bottom:8px;"><?= te('+ Add owner') ?></button>
+            <button type="button" class="btn-add" id="add-spouse" style="margin-bottom:8px; margin-left: 8px; background:#555;"><?= te('Add spouse') ?></button>
+          </div>
 
           <div class="form-actions">
             <button type="submit" class="btn btn-green"><?= te('Save') ?></button>
@@ -252,8 +341,7 @@ const I18N = <?= json_encode([
   'select'         => t('-- select --'),
   'selectDistrict' => t('-- select district --'),
   'fullName'       => t('Full name'),
-  'idNumber'       => t('ID number'),
-  'address'        => t('Address / residence'),
+  'address'        => t('Address'),
   'remove'         => t('Remove'),
   'savedId'        => t('Parcel saved — ID {id}'),
   'saveFailed'     => t('Save failed'),
@@ -264,11 +352,10 @@ const I18N = <?= json_encode([
   'tryAnother'     => t('Try another image'),
   'uploadProcess'  => t('Upload & Process'),
   'conf'           => t('Conf.'),
-  'noFields'       => t('No fields parsed from this scan — fill them in below.'),
+  'noFields'       => t('No fields parsed — fill them in below.'),
   'applied'        => t('OCR applied to the form. Review, correct, then Save.'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
-// ---------- tabs ----------
 document.querySelectorAll('.entry-tabs button').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
@@ -287,7 +374,6 @@ function toast(msg, ok) {
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-// ---------- geography cascade ----------
 let districts = [], villagesByDistrict = {};
 async function loadData() {
   const dRes = await fetch('/api/v1/districts.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
@@ -316,30 +402,51 @@ document.getElementById('district-select').addEventListener('change', function()
   populateVillageSelect(this.value);
 });
 
-// ---------- owners ----------
 let ownerSeq = 0;
-function addOwnerRow(o) {
+function addOwnerRow(o, isSpouse) {
   o = o || {};
   const i = ownerSeq++;
   const row = document.createElement('div');
   row.className = 'owner-row';
   row.dataset.owner = i;
+  row.dataset.type = (o.owner_type === 'spouse' || isSpouse) ? 'spouse' : 'main';
+  const spouseLabel = (o.owner_type === 'spouse' || isSpouse)
+    ? '<label>' + esc(I18N.fullName) + ' (spouse)</label>'
+    : '<label>' + esc(I18N.fullName) + '</label>';
   row.innerHTML =
-    '<label>' + esc(I18N.fullName) + '</label><input class="fn" type="text" data-k="full_name" required>' +
-    '<label>' + esc(I18N.idNumber) + '</label><input type="text" data-k="id_number">' +
-    '<label>' + esc(I18N.address) + '</label><input type="text" data-k="address">' +
+    spouseLabel + '<input class="fn" type="text" data-k="full_name" ' + (isSpouse ? '' : 'required') + '>' +
+    '<label>ID</label><input type="text" data-k="id_number">' +
+    '<label>' + esc(t('Date of birth')) + '</label><input type="date" data-k="date_of_birth">' +
+    '<label>' + esc(t('Nationality')) + '</label><input type="text" data-k="nationality">' +
+    '<label>' + esc(t('Occupation')) + '</label><input type="text" data-k="occupation">' +
+    '<label>' + esc(t('Address')) + '</label><input type="text" data-k="address">' +
+    '<label>Addr village</label><input type="text" data-k="address_village">' +
+    '<label>Addr unit</label><input type="text" data-k="address_unit">' +
+    '<label>Addr district</label><input type="text" data-k="address_district">' +
+    '<label>Addr province</label><input type="text" data-k="address_province">' +
+    (isSpouse ? '<label>Share %</label><input type="number" data-k="share_pct" min="0" max="100" step="1" placeholder="e.g. 50">' : '') +
+    (isSpouse ? '<label>Role</label><select data-k="role"><option value="co_owner">Co-owner</option><option value="owner">Owner</option><option value="representative">Representative</option></select>' : '') +
     '<button type="button" class="btn-remove">' + esc(I18N.remove) + '</button>';
   row.querySelector('button').addEventListener('click', () => row.remove());
-  if (o.full_name) row.querySelector('[data-k=full_name]').value = o.full_name;
-  if (o.id_number) row.querySelector('[data-k=id_number]').value = o.id_number;
-  if (o.address)   row.querySelector('[data-k=address]').value = o.address;
+  if (o.full_name)             row.querySelector('[data-k=full_name]').value = o.full_name;
+  if (o.id_number)             row.querySelector('[data-k=id_number]').value = o.id_number;
+  if (o.date_of_birth)         row.querySelector('[data-k=date_of_birth]').value = o.date_of_birth;
+  if (o.nationality)           row.querySelector('[data-k=nationality]').value = o.nationality;
+  if (o.occupation)            row.querySelector('[data-k=occupation]').value = o.occupation;
+  if (o.address)               row.querySelector('[data-k=address]').value = o.address;
+  if (o.address_village)       row.querySelector('[data-k=address_village]').value = o.address_village;
+  if (o.address_unit)          row.querySelector('[data-k=address_unit]').value = o.address_unit;
+  if (o.address_district)      row.querySelector('[data-k=address_district]').value = o.address_district;
+  if (o.address_province)      row.querySelector('[data-k=address_province]').value = o.address_province;
+  if (isSpouse && o.share_pct) row.querySelector('[data-k=share_pct]').value = o.share_pct;
+  if (isSpouse && o.role)      row.querySelector('[data-k=role]').value = o.role;
   document.getElementById('owners-container').appendChild(row);
 }
 document.getElementById('add-owner').addEventListener('click', () => addOwnerRow());
+document.getElementById('add-spouse').addEventListener('click', () => addOwnerRow({}, true));
 function clearOwners() { document.getElementById('owners-container').innerHTML = ''; addOwnerRow(); }
 clearOwners();
 
-// ---------- save (manual form) ----------
 document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
@@ -347,11 +454,16 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   new FormData(form).forEach((value, name) => { parcel[name] = value; });
   parcel.district_id = document.getElementById('district-select').value;
   parcel.village_id  = document.getElementById('village-select').value;
-  parcel.owners = Array.from(document.querySelectorAll('.owner-row')).map(row => ({
-    full_name: row.querySelector('[data-k=full_name]').value,
-    id_number: row.querySelector('[data-k=id_number]').value,
-    address:   row.querySelector('[data-k=address]').value,
-  })).filter(o => o.full_name && o.full_name.trim() !== '');
+  parcel.owners = Array.from(document.querySelectorAll('.owner-row')).map(row => {
+    const o = {};
+    row.querySelectorAll('[data-k]').forEach(inp => {
+      const k = inp.dataset.k;
+      const v = inp.value;
+      if (k === 'share_pct' && v === '') return;
+      o[k] = v;
+    });
+    return o;
+  }).filter(o => o.full_name && o.full_name.trim() !== '');
 
   const res = await fetch('/api/v1/parcels.php', {
     method: 'POST',
@@ -380,7 +492,6 @@ document.getElementById('clear-form').addEventListener('click', () => {
   document.getElementById('save-result').style.display = 'none';
 });
 
-// ---------- SCAN (upload + OCR, then auto-fill the form) ----------
 let lastScan = null;
 function confBadge(c) {
   if (c === null || c === undefined || c === '' || c === false) return '<span class="conf conf-none">—</span>';
@@ -439,7 +550,6 @@ function renderScanResults(scan) {
     : '<p class="empty">' + esc(I18N.noFields) + '</p>';
   document.getElementById('scan-results').classList.add('show');
 }
-// Apply OCR -> fill the shared form, switch to Manual tab.
 document.getElementById('apply-ocr').addEventListener('click', () => {
   if (!lastScan) return;
   let parsed = lastScan.parsed_fields;
@@ -455,11 +565,32 @@ document.getElementById('apply-ocr').addEventListener('click', () => {
     populateDistrictSelect(String(parsed.district_id));
     populateVillageSelect(String(parsed.district_id), parsed.village_id ? String(parsed.village_id) : '');
   }
-  ['parcel_no','sub_parcel_no','area_sqm','zone_code','road_category','title_type','title_no',
-   'book_no','volume_no','page_no','land_use_class','issued_date'].forEach(k => set(k, parsed[k]));
+  ['parcel_no','sub_parcel_no','location_code','order_no','unit_no',
+   'area_sqm','zone_code','zone_text','road_category','map_ref_no',
+   'map_parcel_no','map_scale','title_type','title_no','book_no',
+   'page_no','land_use_class','acquisition_method','ownership_status',
+   'issued_date','issued_place'].forEach(k => set(k, parsed[k]));
   clearOwners();
   const names = parsed.owner_names || (parsed.owner_name ? [parsed.owner_name] : []);
-  names.forEach(n => addOwnerRow({ full_name: n, id_number: parsed.owner_id_number, address: parsed.owner_address }));
+  names.forEach(n => {
+    addOwnerRow({
+      full_name: n, id_number: parsed.owner_id_number,
+      date_of_birth: parsed.date_of_birth, nationality: parsed.nationality,
+      occupation: parsed.occupation, address: parsed.owner_address,
+      address_village: parsed.owner_address_village,
+      address_unit: parsed.owner_address_unit,
+      address_district: parsed.owner_address_district,
+      address_province: parsed.owner_address_province,
+    });
+  });
+  if (parsed.spouse_name && parsed.spouse_name !== '') {
+    addOwnerRow({
+      full_name: parsed.spouse_name,
+      owner_type: 'spouse', role: 'co_owner',
+      date_of_birth: parsed.spouse_dob, nationality: parsed.spouse_nationality,
+      occupation: parsed.spouse_occupation,
+    }, true);
+  }
   switchTab('manual');
   toast(I18N.applied, true);
 });
@@ -469,7 +600,6 @@ document.getElementById('reprocess').addEventListener('click', () => {
   document.getElementById('scan-file').focus();
 });
 
-// ---------- IMPORT (CSV) ----------
 document.getElementById('download-template').addEventListener('click', () => {
   window.open('/api/v1/parcels/import.php?template=1', '_blank');
 });

@@ -108,6 +108,17 @@ if ($method === 'POST') {
     $volumeNo = trim((string)($parcelData['volume_no'] ?? '')) ?: null;
     $pageNo = trim((string)($parcelData['page_no'] ?? '')) ?: null;
     $landUse = trim((string)($parcelData['land_use_class'] ?? '')) ?: null;
+    // Full certificate field set (migration 005) — all optional.
+    $orderNo = trim((string)($parcelData['order_no'] ?? '')) ?: null;
+    $locationCode = trim((string)($parcelData['location_code'] ?? '')) ?: null;
+    $unitNo = trim((string)($parcelData['unit_no'] ?? '')) ?: null;
+    $acquisitionMethod = trim((string)($parcelData['acquisition_method'] ?? '')) ?: null;
+    $ownershipStatus = trim((string)($parcelData['ownership_status'] ?? '')) ?: null;
+    $zoneText = trim((string)($parcelData['zone_text'] ?? '')) ?: null;
+    $mapRefNo = trim((string)($parcelData['map_ref_no'] ?? '')) ?: null;
+    $mapParcelNo = trim((string)($parcelData['map_parcel_no'] ?? '')) ?: null;
+    $mapScale = trim((string)($parcelData['map_scale'] ?? '')) ?: null;
+    $issuedPlace = trim((string)($parcelData['issued_place'] ?? '')) ?: null;
     $issuedDate = null;
     if (($d = trim((string)($parcelData['issued_date'] ?? ''))) !== '') {
         $dt = DateTime::createFromFormat('Y-m-d', $d);
@@ -145,7 +156,10 @@ if ($method === 'POST') {
         ':pn' => $parcelNo, ':spn' => $subPar, ':prov' => $province, ':vid' => $villageId,
         ':did' => $districtId, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road, 
         ':tn' => $titleNo, ':tt' => $titleType, ':bn' => $bookNo, ':von' => $volumeNo, 
-        ':pg' => $pageNo, ':lu' => $landUse, ':idate' => $issuedDate, ':st' => $status
+        ':pg' => $pageNo, ':lu' => $landUse, ':idate' => $issuedDate, ':st' => $status,
+        ':on' => $orderNo, ':lc' => $locationCode, ':un' => $unitNo,
+        ':am' => $acquisitionMethod, ':os' => $ownershipStatus, ':zt' => $zoneText,
+        ':mr' => $mapRefNo, ':mp' => $mapParcelNo, ':ms' => $mapScale, ':ip' => $issuedPlace,
     ];
     
     $parcelId = null;
@@ -158,7 +172,11 @@ if ($method === 'POST') {
                 parcel_no=:pn, sub_parcel_no=:spn, province=:prov, village_id=:vid, 
                 district_id=:did, area_sqm=:a, zone_code=:zc, road_category=:rc, 
                 title_no=:tn, title_type=:tt, book_no=:bn, volume_no=:von, page_no=:pg, 
-                land_use_class=:lu, issued_date=:idate, status=:st, updated_at=CURRENT_TIMESTAMP 
+                land_use_class=:lu, issued_date=:idate, status=:st,
+                order_no=:on, location_code=:lc, unit_no=:un,
+                acquisition_method=:am, ownership_status=:os, zone_text=:zt,
+                map_ref_no=:mr, map_parcel_no=:mp, map_scale=:ms, issued_place=:ip,
+                updated_at=CURRENT_TIMESTAMP 
                 WHERE id=:id";
             $pdo->prepare($sql)->execute($cols);
             $parcelId = $existingId;
@@ -167,10 +185,13 @@ if ($method === 'POST') {
             $sql = "INSERT INTO parcels (
                 parcel_no, sub_parcel_no, province, village_id, district_id, area_sqm, 
                 zone_code, road_category, title_no, title_type, book_no, volume_no, page_no, 
-                land_use_class, issued_date, status, created_at, updated_at
+                land_use_class, issued_date, status, created_at, updated_at,
+                order_no, location_code, unit_no, acquisition_method, ownership_status,
+                zone_text, map_ref_no, map_parcel_no, map_scale, issued_place
             ) VALUES (
                 :pn, :spn, :prov, :vid, :did, :a, :zc, :rc, :tn, :tt, :bn, :von, :pg, 
-                :lu, :idate, :st, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                :lu, :idate, :st, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                :on, :lc, :un, :am, :os, :zt, :mr, :mp, :ms, :ip
             ) RETURNING id";
             $st = $pdo->prepare($sql);
             $st->execute($cols);
@@ -197,29 +218,50 @@ if ($method === 'POST') {
         $address = trim((string)($o['address'] ?? '')) ?: null;
         $oVillage = !empty($o['village_id']) ? (int)$o['village_id'] : $villageId;
         $oDistrict = !empty($o['district_id']) ? (int)$o['district_id'] : $districtId;
-        $ownerType = in_array($o['owner_type'] ?? '', ['individual', 'organization', 'joint'], true)
+        $ownerType = in_array($o['owner_type'] ?? '', ['individual', 'organization', 'joint', 'spouse'], true)
             ? $o['owner_type'] : 'individual';
         $role = in_array($o['role'] ?? '', ['owner', 'co_owner', 'representative'], true)
             ? $o['role'] : 'owner';
         $share = (isset($o['share_pct']) && $o['share_pct'] !== '') ? (float)$o['share_pct'] : null;
+        // Certificate identity + structured address (migration 005) — all optional.
+        $oDoB = null;
+        if (($db = trim((string)($o['date_of_birth'] ?? ''))) !== '' &&
+            ($dt = DateTime::createFromFormat('Y-m-d', $db)) && $dt->format('Y-m-d') === $db) {
+            $oDoB = $db;
+        }
+        $oNat = trim((string)($o['nationality'] ?? '')) ?: null;
+        $oOcc = trim((string)($o['occupation'] ?? '')) ?: null;
+        $oAdV = trim((string)($o['address_village'] ?? '')) ?: null;
+        $oAdU = trim((string)($o['address_unit'] ?? '')) ?: null;
+        $oAdD = trim((string)($o['address_district'] ?? '')) ?: null;
+        $oAdP = trim((string)($o['address_province'] ?? '')) ?: null;
         
         $existingOwnerId = !empty($o['id']) ? (int)$o['id'] : 0;
         
         if ($existingOwnerId) {
             $pdo->prepare("UPDATE owners SET full_name=:fn, id_number=:idn, id_type=:idt, phone=:ph,
-                address=:ad, village_id=:vid, district_id=:did, owner_type=:ot, updated_at=CURRENT_TIMESTAMP
+                address=:ad, village_id=:vid, district_id=:did, owner_type=:ot,
+                date_of_birth=:dob, nationality=:nat, occupation=:occ,
+                address_village=:adv, address_unit=:adu, address_district=:add_, address_province=:adp,
+                updated_at=CURRENT_TIMESTAMP
                 WHERE id=:id")->execute([
                 ':fn' => $fullName, ':idn' => $idNumber, ':idt' => $idType, ':ph' => $phone,
                 ':ad' => $address, ':vid' => $oVillage, ':did' => $oDistrict, ':ot' => $ownerType,
+                ':dob' => $oDoB, ':nat' => $oNat, ':occ' => $oOcc,
+                ':adv' => $oAdV, ':adu' => $oAdU, ':add_' => $oAdD, ':adp' => $oAdP,
                 ':id' => $existingOwnerId,
             ]);
             $ownerId = $existingOwnerId;
         } else {
-            $st = $pdo->prepare("INSERT INTO owners (full_name, id_number, id_type, phone, address, village_id, district_id, owner_type)
-                VALUES (:fn, :idn, :idt, :ph, :ad, :vid, :did, :ot) RETURNING id");
+            $st = $pdo->prepare("INSERT INTO owners (full_name, id_number, id_type, phone, address, village_id, district_id, owner_type,
+                date_of_birth, nationality, occupation, address_village, address_unit, address_district, address_province)
+                VALUES (:fn, :idn, :idt, :ph, :ad, :vid, :did, :ot,
+                :dob, :nat, :occ, :adv, :adu, :add_, :adp) RETURNING id");
             $st->execute([
                 ':fn' => $fullName, ':idn' => $idNumber, ':idt' => $idType, ':ph' => $phone,
                 ':ad' => $address, ':vid' => $oVillage, ':did' => $oDistrict, ':ot' => $ownerType,
+                ':dob' => $oDoB, ':nat' => $oNat, ':occ' => $oOcc,
+                ':adv' => $oAdV, ':adu' => $oAdU, ':add_' => $oAdD, ':adp' => $oAdP,
             ]);
             $ownerId = (int)$st->fetch()['id'];
         }
