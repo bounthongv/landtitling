@@ -1,6 +1,6 @@
 # Land Fee Payment MVP — Back-Office Web Build Plan (Page by Page)
 
-> **Savannakhet Province.** | **Status:** live on `https://landfee.apis.com.la/` | **Approach:** Build back-office web page by page, test through real web UI
+> **Savannakhet Province.** | **Status:** live on `https://landtax.apis.com.la/` | **Approach:** Build back-office web page by page, test through real web UI
 >
 > **v3 design (annual fee + title parsing + auto-verify):** see `docs/5-annual-land-fee-back-office-design.md`. It supersedes the fee/payment parts of this plan.
 >
@@ -14,9 +14,9 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 
 | Front-end | URL | Purpose |
 |-----------|-----|---------|
-| **Citizen PWA** | `https://landfee.apis.com.la/public/citizen/` | Mobile-first: phone-OTP login → parcel lookup → fee quote → create payment → print slip → upload slip photo → track status |
-| **Officer Back-Office** | `https://landfee.apis.com.la/` (root → admin) | **THIS IS WHAT WE BUILD NOW** — page by page, test through real web UI |
-| **JSON API** | `https://landfee.apis.com.la/api/v1/` | Powers both front-ends (already built) |
+| **Citizen PWA** | `https://landtax.apis.com.la/public/citizen/` | Mobile-first: phone-OTP login → parcel lookup → fee quote → create payment → print slip → upload slip photo → track status |
+| **Officer Back-Office** | `https://landtax.apis.com.la/` (root → admin) | **THIS IS WHAT WE BUILD NOW** — page by page, test through real web UI |
+| **JSON API** | `https://landtax.apis.com.la/api/v1/` | Powers both front-ends (already built) |
 
 **Fee model (locked):** `fee = zone_rate(district, road_category) × area_sqm` — flat, location-only.
 
@@ -26,10 +26,10 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 
 | What | URL | Expected |
 |------|-----|----------|
-| **Admin login (root)** | `https://landfee.apis.com.la/` | 302 → login (root now redirects to admin) |
-| **API health** | `https://landfee.apis.com.la/api/v1/districts.php` | 200 + JSON |
-| **Citizen PWA** | `https://landfee.apis.com.la/public/citizen/` | 302 → login |
-| HTTP → HTTPS | `http://landfee.apis.com.la/` | 301 → HTTPS |
+| **Admin login (root)** | `https://landtax.apis.com.la/` | 302 → login (root now redirects to admin) |
+| **API health** | `https://landtax.apis.com.la/api/v1/districts.php` | 200 + JSON |
+| **Citizen PWA** | `https://landtax.apis.com.la/public/citizen/` | 302 → login |
+| HTTP → HTTPS | `http://landtax.apis.com.la/` | 301 → HTTPS |
 
 ---
 
@@ -60,7 +60,7 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 ## 4. Build Approach: Page by Page, Test in Browser
 
 **Workflow for each page:**
-1. **Open the page** in browser at `https://landfee.apis.com.la/public/admin/xxx.php`
+1. **Open the page** in browser at `https://landtax.apis.com.la/public/admin/xxx.php`
 2. **Test the UI flow** — click, fill, submit, verify
 3. **Fix any issues** (PHP errors, JS errors, API errors, UI bugs)
 4. **Commit & push** → auto-deploys to live
@@ -73,7 +73,7 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 ## 4. Page Build Order (with test checklist)
 
 ### Page 1: Login (`/public/admin/login.php`) ✅
-- [ ] Open `https://landfee.apis.com.la/public/admin/`
+- [ ] Open `https://landtax.apis.com.la/public/admin/`
 - [ ] Should redirect to `login.php`
 - [ ] Enter `sav_officer` / `demo1234` → submit
 - [ ] Should redirect to dashboard (`/public/admin/`)
@@ -139,7 +139,7 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 | **CI/CD** | ✅ auto-deploy on push |
 | **DB** | ✅ 15 districts, 1029 villages, 60 rates |
 
-**Login:** `sav_officer` / `demo1234` at `https://landfee.apis.com.la/public/admin/`
+**Login:** `sav_officer` / `demo1234` at `https://landtax.apis.com.la/public/admin/`
 
 ---
 
@@ -168,8 +168,8 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 
 **Push to main → auto-deploys code only:**
 1. SSH to `apis.com.la` (user `apis`, key `VPS_SSH_KEY`)
-2. `cd /var/www/html/landfee && git pull origin main`
-3. `chown -R apis:www-data /var/www/html/landfee`
+2. `cd /var/www/html/landtax && git pull origin main`
+3. `chown -R apis:www-data /var/www/html/landtax`
 4. `sudo systemctl restart apache2`
 
 **DB changes are manual** — schema/seed applied on server when you decide.
@@ -181,7 +181,7 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 **Open the live back-office at the root URL:**
 
 ```
-https://landfee.apis.com.la/
+https://landtax.apis.com.la/
 ```
 
 **Credentials:** `sav_officer` / `demo1234`

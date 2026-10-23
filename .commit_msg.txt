@@ -1,8 +1,0 @@
-feat: user management — district/province levels, roles, scoping
-
-- Migration 003: adds users.level, users.district_id, title_scans.district_id
-- API: all endpoints enforce district/province scoping via staff_scope()
-- Roles: admin/officer/manager at district level; admin/officer/manager at province level
-- Permissions: district admin creates officer/manager in own district; province admin manages all accounts
-- Admin UI (users.php): shows level/district, edit/create forms with role/level/district dropdowns
-- Translations: added Level, district, province, manager, Insufficient permissions

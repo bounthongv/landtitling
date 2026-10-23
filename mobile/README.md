@@ -50,7 +50,7 @@ flutter run --dart-define=API_BASE=http://10.0.2.2:8091/api/v1
 physical phone use the machine's LAN address; on the iOS simulator use
 `localhost`.
 
-Defaults to the live server: `https://landfee.apis.com.la/api/v1`.
+Defaults to the live server: `https://landtax.apis.com.la/api/v1`.
 
 ## The API the app calls
 

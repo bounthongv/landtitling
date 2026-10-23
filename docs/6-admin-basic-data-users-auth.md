@@ -1,6 +1,6 @@
 # Land Fee Back-Office — Basic Data, User Management & Auth (Admin Scope)
 
-> **Status:** already implemented (Phases G1–G3 of the v3 design) and live on `https://landfee.apis.com.la/`.
+> **Status:** already implemented (Phases G1–G3 of the v3 design) and live on `https://landtax.apis.com.la/`.
 > This doc is the focused plan for the **admin-maintained parts** of the system. The full design lives in
 > `docs/5-annual-land-fee-back-office-design.md`; the back-office build checklist is in
 > `docs/4-plan-land-fee-mvp-v2.md`.
@@ -105,7 +105,7 @@ This must be configured before real citizens can log in.
 
 | Step | URL | Action | Expected |
 |------|-----|--------|----------|
-| 1 | `https://landfee.apis.com.la/` | → admin login | `sav_officer` / `demo1234` → dashboard |
+| 1 | `https://landtax.apis.com.la/` | → admin login | `sav_officer` / `demo1234` → dashboard |
 | 2 | `/public/admin/basic_data.php` | Open each tab | Edit a zone rate → persists; delete an in-use row → refused with counts |
 | 3 | `/public/admin/basic_data.php` | Add a fee year | New year appears; drives obligation generation |
 | 4 | `/public/admin/users.php` | Create a staff user | New officer can log in |

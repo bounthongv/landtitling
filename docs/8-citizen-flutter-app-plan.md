@@ -159,7 +159,7 @@ reading another citizen's slip. The app inherits that.
 | B-6 | Two migrations are both numbered `003` (`003_zone_code.sql`, `003_national_geography.sql`) | Renumber the geography one to `004` | Low (housekeeping) |
 
 Also note for the app team: the API is **not CORS-restricted** and returns plain
-JSON, so a mobile client can call it directly. Use `https://landfee.apis.com.la/api/v1`.
+JSON, so a mobile client can call it directly. Use `https://landtax.apis.com.la/api/v1`.
 
 ---
 

@@ -9,7 +9,7 @@ class AppConfig {
 
   static const String apiBase = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'https://landfee.apis.com.la/api/v1',
+    defaultValue: 'https://landtax.apis.com.la/api/v1',
   );
 
   /// When true the app shows developer affordances (e.g. the OTP code that

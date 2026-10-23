@@ -114,9 +114,9 @@ Key points:
 
 ## 8. What is DONE (verified on apis.com.la)
 
-- Site live at `https://landfee.apis.com.la/` (HTTPS-only, valid Let's Encrypt cert).
+- Site live at `https://landtax.apis.com.la/` (HTTPS-only, valid Let's Encrypt cert).
 
-- Apache vhost: DocumentRoot `/var/www/html/landfee`, HTTP→HTTPS redirect, no redirect loop.
+- Apache vhost: DocumentRoot `/var/www/html/landtax`, HTTP→HTTPS redirect, no redirect loop.
 
 - PostgreSQL `landfee` seeded: 15 districts, 1,029 villages, 60 zone rates.
 

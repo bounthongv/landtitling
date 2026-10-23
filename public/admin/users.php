@@ -247,20 +247,17 @@ if ($linkingUser > 0) {
     </form>
   </template>
 
+<?php require __DIR__ . "/modal.php"; ?>
+
   <script>
   (function(){
+    // Province/district cascade in the modal form.
+    // Runs AFTER modal.php so window.openModal is already the real function.
+    var origOpen = window.openModal;
     var _allDistricts = [];
     <?php foreach ($districts as $d): ?>
-    _allDistricts.push({"
-      id": <?= (int)$d['id'] ?>, "name": "<?= str_replace(chr(39), chr(92).chr(39), $d['name']) ?>", "province_id": <?= (int)$d['province_id'] ?>});
+    _allDistricts.push({"id": <?= (int)$d['id'] ?>, "name": "<?= str_replace(chr(39), chr(92).chr(39), $d['name']) ?>", "province_id": <?= (int)$d['province_id'] ?>});
     <?php endforeach; ?>
-
-    function getSelects(){
-      return {
-        prov: document.getElementById("modal-province"),
-        dist: document.getElementById("modal-district")
-      };
-    }
 
     function applyProvince(prov, dist){
       if(!dist) return;
@@ -273,33 +270,28 @@ if ($linkingUser > 0) {
       });
     }
 
-    // Hook into modal open — runs after the template is cloned into the DOM.
-    (function(origOpen){
-      window.openModal = function(templateId, opts){
-        opts = opts || {};
-        var _o = opts.onOpen;
-        opts.onOpen = function(form){
-          if(_o) _o(form);
-          var s = getSelects();
-          applyProvince(s.prov, s.dist);
-          if(s.prov && s.dist){
-            s.prov.addEventListener("change", function(){ applyProvince(s.prov, s.dist); });
-          }
-          // For edit: set province/district from button data attributes.
-          if(opts.trigger){
-            var pid = opts.trigger.dataset.provinceId;
-            var did = opts.trigger.dataset.districtId;
-            if(s.prov && pid) s.prov.value = pid;
-            applyProvince(s.prov, s.dist);
-            if(s.dist && did) s.dist.value = did;
-          }
-        };
-        return origOpen(templateId, opts);
+    window.openModal = function(templateId, opts){
+      opts = opts || {};
+      var _o = opts.onOpen;
+      opts.onOpen = function(form){
+        if(_o) _o(form);
+        var prov = document.getElementById("modal-province");
+        var dist = document.getElementById("modal-district");
+        applyProvince(prov, dist);
+        if(prov && dist){
+          prov.addEventListener("change", function(){ applyProvince(prov, dist); });
+        }
+        if(opts.trigger){
+          var pid = opts.trigger.dataset.provinceId;
+          var did = opts.trigger.dataset.districtId;
+          if(prov && pid) prov.value = pid;
+          applyProvince(prov, dist);
+          if(dist && did) dist.value = did;
+        }
       };
-    })(window.openModal);
+      return origOpen(templateId, opts);
+    };
   })()
   </script>
-
-<?php require __DIR__ . "/modal.php"; ?>
 </body>
 </html>
