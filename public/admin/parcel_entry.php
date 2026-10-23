@@ -1,11 +1,27 @@
 <?php
-// public/admin/parcel_entry.php — unified parcel entry page (scan, manual, import)
+// public/admin/parcel_entry.php — unified parcel entry: manual form + scan (OCR) + CSV import.
+// The Scan tab uploads to the existing scans API (Tesseract or Gemini) and auto-fills the
+// shared manual form with the parsed fields, exactly like the old scans.php review flow.
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 $allowedRoles = ['officer', 'admin', 'manager'];
 if (!in_array($role, $allowedRoles, true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
+
+// Field labels for the OCR results table (same canonical keys the OCR produces).
+$parsedLabels = [
+    'parcel_no'      => t('Parcel no'), 'sub_parcel_no' => t('Sub-parcel'),
+    'area_sqm'       => t('Area (m²)'), 'title_no' => t('Title no'),
+    'title_type'     => t('Title type'), 'book_no' => t('Book'),
+    'volume_no'      => t('Volume'), 'page_no' => t('Page'),
+    'land_use_class' => t('Land use'), 'issued_date' => t('Issued date'),
+    'province'       => t('Province'), 'district_name' => t('District (text)'),
+    'village_name'   => t('Village (text)'), 'district_id' => t('District id'),
+    'village_id'     => t('Village id'), 'owner_name' => t('Owner name'),
+    'owner_names'    => t('Owner(s)'), 'owner_id_number' => t('Owner ID'),
+    'owner_address'  => t('Owner address'), 'road_category' => t('Road category'),
+];
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -14,30 +30,41 @@ $token = $_SESSION['admin_token'];
 <title><?= te('Parcel Entry') ?> - Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 <style>
-  .entry-page { max-width: 1200px; margin: 0 auto; padding: 20px; }
-  .entry-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
-  .entry-tabs button { padding: 10px 20px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+  .entry-page { max-width: 1100px; margin: 0 auto; }
+  .entry-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .entry-tabs button { padding: 9px 18px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; font-size: 14px; }
   .entry-tabs button.active { background: #4a7c59; color: #fff; border-color: #4a7c59; }
-  .entry-tools { background: #f5f5f5; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
-  .entry-tools button { margin-right: 10px; margin-bottom: 10px; }
-  .entry-form { background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 4px; }
-  .form-section { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-  .form-section h3 { margin: 0 0 15px 0; color: #333; }
-  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+  .entry-tools { background: #f5f5f5; padding: 14px; margin-bottom: 14px; border-radius: 4px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .entry-tools .grow { flex: 1; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .form-group { margin-bottom: 0; }
   .form-group label { display: block; font-size: 13px; margin-bottom: 4px; font-weight: 500; }
   .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; }
-  .form-actions { display: flex; gap: 10px; margin-top: 20px; }
-  .preview-box { background: #fafafa; padding: 10px; margin-top: 15px; font-size: 12px; }
-  #scan-preview { max-width: 300px; max-height: 300px; margin: 10px 0; display: none; }
-  #ocr-result { background: #e8f5e9; padding: 10px; margin-top: 10px; border-radius: 3px; font-size: 12px; max-height: 150px; overflow-y: auto; }
-  .owner-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-  .owner-row input { flex: 1; }
-  .owner-row label { flex: 0 0 150px; }
-  .row-buttons { display: flex; gap: 5px; }
-  .btn-sm { padding: 4px 8px; font-size: 12px; }
-  .btn-remove { background: #d32f2f; color: #fff; border: none; }
-  .btn-add { background: #4a7c59; color: #fff; }
+  .form-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .preview-box { padding: 10px 12px; margin-top: 14px; font-size: 13px; border-radius: 4px; background: #fafafa; border: 1px solid #ddd; }
+  .preview-box.ok { background: #eaf4ea; border-color: #2e7d32; }
+  .preview-box.err { background: #fdecea; border-color: #c62828; }
+  .owner-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+  .owner-row input { padding: 8px; border: 1px solid #ccc; border-radius: 3px; flex: 1; min-width: 130px; }
+  .owner-row .fn { flex: 2; }
+  .owner-row label { font-size: 12px; color: #666; flex: 0 0 auto; }
+  .btn-remove { background: #d32f2f; color: #fff; border: none; padding: 4px 8px; font-size: 12px; border-radius: 3px; cursor: pointer; }
+  .btn-add { background: #4a7c59; color: #fff; border: none; padding: 6px 10px; font-size: 13px; border-radius: 3px; cursor: pointer; }
+  .ocr-method { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; }
+  .ocr-method label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
+  .scan-results { display: none; margin-top: 16px; }
+  .scan-results.show { display: block; }
+  .scan-img { max-width: 340px; max-height: 320px; object-fit: contain; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+  .parsed-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .parsed-table td { padding: 5px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .parsed-table td:first-child { width: 130px; color: #555; }
+  .ocr-raw { background: #f7f7f7; border: 1px solid #ddd; border-radius: 4px; padding: 10px; font-size: 12px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; }
+  .conf { display: inline-block; min-width: 38px; text-align: center; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+  .conf-high { background: #c8e6c9; color: #1b5e20; }
+  .conf-mid  { background: #fff3c4; color: #7a5c00; }
+  .conf-low  { background: #ffcdd2; color: #b71c1c; }
+  .conf-none { background: #eee; color: #888; }
+  .overall { font-weight: 600; }
 </style>
 </head>
 <body>
@@ -50,19 +77,18 @@ $token = $_SESSION['admin_token'];
   <main class="main">
     <h1><?= te('Parcel Entry') ?></h1>
     <p class="sub"><?= te('Add parcels via Scan, Manual, or Import') ?></p>
-    
+
     <div class="entry-page">
-      <!-- Tabs -->
       <div class="entry-tabs">
         <button class="active" data-tab="manual"><?= te('Manual') ?></button>
         <button data-tab="scan"><?= te('Scan') ?></button>
         <button data-tab="import"><?= te('Import') ?></button>
       </div>
-      
-      <!-- Manual Entry -->
-      <div class="entry-form" data-content="manual">
+
+      <!-- ===== MANUAL / shared form ===== -->
+      <div class="form-box" data-content="manual">
         <h3><?= te('Parcel Information') ?></h3>
-        <form id="parcel-form" method="post">
+        <form id="parcel-form">
           <div class="form-grid">
             <div class="form-group">
               <label><?= te('District') ?></label>
@@ -86,11 +112,11 @@ $token = $_SESSION['admin_token'];
             </div>
             <div class="form-group">
               <label><?= te('Area (m²)') ?></label>
-              <input name="area_sqm" type="number" step="0.01" required>
+              <input name="area_sqm" type="number" step="0.01" min="0" required>
             </div>
             <div class="form-group">
               <label><?= te('Zone Code') ?></label>
-              <input name="zone_code" type="text">
+              <input name="zone_code" type="text" placeholder="<?= te('e.g. B3') ?>">
             </div>
             <div class="form-group">
               <label><?= te('Road Category') ?></label>
@@ -143,20 +169,11 @@ $token = $_SESSION['admin_token'];
               <input name="issued_date" type="date">
             </div>
           </div>
-          
-          <h3 style="margin-top:30px;"><?= te('Owner(s)') ?></h3>
-          <div id="owners-container">
-            <div class="owner-row" data-owner="1">
-              <label><?= te('Full Name') ?></label>
-              <input type="text" name="owners[0][full_name]" required>
-              <label><?= te('ID No') ?></label>
-              <input type="text" name="owners[0][id_number]">
-              <label><?= te('Phone') ?></label>
-              <input type="text" name="owners[0][phone]">
-            </div>
-          </div>
-          <button type="button" class="btn-sm btn-add" id="add-owner"><?= te('+ Add Owner') ?></button>
-          
+
+          <h3 style="margin-top:24px;"><?= te('Owner(s)') ?></h3>
+          <div id="owners-container"></div>
+          <button type="button" class="btn-add" id="add-owner" style="margin-bottom:8px;"><?= te('+ Add owner') ?></button>
+
           <div class="form-actions">
             <button type="submit" class="btn btn-green"><?= te('Save') ?></button>
             <button type="button" class="btn btn-red" id="clear-form"><?= te('Clear') ?></button>
@@ -164,175 +181,320 @@ $token = $_SESSION['admin_token'];
         </form>
         <div id="save-result" class="preview-box" style="display:none;"></div>
       </div>
-      
-      <!-- Scan Entry -->
-      <div class="entry-form" data-content="scan" style="display:none;">
-        <h3><?= te('Upload Title Scan') ?></h3>
-        <div id="scan-upload">
-          <input type="file" id="scan-file" accept="image/*">
-          <button type="button" class="btn btn-green" id="process-ocr"><?= te('Process OCR') ?></button>
+
+      <!-- ===== SCAN / OCR ===== -->
+      <div class="form-box" data-content="scan" style="display:none;">
+        <div class="entry-tools">
+          <input type="file" id="scan-file" accept="image/*" class="grow">
+          <label style="font-size:13px; color:#555;"><?= te('Land title image (JPG/PNG)') ?></label>
+          <button type="button" class="btn btn-green" id="process-ocr"><?= te('Upload &amp; Process') ?></button>
         </div>
-        <img id="scan-preview">
-        <div id="ocr-result" style="display:none;"></div>
-        <div style="margin-top:20px;">
-          <button type="button" class="btn btn-green" id="apply-ocr"><?= te('Apply OCR Result') ?></button>
+
+        <div class="form-group">
+          <label><?= te('OCR Method') ?></label>
+          <div class="ocr-method">
+            <label><input type="radio" name="ocr_method" value="tesseract" checked> <?= te('Tesseract (local, free, fast)') ?></label>
+            <label><input type="radio" name="ocr_method" value="gemini"> <?= te('Gemini 2.5 Flash (AI, higher accuracy, requires API key)') ?></label>
+          </div>
+          <p class="sub" style="font-size:12px;"><?= te('OCR reads the title text and pre-fills the fields. You confirm and correct everything.') ?></p>
+        </div>
+
+        <div id="scan-error" class="preview-box err" style="display:none;"></div>
+
+        <div class="scan-results" id="scan-results">
+          <div class="grid" style="grid-template-columns: 340px 1fr; gap: 16px;">
+            <div>
+              <div class="form-box" style="border:2px solid #1b5e20;">
+                <h3 style="display:flex; justify-content:space-between; align-items:center;">
+                  <?= te('Scan') ?> <span id="overall-conf"></span>
+                </h3>
+                <img id="scan-preview" class="scan-img">
+                <div style="margin-top:10px;">
+                  <button type="button" class="btn btn-gold btn-sm" id="reprocess"><?= te('Try another image') ?></button>
+                </div>
+              </div>
+              <details style="margin-top:12px;">
+                <summary style="cursor:pointer; font-weight:600;"><?= te('OCR extracted text') ?></summary>
+                <div id="ocr-raw" class="ocr-raw" style="margin-top:8px;"></div>
+              </details>
+            </div>
+            <div>
+              <div class="form-box">
+                <h3><?= te('Parsed fields') ?></h3>
+                <div id="parsed-fields"></div>
+              </div>
+              <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-green" id="apply-ocr"><?= te('Apply to form') ?></button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      
-      <!-- Import Entry -->
-      <div class="entry-form" data-content="import" style="display:none;">
+
+      <!-- ===== IMPORT / CSV ===== -->
+      <div class="form-box" data-content="import" style="display:none;">
         <div class="entry-tools">
-          <button type="button" class="btn btn-green" id="download-template"><?= te('Download Template') ?></button>
-          <button type="button" class="btn btn-green" id="open-import-modal"><?= te('Import CSV') ?></button>
+          <button type="button" class="btn btn-gold" id="download-template"><?= te('Download Template') ?></button>
+          <input type="file" id="import-file" accept=".csv,text/csv" class="grow">
+          <button type="button" class="btn btn-green" id="do-import"><?= te('Import &amp; Match') ?></button>
         </div>
-        <div id="import-preview" class="preview-box" style="display:none;"></div>
+        <p class="sub" style="font-size:12px;"><?= te('Import a CSV of parcels. Download the template, fill it in, then upload. New rows create parcels; rows with an existing parcel_no in the same village update it.') ?></p>
+        <div id="import-result" class="preview-box" style="display:none;"></div>
       </div>
     </div>
   </main>
 </div>
 
 <script>
-const TOKEN = '<?= e($_SESSION['admin_token'] ?? '') ?>';
+const TOKEN = '<?= e($token) ?>';
+const PARSING_LABELS = <?= json_encode($parsedLabels, JSON_UNESCAPED_UNICODE) ?>;
+const I18N = <?= json_encode([
+  'select'         => t('-- select --'),
+  'selectDistrict' => t('-- select district --'),
+  'fullName'       => t('Full name'),
+  'idNumber'       => t('ID number'),
+  'address'        => t('Address / residence'),
+  'remove'         => t('Remove'),
+  'savedId'        => t('Parcel saved — ID {id}'),
+  'saveFailed'     => t('Save failed'),
+  'importFailed'   => t('Import failed'),
+  'chooseCsv'      => t('Choose a file first.'),
+  'loading'        => t('Loading…'),
+  'failedConfirm'  => t('Failed to process scan'),
+  'tryAnother'     => t('Try another image'),
+  'uploadProcess'  => t('Upload & Process'),
+  'conf'           => t('Conf.'),
+  'noFields'       => t('No fields parsed from this scan — fill them in below.'),
+  'applied'        => t('OCR applied to the form. Review, correct, then Save.'),
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
-// Tab switching
+// ---------- tabs ----------
 document.querySelectorAll('.entry-tabs button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.entry-tabs button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.entry-form').forEach(f => f.style.display = 'none');
-    document.querySelector(`[data-content="${btn.dataset.tab}"]`).style.display = 'block';
-  });
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
+function switchTab(name) {
+  document.querySelectorAll('.entry-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('[data-content]').forEach(p => p.style.display = (p.dataset.content === name) ? '' : 'none');
+}
+function toast(msg, ok) {
+  const box = document.getElementById('save-result');
+  box.dataset.sticky = '0';
+  box.className = 'preview-box ' + (ok ? 'ok' : 'err');
+  box.textContent = msg;
+  box.style.display = 'block';
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => { if (box.dataset.sticky !== '1') box.style.display = 'none'; }, ok ? 5000 : 8000);
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-// District/Village cascade
-let districts = [];
-let villagesByDistrict = {};
-
+// ---------- geography cascade ----------
+let districts = [], villagesByDistrict = {};
 async function loadData() {
   const dRes = await fetch('/api/v1/districts.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
   districts = (await dRes.json()).data || [];
-  
-  districts.forEach(d => {
-    villagesByDistrict[d.id] = [];
-  });
-  
+  districts.forEach(d => { villagesByDistrict[d.id] = []; });
   const vRes = await fetch('/api/v1/villages.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
   const villages = (await vRes.json()).data || [];
-  villages.forEach(v => {
-    if (villagesByDistrict[v.district_id]) {
-      villagesByDistrict[v.district_id].push(v);
-    }
-  });
-  
+  villages.forEach(v => { if (Array.isArray(villagesByDistrict[v.district_id])) villagesByDistrict[v.district_id].push(v); });
   populateDistrictSelect();
 }
-
-function populateDistrictSelect() {
+function populateDistrictSelect(keepValue) {
   const sel = document.getElementById('district-select');
-  sel.innerHTML = '<option value=""><?= te('-- select district --') ?></option>';
-  districts.forEach(d => {
-    sel.innerHTML += `<option value="${d.id}">${d.name_lo}</option>`;
-  });
+  const keep = keepValue || sel.value;
+  sel.innerHTML = '<option value="">' + esc(I18N.selectDistrict) + '</option>' +
+    districts.map(d => '<option value="' + d.id + '">' + esc(d.name_lo) + '</option>').join('');
+  if (keep) sel.value = keep;
 }
-
-function populateVillageSelect(districtId) {
+function populateVillageSelect(districtId, keepValue) {
   const sel = document.getElementById('village-select');
-  sel.innerHTML = '<option value=""><?= te('-- select --') ?></option>';
-  (villagesByDistrict[districtId] || []).forEach(v => {
-    sel.innerHTML += `<option value="${v.id}">${v.name_lo}</option>`;
-  });
+  const keep = keepValue || sel.value;
+  sel.innerHTML = '<option value="">' + esc(I18N.select) + '</option>' +
+    (villagesByDistrict[districtId] || []).map(v => '<option value="' + v.id + '">' + esc(v.name_lo) + '</option>').join('');
+  if (keep) sel.value = keep;
 }
-
 document.getElementById('district-select').addEventListener('change', function() {
   populateVillageSelect(this.value);
 });
 
-// Form submission
+// ---------- owners ----------
+let ownerSeq = 0;
+function addOwnerRow(o) {
+  o = o || {};
+  const i = ownerSeq++;
+  const row = document.createElement('div');
+  row.className = 'owner-row';
+  row.dataset.owner = i;
+  row.innerHTML =
+    '<label>' + esc(I18N.fullName) + '</label><input class="fn" type="text" data-k="full_name" required>' +
+    '<label>' + esc(I18N.idNumber) + '</label><input type="text" data-k="id_number">' +
+    '<label>' + esc(I18N.address) + '</label><input type="text" data-k="address">' +
+    '<button type="button" class="btn-remove">' + esc(I18N.remove) + '</button>';
+  row.querySelector('button').addEventListener('click', () => row.remove());
+  if (o.full_name) row.querySelector('[data-k=full_name]').value = o.full_name;
+  if (o.id_number) row.querySelector('[data-k=id_number]').value = o.id_number;
+  if (o.address)   row.querySelector('[data-k=address]').value = o.address;
+  document.getElementById('owners-container').appendChild(row);
+}
+document.getElementById('add-owner').addEventListener('click', () => addOwnerRow());
+function clearOwners() { document.getElementById('owners-container').innerHTML = ''; addOwnerRow(); }
+clearOwners();
+
+// ---------- save (manual form) ----------
 document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
-  const data = {};
-  
-  // Collect form fields
-  new FormData(form).forEach((value, name) => {
-    data[name] = value;
+  const parcel = {};
+  new FormData(form).forEach((value, name) => { parcel[name] = value; });
+  parcel.district_id = document.getElementById('district-select').value;
+  parcel.village_id  = document.getElementById('village-select').value;
+  parcel.owners = Array.from(document.querySelectorAll('.owner-row')).map(row => ({
+    full_name: row.querySelector('[data-k=full_name]').value,
+    id_number: row.querySelector('[data-k=id_number]').value,
+    address:   row.querySelector('[data-k=address]').value,
+  })).filter(o => o.full_name && o.full_name.trim() !== '');
+
+  const res = await fetch('/api/v1/parcels.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+    body: JSON.stringify({ parcel, owners: parcel.owners }),
   });
-  
-  // Collect owners
-  data.owners = [];
-  document.querySelectorAll('.owner-row').forEach((row, idx) => {
-    const fullName = row.querySelector('input[name*="full_name"]').value;
-    if (fullName) {
-      data.owners.push({
-        full_name: fullName,
-        id_number: row.querySelector('input[name*="id_number"]').value,
-        phone: row.querySelector('input[name*="phone"]').value
-      });
-    }
-  });
-  
-  // Update district/village
-  data.district_id = document.getElementById('district-select').value;
-  data.village_id = document.getElementById('village-select').value;
-  
-  try {
-    const res = await fetch('/api/v1/parcels.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
-      body: JSON.stringify({ parcel: data })
-    });
-    const result = await res.json();
-    
-    const resultBox = document.getElementById('save-result');
-    resultBox.style.display = 'block';
-    resultBox.className = result.ok ? 'preview-box' : 'preview-box';
-    resultBox.textContent = result.ok ? '✅ <?= te('Saved successfully') ?>' : '❌ ' + (result.error?.message || 'Error');
-  } catch (e) {
-    alert('Error: ' + e.message);
+  const result = await res.json();
+  if (result.ok) {
+    toast(I18N.savedId.replace('{id}', result.data.parcel_id), true);
+    form.reset();
+    clearOwners();
+    populateDistrictSelect();
+  } else {
+    const box = document.getElementById('save-result');
+    box.dataset.sticky = '1';
+    box.className = 'preview-box err';
+    box.style.display = 'block';
+    const msg = result.error && result.error.fields ? result.error.fields.join('; ') : ((result.error && result.error.message) || I18N.saveFailed);
+    box.textContent = msg;
   }
 });
-
-// Add owner row
-document.getElementById('add-owner').addEventListener('click', () => {
-  const idx = document.querySelectorAll('.owner-row').length;
-  const row = document.createElement('div');
-  row.className = 'owner-row';
-  row.dataset.owner = idx;
-  row.innerHTML = `
-    <label><?= te('Full Name') ?></label>
-    <input type="text" name="owners[${idx}][full_name]" required>
-    <label><?= te('ID No') ?></label>
-    <input type="text" name="owners[${idx}][id_number]">
-    <label><?= te('Phone') ?></label>
-    <input type="text" name="owners[${idx}][phone]">
-    <button type="button" class="btn-sm btn-remove"><?= te('Remove') ?></button>
-  `;
-  row.querySelector('button').addEventListener('click', () => row.remove());
-  document.getElementById('owners-container').appendChild(row);
-});
-
-// Clear form
 document.getElementById('clear-form').addEventListener('click', () => {
   document.getElementById('parcel-form').reset();
-  document.getElementById('owners-container').innerHTML = `
-    <div class="owner-row" data-owner="1">
-      <label><?= te('Full Name') ?></label>
-      <input type="text" name="owners[0][full_name]" required>
-      <label><?= te('ID No') ?></label>
-      <input type="text" name="owners[0][id_number]">
-      <label><?= te('Phone') ?></label>
-      <input type="text" name="owners[0][phone]">
-    </div>
-  `;
+  clearOwners();
+  populateDistrictSelect();
   document.getElementById('save-result').style.display = 'none';
 });
 
-// Download template
-document.getElementById('download-template').addEventListener('click', () => {
-  window.location.href = '/api/v1/parcels/import.php?template=1';
+// ---------- SCAN (upload + OCR, then auto-fill the form) ----------
+let lastScan = null;
+function confBadge(c) {
+  if (c === null || c === undefined || c === '' || c === false) return '<span class="conf conf-none">—</span>';
+  c = parseInt(c, 10);
+  const cls = c >= 80 ? 'conf-high' : (c >= 50 ? 'conf-mid' : 'conf-low');
+  return '<span class="conf ' + cls + '">' + c + '%</span>';
+}
+document.getElementById('process-ocr').addEventListener('click', async () => {
+  const file = document.getElementById('scan-file').files[0];
+  if (!file) { showScanError(I18N.chooseCsv); return; }
+  const method = document.querySelector('input[name=ocr_method]:checked').value;
+  const fd = new FormData();
+  fd.append('image', file);
+  fd.append('ocr_method', method);
+  document.getElementById('scan-error').style.display = 'none';
+  document.getElementById('scan-results').classList.remove('show');
+  const btn = document.getElementById('process-ocr');
+  btn.disabled = true; btn.textContent = I18N.loading;
+  try {
+    const res = await fetch('/api/v1/scans.php', {
+      method: 'POST', body: fd, headers: { 'Authorization': 'Bearer ' + TOKEN },
+    });
+    const j = await res.json();
+    if (!j.ok) { showScanError((j.error && j.error.message) || I18N.failedConfirm); return; }
+    lastScan = j.data;
+    renderScanResults(lastScan);
+  } catch (err) {
+    showScanError(err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = I18N.uploadProcess;
+  }
+});
+function showScanError(msg) {
+  const b = document.getElementById('scan-error');
+  b.textContent = msg; b.style.display = 'block';
+}
+function renderScanResults(scan) {
+  let parsed = scan.parsed_fields;
+  if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch (e) { parsed = {}; } }
+  parsed = parsed || {};
+  let conf = scan.field_confidence;
+  if (typeof conf === 'string') { try { conf = JSON.parse(conf); } catch (e) { conf = {}; } }
+  conf = conf || {};
+
+  document.getElementById('scan-preview').src = scan.image_path;
+  document.getElementById('overall-conf').innerHTML =
+    '<span class="overall">' + esc(I18N.conf) + ' ' + esc(scan.overall_confidence ?? '—') + ((scan.overall_confidence !== null && scan.overall_confidence !== undefined) ? '%' : '') + '</span>';
+  document.getElementById('ocr-raw').textContent =
+    (typeof scan.ocr_raw === 'string' ? scan.ocr_raw : JSON.stringify(scan.ocr_raw, null, 2)) || '—';
+
+  const keys = Object.keys(parsed);
+  document.getElementById('parsed-fields').innerHTML = keys.length
+    ? '<table class="parsed-table"><tbody>' + keys.map(k =>
+        '<tr><td>' + esc(PARSING_LABELS[k] || k) + '</td><td>' + esc(Array.isArray(parsed[k]) ? parsed[k].join(', ') : parsed[k]) + '</td><td>' + confBadge(conf[k]) + '</td></tr>'
+      ).join('') + '</tbody></table>'
+    : '<p class="empty">' + esc(I18N.noFields) + '</p>';
+  document.getElementById('scan-results').classList.add('show');
+}
+// Apply OCR -> fill the shared form, switch to Manual tab.
+document.getElementById('apply-ocr').addEventListener('click', () => {
+  if (!lastScan) return;
+  let parsed = lastScan.parsed_fields;
+  if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch (e) { parsed = {}; } }
+  parsed = parsed || {};
+  const f = document.getElementById('parcel-form');
+  const set = (name, val) => {
+    if (val === null || val === undefined || val === '') return;
+    const el = f.querySelector('[name=' + name + ']');
+    if (el) el.value = String(val);
+  };
+  if (parsed.district_id) {
+    populateDistrictSelect(String(parsed.district_id));
+    populateVillageSelect(String(parsed.district_id), parsed.village_id ? String(parsed.village_id) : '');
+  }
+  ['parcel_no','sub_parcel_no','area_sqm','zone_code','road_category','title_type','title_no',
+   'book_no','volume_no','page_no','land_use_class','issued_date'].forEach(k => set(k, parsed[k]));
+  clearOwners();
+  const names = parsed.owner_names || (parsed.owner_name ? [parsed.owner_name] : []);
+  names.forEach(n => addOwnerRow({ full_name: n, id_number: parsed.owner_id_number, address: parsed.owner_address }));
+  switchTab('manual');
+  toast(I18N.applied, true);
+});
+document.getElementById('reprocess').addEventListener('click', () => {
+  document.getElementById('scan-file').value = '';
+  document.getElementById('scan-results').classList.remove('show');
+  document.getElementById('scan-file').focus();
 });
 
-// Load initial data
+// ---------- IMPORT (CSV) ----------
+document.getElementById('download-template').addEventListener('click', () => {
+  window.open('/api/v1/parcels/import.php?template=1', '_blank');
+});
+document.getElementById('do-import').addEventListener('click', async () => {
+  const file = document.getElementById('import-file').files[0];
+  const box = document.getElementById('import-result');
+  box.style.display = 'none';
+  if (!file) { box.className = 'preview-box err'; box.textContent = I18N.chooseCsv; box.style.display = 'block'; return; }
+  const text = await file.text();
+  const res = await fetch('/api/v1/parcels/import.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+    body: JSON.stringify({ csv: text, has_header: true }),
+  });
+  const j = await res.json();
+  box.style.display = 'block';
+  if (!j.ok) { box.className = 'preview-box err'; box.textContent = (j.error && j.error.message) || I18N.importFailed; return; }
+  const d = j.data;
+  box.className = 'preview-box ok';
+  let html = '<strong>' + d.created + ' created, ' + d.errors + ' error(s) of ' + d.total + ' row(s)</strong>';
+  const errs = (d.results || []).filter(r => r.status === 'error');
+  if (errs.length) html += '<ul>' + errs.slice(0, 20).map(r => '<li>Line ' + r.line + ': ' + esc(r.message) + '</li>').join('') + '</ul>';
+  box.innerHTML = html;
+});
+
 loadData();
 </script>
 </body>
