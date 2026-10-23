@@ -249,45 +249,54 @@ if ($linkingUser > 0) {
 
   <script>
   (function(){
-    var provSelect = document.getElementById("modal-province");
-    var distSelect = document.getElementById("modal-district");
     var _allDistricts = [];
     <?php foreach ($districts as $d): ?>
     _allDistricts.push({"
-      id": <?= (int)$d['id'] ?>, "code": "<?= str_replace(chr(39), chr(92).chr(39), $d['code']) ?>", "name": "<?= str_replace(chr(39), chr(92).chr(39), $d['name']) ?>", "province_id": <?= (int)$d['province_id'] ?>});
+      id": <?= (int)$d['id'] ?>, "name": "<?= str_replace(chr(39), chr(92).chr(39), $d['name']) ?>", "province_id": <?= (int)$d['province_id'] ?>});
     <?php endforeach; ?>
-    function applyProvince(){
-      var pid = provSelect ? provSelect.value : "0";
-      if(!distSelect) return;
-      distSelect.innerHTML = "";
+
+    function getSelects(){
+      return {
+        prov: document.getElementById("modal-province"),
+        dist: document.getElementById("modal-district")
+      };
+    }
+
+    function applyProvince(prov, dist){
+      if(!dist) return;
+      var pid = prov ? prov.value : "0";
+      dist.innerHTML = "";
       _allDistricts.forEach(function(d){
         if(pid && String(d.province_id) !== String(pid)) return;
         var o = document.createElement("option");
-        o.value = d.id; o.textContent = d.name; distSelect.appendChild(o);
+        o.value = d.id; o.textContent = d.name; dist.appendChild(o);
       });
     }
-    if(provSelect && distSelect){
-      // Set initial state and filter districts immediately (not just on change).
-      applyProvince();
-      provSelect.addEventListener("change", applyProvince);
-    }
-    if(window._modalOnShow) {
-      window._modalOnShow.push(function(tpl, row){
-        if(tpl.id !== "staff-form") return;
-        if(row){
-          if(provSelect && row.dataset.provinceId) {
-            provSelect.value = row.dataset.provinceId;
+
+    // Hook into modal open — runs after the template is cloned into the DOM.
+    (function(origOpen){
+      window.openModal = function(templateId, opts){
+        opts = opts || {};
+        var _o = opts.onOpen;
+        opts.onOpen = function(form){
+          if(_o) _o(form);
+          var s = getSelects();
+          applyProvince(s.prov, s.dist);
+          if(s.prov && s.dist){
+            s.prov.addEventListener("change", function(){ applyProvince(s.prov, s.dist); });
           }
-          applyProvince();
-          if(distSelect && row.dataset.districtId) {
-            distSelect.value = row.dataset.districtId;
+          // For edit: set province/district from button data attributes.
+          if(opts.trigger){
+            var pid = opts.trigger.dataset.provinceId;
+            var did = opts.trigger.dataset.districtId;
+            if(s.prov && pid) s.prov.value = pid;
+            applyProvince(s.prov, s.dist);
+            if(s.dist && did) s.dist.value = did;
           }
-        } else {
-          if(provSelect) provSelect.value = "0";
-          applyProvince();
-        }
-      });
-    }
+        };
+        return origOpen(templateId, opts);
+      };
+    })(window.openModal);
   })()
   </script>
 
