@@ -1,27 +1,59 @@
 <?php
-// public/admin/parcel_entry.php — unified parcel entry: manual form + scan (OCR) + CSV import.
-// The Scan tab uploads to the existing scans API (Tesseract or Gemini) and auto-fills the
-// shared manual form with the parsed fields, exactly like the old scans.php review flow.
+// public/admin/parcel_entry.php
+// Unified parcel entry — flat 33-field form matching the Lao Land Title Certificate (ໃບຕາດິນ) layout.
+// No section grouping. Field order and labels follow the exact certificate numbering (#1–#33).
+// Address fields (#12–#15) are reordered to: #15 (ແຂວງ) → #14 (ເມືອງ) → #12 (ບ້ານ) → #13 (ຫ້ອງ)
+// with province → district → village cascade dropdowns.
+//
+// DB field mapping:
+//   #1  ເລກທີ                              → parcels.title_no
+//   #2  ອອກຄັ້ງທີ                         → parcels.order_no
+//   #3  ທີ່ຕັ້ງຕອນດິນ                    → parcels.location_code
+//   #4  ແຂວງ (land location)              → filter for #5
+//   #5  ເມືອງ (land location)            → parcels.district_id (FK)
+//   #6  ບ້ານ (land location)             → parcels.village_id (FK)
+//   #7  ຫ້ອງ                               → parcels.unit_no
+//   #8  ອອກໃຫ້ແກ່                         → owners[0].full_name
+//   #9  ວັນເດືອນປີເກີດ                    → owners[0].date_of_birth
+//   #10 ສັນຊາດ                             → owners[0].nationality
+//   #11 ອາຊີບ                              → owners[0].occupation
+//   #15 ແຂວງ (address)                   → owners[0].address_province
+//   #14 ເມືອງ (address)                  → owners[0].address_district
+//   #12 ບ້ານ (address)                   → owners[0].address_village
+//   #13 ຫ້ອງ (address)                    → owners[0].address_unit
+//   #16 ຊື່ຜົວຫລືເມຍ                    → owners[1].full_name (owner_type=spouse)
+//   #17 ວັນເດືອນປີເກີດ (spouse)         → owners[1].date_of_birth
+//   #18 ສັນຊາດ (spouse)                 → owners[1].nationality
+//   #19 ອາຊີບ (spouse)                   → owners[1].occupation
+//   #20 ການໄດ້ມາຂອງສິດນຳໃຊ້ທີ່ດິນ     → parcels.acquisition_method
+//   #21 ຖານະເປັນເຈົ້າຂອງສິດນຳໃຊ້ທີ່ດິນ → parcels.ownership_status
+//   #22 ປະເພດທີ່ດິນ                     → parcels.land_use_class
+//   #23 ເຂດ                               → parcels.zone_text
+//   #24 ປຶ້ມທະບຽນທີ່ດິນ ເື່ອງທີ່      → parcels.book_no
+//   #25 ໃບທີ                              → parcels.page_no
+//   #26 ແຜນທີ່ດິນເລກທີ                    → parcels.map_ref_no
+//   #27 ຕອນດິນເລກທີ                      → parcels.parcel_no
+//   #28 ເນື້ອທີ່ດິນ                      → parcels.area_sqm
+//   #29 ມາດຕາສ່ວນ                        → parcels.map_scale
+//   #30 ອອກໃຫ້ທີ່                         → parcels.issued_place
+//   #31–33 ວັນທີ / ເດືອນ / ປີ           → parcels.issued_date (combined YYYY-MM-DD)
+
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
-$allowedRoles = ['officer', 'admin', 'manager'];
-if (!in_array($role, $allowedRoles, true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
+if (!in_array($role, ['officer','admin','manager'], true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
 
-// OCR result field labels (same canonical keys title_parser produces).
 $parsedLabels = [
     'parcel_no'            => t('Parcel no'),
     'sub_parcel_no'        => t('Sub-parcel'),
     'area_sqm'             => t('Area (m²)'),
     'title_no'             => t('Title no'),
-    'title_type'           => t('Title type'),
     'book_no'              => t('Book'),
     'volume_no'            => t('Volume'),
     'page_no'              => t('Page'),
     'land_use_class'       => t('Land use'),
     'issued_date'          => t('Issued date'),
-    'province'             => t('Province'),
     'district_name'        => t('District (text)'),
     'village_name'         => t('Village (text)'),
     'district_id'          => t('District id'),
@@ -30,7 +62,6 @@ $parsedLabels = [
     'owner_names'          => t('Owner(s)'),
     'owner_id_number'      => t('Owner ID'),
     'owner_address'        => t('Owner address'),
-    'road_category'        => t('Road category'),
     'order_no'             => t('Order no.'),
     'location_code'        => t('Location code'),
     'unit_no'              => t('Unit'),
@@ -61,29 +92,40 @@ $parsedLabels = [
 <title><?= te('Parcel Entry') ?> - Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
 <style>
-  .entry-page { max-width: 1200px; margin: 0 auto; }
+  .entry-page { max-width: 1100px; margin: 0 auto; }
   .entry-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .entry-tabs button { padding: 9px 18px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; font-size: 14px; }
   .entry-tabs button.active { background: #4a7c59; color: #fff; border-color: #4a7c59; }
-  .entry-tools { background: #f5f5f5; padding: 14px; margin-bottom: 14px; border-radius: 4px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .entry-tools .grow { flex: 1; }
-  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
-  .form-group { margin-bottom: 0; }
-  .form-group label { display: block; font-size: 13px; margin-bottom: 4px; font-weight: 500; }
-  .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; }
-  .form-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+  /* Flat certificate form — no grouping */
+  .cert-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px 12px;
+  }
+  @media (max-width: 768px) { .cert-grid { grid-template-columns: repeat(2, 1fr); } }
+  .cert-field { display: flex; flex-direction: column; gap: 4px; }
+  .cert-field label {
+    font-size: 12px; font-weight: 500; color: #333;
+    line-height: 1.4; word-wrap: break-word;
+  }
+  .cert-field input, .cert-field select {
+    padding: 8px; border: 1px solid #ccc; border-radius: 3px;
+    font-size: 14px; width: 100%; box-sizing: border-box;
+  }
+  .cert-field input:focus, .cert-field select:focus {
+    border-color: #4a7c59; outline: none;
+  }
+  .cert-field.wide { grid-column: span 2; }
+
+  .form-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
   .preview-box { padding: 10px 12px; margin-top: 14px; font-size: 13px; border-radius: 4px; background: #fafafa; border: 1px solid #ddd; }
   .preview-box.ok { background: #eaf4ea; border-color: #2e7d32; }
   .preview-box.err { background: #fdecea; border-color: #c62828; }
-  .owner-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-start; flex-wrap: wrap; background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eee; }
-  .owner-row input, .owner-row select { padding: 7px 8px; border: 1px solid #ccc; border-radius: 3px; }
-  .owner-row .col { display: flex; flex-direction: column; gap: 4px; }
-  .owner-row .col label { font-size: 12px; color: #666; font-weight: 400; }
-  .owner-row .col input { min-width: 110px; }
-  .owner-row .col.fn { flex: 2; min-width: 200px; }
-  .owner-row .col.id { flex: 1; min-width: 130px; }
-  .btn-remove { background: #d32f2f; color: #fff; border: none; padding: 6px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; }
-  .btn-add { background: #4a7c59; color: #fff; border: none; padding: 7px 12px; font-size: 13px; border-radius: 3px; cursor: pointer; }
+
+  /* Scan tab */
+  .entry-tools { background: #f5f5f5; padding: 14px; margin-bottom: 14px; border-radius: 4px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .entry-tools .grow { flex: 1; }
   .ocr-method { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; }
   .ocr-method label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
   .scan-results { display: none; margin-top: 16px; }
@@ -98,9 +140,6 @@ $parsedLabels = [
   .conf-mid  { background: #fff3c4; color: #7a5c00; }
   .conf-low  { background: #ffcdd2; color: #b71c1c; }
   .conf-none { background: #eee; color: #888; }
-  .overall { font-weight: 600; }
-  .field-set { margin-bottom: 22px; }
-  .field-set h3 { margin: 0 0 10px 0; font-size: 15px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -112,7 +151,6 @@ $parsedLabels = [
   </aside>
   <main class="main">
     <h1><?= te('Parcel Entry') ?></h1>
-    <p class="sub"><?= te('Add parcels via Scan, Manual, or Import') ?></p>
 
     <div class="entry-page">
       <div class="entry-tabs">
@@ -121,146 +159,183 @@ $parsedLabels = [
         <button data-tab="import"><?= te('Import') ?></button>
       </div>
 
-      <!-- ===== MANUAL / shared form ===== -->
-      <div class="form-box" data-content="manual">
+      <!-- ========== MANUAL TAB ========== -->
+      <div data-content="manual">
         <form id="parcel-form">
-          <div class="field-set">
-            <h3><?= te('Geography') ?></h3>
-            <div class="form-grid">
-              <div class="form-group">
-                <label><?= te('District') ?></label>
-                <select name="district_id" id="district-select" required>
-                  <option value=""><?= te('-- select district --') ?></option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label><?= te('Village') ?></label>
-                <select name="village_id" id="village-select" required>
-                  <option value=""><?= te('-- select --') ?></option>
-                </select>
-              </div>
+          <div class="cert-grid">
+            <!-- #1 -->
+            <div class="cert-field">
+              <label>1. ເລກທີ</label>
+              <input type="text" name="ref_no" required>
             </div>
-          </div>
-
-          <div class="field-set">
-            <h3><?= te('Parcel Identification') ?></h3>
-            <div class="form-grid">
-              <div class="form-group">
-                <label><?= te('Parcel No') ?></label>
-                <input name="parcel_no" type="text" required>
-              </div>
-              <div class="form-group">
-                <label><?= te('Sub-parcel No') ?></label>
-                <input name="sub_parcel_no" type="text">
-              </div>
-              <div class="form-group">
-                <label><?= te('Location code (#30)') ?></label>
-                <input name="location_code" type="text" placeholder="e.g. 10.002.0027">
-              </div>
-              <div class="form-group">
-                <label><?= te('Order no. (#2)') ?></label>
-                <input name="order_no" type="text">
-              </div>
-              <div class="form-group">
-                <label><?= te('Unit (#6)') ?></label>
-                <input name="unit_no" type="text">
-              </div>
-              <div class="form-group">
-                <label><?= te('Area (m²)') ?></label>
-                <input name="area_sqm" type="number" step="0.01" min="0" required>
-              </div>
-              <div class="form-group">
-                <label><?= te('Zone Code (LLR7)') ?></label>
-                <input name="zone_code" type="text" placeholder="e.g. B3">
-              </div>
-              <div class="form-group">
-                <label><?= te('Zone text (#23)') ?></label>
-                <input name="zone_text" type="text" placeholder="e.g. plain land-country side">
-              </div>
-              <div class="form-group">
-                <label><?= te('Road Category') ?></label>
-                <select name="road_category">
-                  <option value=""><?= te('-- select --') ?></option>
-                  <option value="main"><?= te('Main') ?></option>
-                  <option value="branch"><?= te('Branch') ?></option>
-                  <option value="alley"><?= te('Alley') ?></option>
-                  <option value="none"><?= te('None') ?></option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label><?= te('Map ref (#26)') ?></label>
-                <input name="map_ref_no" type="text" placeholder="e.g. A250-038">
-              </div>
-              <div class="form-group">
-                <label><?= te('Map parcel (#27)') ?></label>
-                <input name="map_parcel_no" type="text">
-              </div>
-              <div class="form-group">
-                <label><?= te('Map scale (#29)') ?></label>
-                <input name="map_scale" type="text" placeholder="e.g. 1/8000">
-              </div>
+            <!-- #2 -->
+            <div class="cert-field">
+              <label>2. ອອກຄັ້ງທີ</label>
+              <input type="text" name="issue_batch">
             </div>
-          </div>
-
-          <div class="field-set">
-            <h3><?= te('Certificate / Title') ?></h3>
-            <div class="form-grid">
-              <div class="form-group">
-                <label><?= te('Title Type') ?></label>
-                <select name="title_type">
-                  <option value=""><?= te('-- select --') ?></option>
-                  <option value="land_title"><?= te('Land title') ?></option>
-                  <option value="survey_cert"><?= te('Survey certificate') ?></option>
-                  <option value="concession"><?= te('Concession') ?></option>
-                  <option value="other"><?= te('Other') ?></option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label><?= te('Title No') ?></label>
-                <input name="title_no" type="text">
-              </div>
-              <div class="form-group">
-                <label><?= te('Book no (#24)') ?></label>
-                <input name="book_no" type="text">
-              </div>
-              <div class="form-group">
-                <label><?= te('Leaf no (#25)') ?></label>
-                <input name="page_no" type="text">
-              </div>
-              <div class="form-group">
-                <label><?= te('Land Use (#22)') ?></label>
-                <select name="land_use_class">
-                  <option value=""><?= te('-- select --') ?></option>
-                  <option value="residential"><?= te('Residential') ?></option>
-                  <option value="agricultural"><?= te('Agricultural') ?></option>
-                  <option value="commercial"><?= te('Commercial') ?></option>
-                  <option value="other"><?= te('Other') ?></option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label><?= te('Acquired (#20)') ?></label>
-                <input name="acquisition_method" type="text" placeholder="e.g. transfer">
-              </div>
-              <div class="form-group">
-                <label><?= te('Ownership status (#21)') ?></label>
-                <input name="ownership_status" type="text" placeholder="e.g. original asset-female">
-              </div>
-              <div class="form-group">
-                <label><?= te('Issued Date') ?></label>
-                <input name="issued_date" type="date">
-              </div>
-              <div class="form-group">
-                <label><?= te('Issued at (footer)') ?></label>
-                <input name="issued_place" type="text" placeholder="e.g. ວຽງຈັນ">
-              </div>
+            <!-- #3 -->
+            <div class="cert-field">
+              <label>3. ທີ່ຕັ້ງຕອນດິນ</label>
+              <input type="text" name="location" placeholder="10.002.0027">
             </div>
-          </div>
+            <!-- #4 -->
+            <div class="cert-field">
+              <label>4. ແຂວງ</label>
+              <select name="province" id="prov-select"><option value=""></option></select>
+            </div>
 
-          <div class="field-set">
-            <h3><?= te('Owner(s)') ?></h3>
-            <div id="owners-container"></div>
-            <button type="button" class="btn-add" id="add-owner" style="margin-bottom:8px;"><?= te('+ Add owner') ?></button>
-            <button type="button" class="btn-add" id="add-spouse" style="margin-bottom:8px; margin-left: 8px; background:#555;"><?= te('Spouse Address') ?></button>
+            <!-- #5 -->
+            <div class="cert-field">
+              <label>5. ເມືອງ</label>
+              <select name="district_id" id="dist-select"><option value=""></option></select>
+            </div>
+            <!-- #6 -->
+            <div class="cert-field">
+              <label>6. ບ້ານ</label>
+              <select name="village_id" id="vill-select"><option value=""></option></select>
+            </div>
+            <!-- #7 -->
+            <div class="cert-field">
+              <label>7. ຫ້ອງ</label>
+              <input type="text" name="unit">
+            </div>
+            <!-- #8 -->
+            <div class="cert-field">
+              <label>8. ອອກໃຫ້ແກ່</label>
+              <input type="text" name="owner_name" required>
+            </div>
+
+            <!-- #9 -->
+            <div class="cert-field">
+              <label>9. ວັນເດືອນປີເກີດ</label>
+              <input type="date" name="dob">
+            </div>
+            <!-- #10 -->
+            <div class="cert-field">
+              <label>10. ສັນຊາດ</label>
+              <input type="text" name="nationality">
+            </div>
+            <!-- #11 -->
+            <div class="cert-field">
+              <label>11. ອາຊີບ</label>
+              <input type="text" name="occupation">
+            </div>
+            <!-- #15 (address province — reordered before #14) -->
+            <div class="cert-field">
+              <label>15. ແຂວງ</label>
+              <select name="addr_province" id="addr-prov-select"><option value=""></option></select>
+            </div>
+
+            <!-- #14 (address district) -->
+            <div class="cert-field">
+              <label>14. ເມືອງ</label>
+              <select name="addr_district" id="addr-dist-select"><option value=""></option></select>
+            </div>
+            <!-- #12 (address village) -->
+            <div class="cert-field">
+              <label>12. ບ້ານ</label>
+              <select name="addr_village" id="addr-vill-select"><option value=""></option></select>
+            </div>
+            <!-- #13 (address unit) -->
+            <div class="cert-field">
+              <label>13. ຫ້ອງ</label>
+              <input type="text" name="addr_unit">
+            </div>
+            <!-- #16 -->
+            <div class="cert-field">
+              <label>16. ຊື່ຜົວຫລືເມຍ</label>
+              <input type="text" name="spouse_name">
+            </div>
+
+            <!-- #17 -->
+            <div class="cert-field">
+              <label>17. ວັນເດືອນປີເກີດ</label>
+              <input type="date" name="spouse_dob">
+            </div>
+            <!-- #18 -->
+            <div class="cert-field">
+              <label>18. ສັນຊາດ</label>
+              <input type="text" name="spouse_nat">
+            </div>
+            <!-- #19 -->
+            <div class="cert-field">
+              <label>19. ອາຊີບ</label>
+              <input type="text" name="spouse_occ">
+            </div>
+            <!-- #20 -->
+            <div class="cert-field wide">
+              <label>20. ການໄດ້ມາຂອງສິດນຳໃຊ້ທີ່ດິນ</label>
+              <input type="text" name="acquired">
+            </div>
+
+            <!-- #21 -->
+            <div class="cert-field wide">
+              <label>21. ຖານະເປັນເຈົ້າຂອງສິດນຳໃຊ້ທີ່ດິນ</label>
+              <input type="text" name="status">
+            </div>
+            <!-- #22 -->
+            <div class="cert-field">
+              <label>22. ປະເພດທີ່ດິນ</label>
+              <input type="text" name="land_type">
+            </div>
+            <!-- #23 -->
+            <div class="cert-field">
+              <label>23. ເຂດ</label>
+              <input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ">
+            </div>
+
+            <!-- #24 -->
+            <div class="cert-field">
+              <label>24. ປຶ້ມທະບຽນທີ່ດິນ ເື່ອງທີ່</label>
+              <input type="text" name="book">
+            </div>
+            <!-- #25 -->
+            <div class="cert-field">
+              <label>25. ໃບທີ</label>
+              <input type="text" name="leaf">
+            </div>
+            <!-- #26 -->
+            <div class="cert-field">
+              <label>26. ແຜນທີ່ດິນເລກທີ</label>
+              <input type="text" name="map_no" placeholder="e.g. A250-038">
+            </div>
+            <!-- #27 -->
+            <div class="cert-field">
+              <label>27. ຕອນດິນເລກທີ</label>
+              <input type="text" name="parcel_no" required>
+            </div>
+
+            <!-- #28 -->
+            <div class="cert-field">
+              <label>28. ເນື້ອທີ່ດິນ</label>
+              <input type="number" step="0.01" min="0" name="area" required>
+            </div>
+            <!-- #29 -->
+            <div class="cert-field">
+              <label>29. ມາດຕາສ່ວນ</label>
+              <input type="text" name="scale" placeholder="e.g. 1/8000">
+            </div>
+            <!-- #30 -->
+            <div class="cert-field">
+              <label>30. ອອກໃຫ້ທີ່</label>
+              <select name="issued_at" id="issued-prov-select"><option value=""></option></select>
+            </div>
+            <!-- #31 -->
+            <div class="cert-field">
+              <label>31. ວັນທີ</label>
+              <input type="number" min="1" max="31" name="issue_day">
+            </div>
+
+            <!-- #32 -->
+            <div class="cert-field">
+              <label>32. ເດືອນ</label>
+              <input type="number" min="1" max="12" name="issue_month">
+            </div>
+            <!-- #33 -->
+            <div class="cert-field">
+              <label>33. ປີ</label>
+              <input type="number" min="1900" max="2100" name="issue_year">
+            </div>
           </div>
 
           <div class="form-actions">
@@ -271,25 +346,21 @@ $parsedLabels = [
         <div id="save-result" class="preview-box" style="display:none;"></div>
       </div>
 
-      <!-- ===== SCAN / OCR ===== -->
-      <div class="form-box" data-content="scan" style="display:none;">
+      <!-- ========== SCAN TAB ========== -->
+      <div data-content="scan" style="display:none;">
         <div class="entry-tools">
           <input type="file" id="scan-file" accept="image/*" class="grow">
           <label style="font-size:13px; color:#555;"><?= te('Land title image (JPG/PNG)') ?></label>
           <button type="button" class="btn btn-green" id="process-ocr"><?= te('Upload &amp; Process') ?></button>
         </div>
-
         <div class="form-group">
           <label><?= te('OCR Method') ?></label>
           <div class="ocr-method">
             <label><input type="radio" name="ocr_method" value="tesseract" checked> <?= te('Tesseract (local, free, fast)') ?></label>
             <label><input type="radio" name="ocr_method" value="gemini"> <?= te('Gemini 2.5 Flash (AI, higher accuracy, requires API key)') ?></label>
           </div>
-          <p class="sub" style="font-size:12px;"><?= te('OCR reads the title text and pre-fills the fields. You confirm and correct everything.') ?></p>
         </div>
-
         <div id="scan-error" class="preview-box err" style="display:none;"></div>
-
         <div class="scan-results" id="scan-results">
           <div class="grid" style="grid-template-columns: 340px 1fr; gap: 16px;">
             <div>
@@ -320,14 +391,14 @@ $parsedLabels = [
         </div>
       </div>
 
-      <!-- ===== IMPORT / CSV ===== -->
-      <div class="form-box" data-content="import" style="display:none;">
+      <!-- ========== IMPORT TAB ========== -->
+      <div data-content="import" style="display:none;">
         <div class="entry-tools">
           <button type="button" class="btn btn-gold" id="download-template"><?= te('Download Template') ?></button>
           <input type="file" id="import-file" accept=".csv,text/csv" class="grow">
           <button type="button" class="btn btn-green" id="do-import"><?= te('Import &amp; Match') ?></button>
         </div>
-        <p class="sub" style="font-size:12px;"><?= te('Import a CSV of parcels. Download the template, fill it in, then upload. New rows create parcels; rows with an existing parcel_no in the same village update it.') ?></p>
+        <p class="sub" style="font-size:12px;"><?= te('Import a CSV of parcels. Download the template, fill it in, then upload.') ?></p>
         <div id="import-result" class="preview-box" style="display:none;"></div>
       </div>
     </div>
@@ -338,32 +409,31 @@ $parsedLabels = [
 const TOKEN = '<?= e($token) ?>';
 const PARSING_LABELS = <?= json_encode($parsedLabels, JSON_UNESCAPED_UNICODE) ?>;
 const I18N = <?= json_encode([
-  'select'         => t('-- select --'),
-  'selectDistrict' => t('-- select district --'),
-  'fullName'       => t('Full name'),
-  'address'        => t('Address'),
-  'remove'         => t('Remove'),
-  'savedId'        => t('Parcel saved — ID {id}'),
-  'saveFailed'     => t('Save failed'),
-  'importFailed'   => t('Import failed'),
-  'chooseCsv'      => t('Choose a file first.'),
-  'loading'        => t('Loading…'),
-  'failedConfirm'  => t('Failed to process scan'),
-  'tryAnother'     => t('Try another image'),
-  'uploadProcess'  => t('Upload & Process'),
-  'conf'           => t('Conf.'),
-  'noFields'       => t('No fields parsed — fill them in below.'),
-  'applied'        => t('OCR applied to the form. Review, correct, then Save.'),
+  'select'        => t('-- select --'),
+  'savedId'       => t('Parcel saved — ID {id}'),
+  'saveFailed'    => t('Save failed'),
+  'importFailed'  => t('Import failed'),
+  'chooseFile'    => t('Choose a file first.'),
+  'loading'       => t('Loading…'),
+  'ocrFailed'     => t('Failed to process scan'),
+  'tryAnother'    => t('Try another image'),
+  'uploadProcess' => t('Upload & Process'),
+  'conf'          => t('Conf.'),
+  'noFields'      => t('No fields parsed — fill them in below.'),
+  'applied'       => t('OCR applied to the form. Review, correct, then Save.'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
-document.querySelectorAll('.entry-tabs button').forEach(btn => {
-  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-});
-function switchTab(name) {
-  document.querySelectorAll('.entry-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-  document.querySelectorAll('[data-content]').forEach(p => p.style.display = (p.dataset.content === name) ? '' : 'none');
+/* ---------- helpers ---------- */
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function v(name) {
+  const el = document.querySelector('[name="' + name + '"]');
+  return el ? el.value.trim() : '';
 }
-function toast(msg, ok) {
+function setVal(name, val) {
+  const el = document.querySelector('[name="' + name + '"]');
+  if (el && val) el.value = String(val);
+}
+function showResult(msg, ok) {
   const box = document.getElementById('save-result');
   box.dataset.sticky = '0';
   box.className = 'preview-box ' + (ok ? 'ok' : 'err');
@@ -372,136 +442,195 @@ function toast(msg, ok) {
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   setTimeout(() => { if (box.dataset.sticky !== '1') box.style.display = 'none'; }, ok ? 5000 : 8000);
 }
-function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-let districts = [], villagesByDistrict = {};
-async function loadData() {
+/* ---------- tabs ---------- */
+document.querySelectorAll('.entry-tabs button').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+function switchTab(name) {
+  document.querySelectorAll('.entry-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('[data-content]').forEach(p => p.style.display = (p.dataset.content === name) ? '' : 'none');
+}
+
+/* ---------- load districts + villages + provinces ---------- */
+let allDistricts = [];
+let allVillages  = [];
+let provinces    = [];
+
+async function loadGeoData() {
   const dRes = await fetch('/api/v1/districts.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
-  districts = (await dRes.json()).data || [];
-  districts.forEach(d => { villagesByDistrict[d.id] = []; });
+  const dJson = await dRes.json();
+  allDistricts = dJson.data || [];
+
   const vRes = await fetch('/api/v1/villages.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
-  const villages = (await vRes.json()).data || [];
-  villages.forEach(v => { if (Array.isArray(villagesByDistrict[v.district_id])) villagesByDistrict[v.district_id].push(v); });
-  populateDistrictSelect();
+  const vJson = await vRes.json();
+  allVillages = vJson.data || [];
+
+  // Extract unique provinces from districts (each district has province_name)
+  const provSet = new Set();
+  allDistricts.forEach(d => {
+    const p = d.province_name || d.province || '';
+    if (p) provSet.add(p);
+  });
+  provinces = [...provSet].sort();
+  populateProvSelects();
 }
-function populateDistrictSelect(keepValue) {
-  const sel = document.getElementById('district-select');
-  const keep = keepValue || sel.value;
-  sel.innerHTML = '<option value="">' + esc(I18N.selectDistrict) + '</option>' +
-    districts.map(d => '<option value="' + d.id + '">' + esc(d.name_lo) + '</option>').join('');
-  if (keep) sel.value = keep;
+
+function populateProvSelects() {
+  const opts = '<option value="">' + esc(I18N.select) + '</option>' +
+    provinces.map(p => '<option value="' + esc(p) + '">' + esc(p) + '</option>').join('');
+  document.getElementById('prov-select').innerHTML = opts;
+  document.getElementById('addr-prov-select').innerHTML = opts;
+  document.getElementById('issued-prov-select').innerHTML = opts;
 }
-function populateVillageSelect(districtId, keepValue) {
-  const sel = document.getElementById('village-select');
-  const keep = keepValue || sel.value;
-  sel.innerHTML = '<option value="">' + esc(I18N.select) + '</option>' +
-    (villagesByDistrict[districtId] || []).map(v => '<option value="' + v.id + '">' + esc(v.name_lo) + '</option>').join('');
-  if (keep) sel.value = keep;
-}
-document.getElementById('district-select').addEventListener('change', function() {
-  populateVillageSelect(this.value);
+
+/* ---------- land location cascade: #4 province → #5 district (id) → #6 village (id) ---------- */
+document.getElementById('prov-select').addEventListener('change', function() {
+  const prov = this.value;
+  const opts = '<option value="">' + esc(I18N.select) + '</option>' +
+    allDistricts.filter(d => !prov || (d.province_name || d.province) === prov)
+      .map(d => '<option value="' + d.id + '">' + esc(d.name_lo) + '</option>').join('');
+  document.getElementById('dist-select').innerHTML = opts;
+  document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
 });
 
-let ownerSeq = 0;
-function addOwnerRow(o, isSpouse) {
-  o = o || {};
-  const i = ownerSeq++;
-  const row = document.createElement('div');
-  row.className = 'owner-row';
-  row.dataset.owner = i;
-  row.dataset.type = (o.owner_type === 'spouse' || isSpouse) ? 'spouse' : 'main';
-  const spouseLabel = (o.owner_type === 'spouse' || isSpouse)
-    ? '<label>' + esc(I18N.fullName) + ' (spouse)</label>'
-    : '<label>' + esc(I18N.fullName) + '</label>';
-  row.innerHTML =
-    spouseLabel + '<input class="fn" type="text" data-k="full_name" ' + (isSpouse ? '' : 'required') + '>' +
-    '<label>ID</label><input type="text" data-k="id_number">' +
-    '<label>' + esc(t('Date of birth')) + '</label><input type="date" data-k="date_of_birth">' +
-    '<label>' + esc(t('Nationality')) + '</label><input type="text" data-k="nationality">' +
-    '<label>' + esc(t('Occupation')) + '</label><input type="text" data-k="occupation">' +
-    '<label>' + esc(t('Address')) + '</label><input type="text" data-k="address">' +
-    '<label>Addr village</label><input type="text" data-k="address_village">' +
-    '<label>Addr unit</label><input type="text" data-k="address_unit">' +
-    '<label>Addr district</label><input type="text" data-k="address_district">' +
-    '<label>Addr province</label><input type="text" data-k="address_province">' +
-    (isSpouse ? '<label>Share %</label><input type="number" data-k="share_pct" min="0" max="100" step="1" placeholder="e.g. 50">' : '') +
-    (isSpouse ? '<label>Role</label><select data-k="role"><option value="co_owner">Co-owner</option><option value="owner">Owner</option><option value="representative">Representative</option></select>' : '') +
-    '<button type="button" class="btn-remove">' + esc(I18N.remove) + '</button>';
-  row.querySelector('button').addEventListener('click', () => row.remove());
-  if (o.full_name)             row.querySelector('[data-k=full_name]').value = o.full_name;
-  if (o.id_number)             row.querySelector('[data-k=id_number]').value = o.id_number;
-  if (o.date_of_birth)         row.querySelector('[data-k=date_of_birth]').value = o.date_of_birth;
-  if (o.nationality)           row.querySelector('[data-k=nationality]').value = o.nationality;
-  if (o.occupation)            row.querySelector('[data-k=occupation]').value = o.occupation;
-  if (o.address)               row.querySelector('[data-k=address]').value = o.address;
-  if (o.address_village)       row.querySelector('[data-k=address_village]').value = o.address_village;
-  if (o.address_unit)          row.querySelector('[data-k=address_unit]').value = o.address_unit;
-  if (o.address_district)      row.querySelector('[data-k=address_district]').value = o.address_district;
-  if (o.address_province)      row.querySelector('[data-k=address_province]').value = o.address_province;
-  if (isSpouse && o.share_pct) row.querySelector('[data-k=share_pct]').value = o.share_pct;
-  if (isSpouse && o.role)      row.querySelector('[data-k=role]').value = o.role;
-  document.getElementById('owners-container').appendChild(row);
-}
-document.getElementById('add-owner').addEventListener('click', () => addOwnerRow());
-document.getElementById('add-spouse').addEventListener('click', () => addOwnerRow({}, true));
-function clearOwners() { document.getElementById('owners-container').innerHTML = ''; addOwnerRow(); }
-clearOwners();
+document.getElementById('dist-select').addEventListener('change', function() {
+  const dId = parseInt(this.value, 10);
+  const opts = '<option value="">' + esc(I18N.select) + '</option>' +
+    allVillages.filter(v => v.district_id === dId)
+      .map(v => '<option value="' + v.id + '">' + esc(v.name_lo) + '</option>').join('');
+  document.getElementById('vill-select').innerHTML = opts;
+});
 
+/* ---------- address cascade: #15 province → #14 district (name) → #12 village (name) ---------- */
+document.getElementById('addr-prov-select').addEventListener('change', function() {
+  const prov = this.value;
+  const opts = '<option value="">' + esc(I18N.select) + '</option>' +
+    allDistricts.filter(d => !prov || (d.province_name || d.province) === prov)
+      .map(d => '<option value="' + esc(d.name_lo) + '">' + esc(d.name_lo) + '</option>').join('');
+  document.getElementById('addr-dist-select').innerHTML = opts;
+  document.getElementById('addr-vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+});
+
+document.getElementById('addr-dist-select').addEventListener('change', function() {
+  const dName = this.value;
+  const d = allDistricts.find(x => x.name_lo === dName);
+  const dId = d ? d.id : null;
+  const opts = '<option value="">' + esc(I18N.select) + '</option>' +
+    allVillages.filter(v => v.district_id === dId)
+      .map(v => '<option value="' + esc(v.name_lo) + '">' + esc(v.name_lo) + '</option>').join('');
+  document.getElementById('addr-vill-select').innerHTML = opts;
+});
+
+/* ---------- form submit ---------- */
 document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const form = e.target;
-  const parcel = {};
-  new FormData(form).forEach((value, name) => { parcel[name] = value; });
-  parcel.district_id = document.getElementById('district-select').value;
-  parcel.village_id  = document.getElementById('village-select').value;
-  parcel.owners = Array.from(document.querySelectorAll('.owner-row')).map(row => {
-    const o = {};
-    row.querySelectorAll('[data-k]').forEach(inp => {
-      const k = inp.dataset.k;
-      const v = inp.value;
-      if (k === 'share_pct' && v === '') return;
-      o[k] = v;
+
+  const parcel = {
+    title_no:           v('ref_no') || null,
+    order_no:           v('issue_batch') || null,
+    location_code:      v('location') || null,
+    district_id:        parseInt(v('district_id'), 10) || null,
+    village_id:         parseInt(v('village_id'), 10) || null,
+    unit_no:            v('unit') || null,
+    acquisition_method: v('acquired') || null,
+    ownership_status:   v('status') || null,
+    land_use_class:     v('land_type') || null,
+    zone_text:          v('zone') || null,
+    book_no:            v('book') || null,
+    page_no:            v('leaf') || null,
+    map_ref_no:         v('map_no') || null,
+    parcel_no:          v('parcel_no') || null,
+    area_sqm:           v('area') || null,
+    map_scale:          v('scale') || null,
+    issued_place:       v('issued_at') || null,
+  };
+
+  // Combine day/month/year → ISO date
+  const d = parseInt(v('issue_day'), 10);
+  const m = parseInt(v('issue_month'), 10);
+  const y = parseInt(v('issue_year'), 10);
+  if (y && m && d) {
+    parcel.issued_date = y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+  }
+
+  // Remove empty keys (keep required)
+  Object.keys(parcel).forEach(k => { if (parcel[k] === null || parcel[k] === '') delete parcel[k]; });
+
+  const owners = [];
+  if (v('owner_name')) {
+    owners.push({
+      full_name:           v('owner_name'),
+      date_of_birth:       v('dob') || undefined,
+      nationality:         v('nationality') || undefined,
+      occupation:          v('occupation') || undefined,
+      address_province:    v('addr_province') || undefined,
+      address_district:    v('addr_district') || undefined,
+      address_village:     v('addr_village') || undefined,
+      address_unit:        v('addr_unit') || undefined,
     });
-    return o;
-  }).filter(o => o.full_name && o.full_name.trim() !== '');
+  }
+  if (v('spouse_name')) {
+    owners.push({
+      full_name:      v('spouse_name'),
+      owner_type:     'spouse',
+      role:           'co_owner',
+      date_of_birth:  v('spouse_dob') || undefined,
+      nationality:    v('spouse_nat') || undefined,
+      occupation:     v('spouse_occ') || undefined,
+    });
+  }
 
   const res = await fetch('/api/v1/parcels.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
-    body: JSON.stringify({ parcel, owners: parcel.owners }),
+    body: JSON.stringify({ parcel, owners }),
   });
   const result = await res.json();
   if (result.ok) {
-    toast(I18N.savedId.replace('{id}', result.data.parcel_id), true);
-    form.reset();
-    clearOwners();
-    populateDistrictSelect();
+    showResult(I18N.savedId.replace('{id}', result.data.parcel_id), true);
+    document.getElementById('parcel-form').reset();
+    populateProvSelects();
+    document.getElementById('dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+    document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+    document.getElementById('addr-dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+    document.getElementById('addr-vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
   } else {
     const box = document.getElementById('save-result');
     box.dataset.sticky = '1';
     box.className = 'preview-box err';
     box.style.display = 'block';
-    const msg = result.error && result.error.fields ? result.error.fields.join('; ') : ((result.error && result.error.message) || I18N.saveFailed);
+    const msg = result.error && result.error.fields
+      ? result.error.fields.join('; ')
+      : ((result.error && result.error.message) || I18N.saveFailed);
     box.textContent = msg;
   }
 });
+
 document.getElementById('clear-form').addEventListener('click', () => {
   document.getElementById('parcel-form').reset();
-  clearOwners();
-  populateDistrictSelect();
+  populateProvSelects();
+  document.getElementById('dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+  document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+  document.getElementById('addr-dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+  document.getElementById('addr-vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
   document.getElementById('save-result').style.display = 'none';
 });
 
+/* ---------- SCAN TAB ---------- */
 let lastScan = null;
+
 function confBadge(c) {
-  if (c === null || c === undefined || c === '' || c === false) return '<span class="conf conf-none">—</span>';
+  if (c === null || c === undefined || c === '' || c === false)
+    return '<span class="conf conf-none">—</span>';
   c = parseInt(c, 10);
   const cls = c >= 80 ? 'conf-high' : (c >= 50 ? 'conf-mid' : 'conf-low');
   return '<span class="conf ' + cls + '">' + c + '%</span>';
 }
+
 document.getElementById('process-ocr').addEventListener('click', async () => {
   const file = document.getElementById('scan-file').files[0];
-  if (!file) { showScanError(I18N.chooseCsv); return; }
+  if (!file) { showScanError(I18N.chooseFile); return; }
   const method = document.querySelector('input[name=ocr_method]:checked').value;
   const fd = new FormData();
   fd.append('image', file);
@@ -512,10 +641,11 @@ document.getElementById('process-ocr').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = I18N.loading;
   try {
     const res = await fetch('/api/v1/scans.php', {
-      method: 'POST', body: fd, headers: { 'Authorization': 'Bearer ' + TOKEN },
+      method: 'POST', body: fd,
+      headers: { 'Authorization': 'Bearer ' + TOKEN },
     });
     const j = await res.json();
-    if (!j.ok) { showScanError((j.error && j.error.message) || I18N.failedConfirm); return; }
+    if (!j.ok) { showScanError((j.error && j.error.message) || I18N.ocrFailed); return; }
     lastScan = j.data;
     renderScanResults(lastScan);
   } catch (err) {
@@ -524,82 +654,105 @@ document.getElementById('process-ocr').addEventListener('click', async () => {
     btn.disabled = false; btn.textContent = I18N.uploadProcess;
   }
 });
+
 function showScanError(msg) {
   const b = document.getElementById('scan-error');
   b.textContent = msg; b.style.display = 'block';
 }
+
 function renderScanResults(scan) {
   let parsed = scan.parsed_fields;
-  if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch (e) { parsed = {}; } }
+  if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch(e) { parsed = {}; } }
   parsed = parsed || {};
   let conf = scan.field_confidence;
-  if (typeof conf === 'string') { try { conf = JSON.parse(conf); } catch (e) { conf = {}; } }
+  if (typeof conf === 'string') { try { conf = JSON.parse(conf); } catch(e) { conf = {}; } }
   conf = conf || {};
 
   document.getElementById('scan-preview').src = scan.image_path;
   document.getElementById('overall-conf').innerHTML =
-    '<span class="overall">' + esc(I18N.conf) + ' ' + esc(scan.overall_confidence ?? '—') + ((scan.overall_confidence !== null && scan.overall_confidence !== undefined) ? '%' : '') + '</span>';
+    '<span class="overall">' + esc(I18N.conf) + ' ' +
+    esc(scan.overall_confidence ?? '—') +
+    ((scan.overall_confidence !== null && scan.overall_confidence !== undefined) ? '%' : '') + '</span>';
   document.getElementById('ocr-raw').textContent =
     (typeof scan.ocr_raw === 'string' ? scan.ocr_raw : JSON.stringify(scan.ocr_raw, null, 2)) || '—';
 
   const keys = Object.keys(parsed);
   document.getElementById('parsed-fields').innerHTML = keys.length
     ? '<table class="parsed-table"><tbody>' + keys.map(k =>
-        '<tr><td>' + esc(PARSING_LABELS[k] || k) + '</td><td>' + esc(Array.isArray(parsed[k]) ? parsed[k].join(', ') : parsed[k]) + '</td><td>' + confBadge(conf[k]) + '</td></tr>'
+        '<tr><td>' + esc(PARSING_LABELS[k] || k) + '</td><td>' +
+        esc(Array.isArray(parsed[k]) ? parsed[k].join(', ') : parsed[k]) +
+        '</td><td>' + confBadge(conf[k]) + '</td></tr>'
       ).join('') + '</tbody></table>'
     : '<p class="empty">' + esc(I18N.noFields) + '</p>';
   document.getElementById('scan-results').classList.add('show');
 }
+
 document.getElementById('apply-ocr').addEventListener('click', () => {
   if (!lastScan) return;
   let parsed = lastScan.parsed_fields;
-  if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch (e) { parsed = {}; } }
+  if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch(e) { parsed = {}; } }
   parsed = parsed || {};
-  const f = document.getElementById('parcel-form');
-  const set = (name, val) => {
-    if (val === null || val === undefined || val === '') return;
-    const el = f.querySelector('[name=' + name + ']');
-    if (el) el.value = String(val);
+
+  // Parcel fields
+  const map = {
+    title_no: 'ref_no', order_no: 'issue_batch', location_code: 'location',
+    unit_no: 'unit', acquisition_method: 'acquired', ownership_status: 'status',
+    land_use_class: 'land_type', zone_text: 'zone', book_no: 'book',
+    page_no: 'leaf', map_ref_no: 'map_no', parcel_no: 'parcel_no',
+    map_parcel_no: 'parcel_no', area_sqm: 'area', map_scale: 'scale',
+    issued_place: 'issued_at',
   };
-  if (parsed.district_id) {
-    populateDistrictSelect(String(parsed.district_id));
-    populateVillageSelect(String(parsed.district_id), parsed.village_id ? String(parsed.village_id) : '');
-  }
-  ['parcel_no','sub_parcel_no','location_code','order_no','unit_no',
-   'area_sqm','zone_code','zone_text','road_category','map_ref_no',
-   'map_parcel_no','map_scale','title_type','title_no','book_no',
-   'page_no','land_use_class','acquisition_method','ownership_status',
-   'issued_date','issued_place'].forEach(k => set(k, parsed[k]));
-  clearOwners();
-  const names = parsed.owner_names || (parsed.owner_name ? [parsed.owner_name] : []);
-  names.forEach(n => {
-    addOwnerRow({
-      full_name: n, id_number: parsed.owner_id_number,
-      date_of_birth: parsed.date_of_birth, nationality: parsed.nationality,
-      occupation: parsed.occupation, address: parsed.owner_address,
-      address_village: parsed.owner_address_village,
-      address_unit: parsed.owner_address_unit,
-      address_district: parsed.owner_address_district,
-      address_province: parsed.owner_address_province,
-    });
+  Object.entries(map).forEach(([apiKey, formName]) => {
+    if (parsed[apiKey]) setVal(formName, parsed[apiKey]);
   });
-  if (parsed.spouse_name && parsed.spouse_name !== '') {
-    addOwnerRow({
-      full_name: parsed.spouse_name,
-      owner_type: 'spouse', role: 'co_owner',
-      date_of_birth: parsed.spouse_dob, nationality: parsed.spouse_nationality,
-      occupation: parsed.spouse_occupation,
-    }, true);
+
+  // Land location cascade: set district_id and village_id selects
+  if (parsed.district_id) {
+    document.getElementById('prov-select').value = '';
+    document.getElementById('dist-select').innerHTML =
+      '<option value="">' + esc(I18N.select) + '</option>' +
+      allDistricts.map(d => '<option value="' + d.id + '">' + esc(d.name_lo) + '</option>').join('');
+    document.getElementById('dist-select').value = String(parsed.district_id);
+    document.getElementById('dist-select').dispatchEvent(new Event('change'));
+    if (parsed.village_id) setVal('village_id', parsed.village_id);
   }
+
+  // Owner (#8–#11)
+  const names = parsed.owner_names || (parsed.owner_name ? [parsed.owner_name] : []);
+  if (names[0]) setVal('owner_name', names[0]);
+  if (parsed.date_of_birth)          setVal('dob', parsed.date_of_birth);
+  if (parsed.nationality)            setVal('nationality', parsed.nationality);
+  if (parsed.occupation)             setVal('occupation', parsed.occupation);
+
+  // Address (#12–#15)
+  if (parsed.owner_address_province) setVal('addr_province', parsed.owner_address_province);
+  if (parsed.owner_address_district) setVal('addr_district', parsed.owner_address_district);
+  if (parsed.owner_address_village)  setVal('addr_village', parsed.owner_address_village);
+  if (parsed.owner_address_unit)     setVal('addr_unit', parsed.owner_address_unit);
+
+  // Spouse (#16–#19)
+  if (parsed.spouse_name)            setVal('spouse_name', parsed.spouse_name);
+  if (parsed.spouse_dob)             setVal('spouse_dob', parsed.spouse_dob);
+  if (parsed.spouse_nationality)     setVal('spouse_nat', parsed.spouse_nationality);
+  if (parsed.spouse_occupation)      setVal('spouse_occ', parsed.spouse_occupation);
+
+  // Issued date (#31–#33)
+  if (parsed.issued_date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.issued_date)) {
+    const [py, pm, pd] = parsed.issued_date.split('-');
+    setVal('issue_year', py); setVal('issue_month', pm); setVal('issue_day', pd);
+  }
+
   switchTab('manual');
-  toast(I18N.applied, true);
+  showResult(I18N.applied, true);
 });
+
 document.getElementById('reprocess').addEventListener('click', () => {
   document.getElementById('scan-file').value = '';
   document.getElementById('scan-results').classList.remove('show');
   document.getElementById('scan-file').focus();
 });
 
+/* ---------- IMPORT TAB ---------- */
 document.getElementById('download-template').addEventListener('click', () => {
   window.open('/api/v1/parcels/import.php?template=1', '_blank');
 });
@@ -607,7 +760,7 @@ document.getElementById('do-import').addEventListener('click', async () => {
   const file = document.getElementById('import-file').files[0];
   const box = document.getElementById('import-result');
   box.style.display = 'none';
-  if (!file) { box.className = 'preview-box err'; box.textContent = I18N.chooseCsv; box.style.display = 'block'; return; }
+  if (!file) { box.className = 'preview-box err'; box.textContent = I18N.chooseFile; box.style.display = 'block'; return; }
   const text = await file.text();
   const res = await fetch('/api/v1/parcels/import.php', {
     method: 'POST',
@@ -621,11 +774,11 @@ document.getElementById('do-import').addEventListener('click', async () => {
   box.className = 'preview-box ok';
   let html = '<strong>' + d.created + ' created, ' + d.errors + ' error(s) of ' + d.total + ' row(s)</strong>';
   const errs = (d.results || []).filter(r => r.status === 'error');
-  if (errs.length) html += '<ul>' + errs.slice(0, 20).map(r => '<li>Line ' + r.line + ': ' + esc(r.message) + '</li>').join('') + '</ul>';
+  if (errs.length) html += '<ul>' + errs.slice(0,20).map(r => '<li>Line ' + r.line + ': ' + esc(r.message) + '</li>').join('') + '</ul>';
   box.innerHTML = html;
 });
 
-loadData();
+loadGeoData();
 </script>
 </body>
 </html>
