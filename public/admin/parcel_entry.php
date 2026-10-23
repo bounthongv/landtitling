@@ -165,175 +165,175 @@ $parsedLabels = [
           <div class="cert-grid">
             <!-- #1 -->
             <div class="cert-field">
-              <label>1. ເລກທີ</label>
+              <label><?= te('Ref No') ?></label>
               <input type="text" name="ref_no" required>
             </div>
             <!-- #2 -->
             <div class="cert-field">
-              <label>2. ອອກຄັ້ງທີ</label>
+              <label><?= te('Issue Batch') ?></label>
               <input type="text" name="issue_batch">
             </div>
             <!-- #3 -->
             <div class="cert-field">
-              <label>3. ທີ່ຕັ້ງຕອນດິນ</label>
+              <label><?= te('Parcel Location') ?></label>
               <input type="text" name="location" placeholder="10.002.0027">
             </div>
             <!-- #4 -->
             <div class="cert-field">
-              <label>4. ແຂວງ</label>
+              <label><?= te('Province') ?></label>
               <select name="province" id="prov-select"><option value=""></option></select>
             </div>
 
             <!-- #5 -->
             <div class="cert-field">
-              <label>5. ເມືອງ</label>
+              <label><?= te('District') ?></label>
               <select name="district_id" id="dist-select"><option value=""></option></select>
             </div>
             <!-- #6 -->
             <div class="cert-field">
-              <label>6. ບ້ານ</label>
+              <label><?= te('Village') ?></label>
               <select name="village_id" id="vill-select"><option value=""></option></select>
             </div>
             <!-- #7 -->
             <div class="cert-field">
-              <label>7. ຫ້ອງ</label>
+              <label><?= te('Unit') ?></label>
               <input type="text" name="unit">
             </div>
             <!-- #8 -->
             <div class="cert-field">
-              <label>8. ອອກໃຫ້ແກ່</label>
+              <label><?= te('Issued To') ?></label>
               <input type="text" name="owner_name" required>
             </div>
 
             <!-- #9 -->
             <div class="cert-field">
-              <label>9. ວັນເດືອນປີເກີດ</label>
+              <label><?= te('Date of Birth') ?></label>
               <input type="date" name="dob">
             </div>
             <!-- #10 -->
             <div class="cert-field">
-              <label>10. ສັນຊາດ</label>
+              <label><?= te('Nationality') ?></label>
               <input type="text" name="nationality">
             </div>
             <!-- #11 -->
             <div class="cert-field">
-              <label>11. ອາຊີບ</label>
+              <label><?= te('Occupation') ?></label>
               <input type="text" name="occupation">
             </div>
             <!-- #15 (address province — reordered before #14) -->
             <div class="cert-field">
-              <label>15. ແຂວງ</label>
+              <label><?= te('Province') ?></label>
               <select name="addr_province" id="addr-prov-select"><option value=""></option></select>
             </div>
 
             <!-- #14 (address district) -->
             <div class="cert-field">
-              <label>14. ເມືອງ</label>
+              <label><?= te('District') ?></label>
               <select name="addr_district" id="addr-dist-select"><option value=""></option></select>
             </div>
             <!-- #12 (address village) -->
             <div class="cert-field">
-              <label>12. ບ້ານ</label>
+              <label><?= te('Village') ?></label>
               <select name="addr_village" id="addr-vill-select"><option value=""></option></select>
             </div>
             <!-- #13 (address unit) -->
             <div class="cert-field">
-              <label>13. ຫ້ອງ</label>
+              <label><?= te('Unit') ?></label>
               <input type="text" name="addr_unit">
             </div>
             <!-- #16 -->
             <div class="cert-field">
-              <label>16. ຊື່ຜົວຫລືເມຍ</label>
+              <label><?= te('Spouse Name') ?></label>
               <input type="text" name="spouse_name">
             </div>
 
             <!-- #17 -->
             <div class="cert-field">
-              <label>17. ວັນເດືອນປີເກີດ</label>
+              <label><?= te('Spouse Date of Birth') ?></label>
               <input type="date" name="spouse_dob">
             </div>
             <!-- #18 -->
             <div class="cert-field">
-              <label>18. ສັນຊາດ</label>
+              <label><?= te('Spouse Nationality') ?></label>
               <input type="text" name="spouse_nat">
             </div>
             <!-- #19 -->
             <div class="cert-field">
-              <label>19. ອາຊີບ</label>
+              <label><?= te('Spouse Occupation') ?></label>
               <input type="text" name="spouse_occ">
             </div>
             <!-- #20 -->
             <div class="cert-field wide">
-              <label>20. ການໄດ້ມາຂອງສິດນຳໃຊ້ທີ່ດິນ</label>
+              <label><?= te('Land Right Acquired') ?></label>
               <input type="text" name="acquired">
             </div>
 
             <!-- #21 -->
             <div class="cert-field wide">
-              <label>21. ຖານະເປັນເຈົ້າຂອງສິດນຳໃຊ້ທີ່ດິນ</label>
+              <label><?= te('Land Right Owner Status') ?></label>
               <input type="text" name="status">
             </div>
             <!-- #22 -->
             <div class="cert-field">
-              <label>22. ປະເພດທີ່ດິນ</label>
+              <label><?= te('Land Type') ?></label>
               <input type="text" name="land_type">
             </div>
             <!-- #23 -->
             <div class="cert-field">
-              <label>23. ເຂດ</label>
+              <label><?= te('Zone') ?></label>
               <input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ">
             </div>
 
             <!-- #24 -->
             <div class="cert-field">
-              <label>24. ປຶ້ມທະບຽນທີ່ດິນ ເື່ອງທີ່</label>
+              <label><?= te('Registration Book') ?></label>
               <input type="text" name="book">
             </div>
             <!-- #25 -->
             <div class="cert-field">
-              <label>25. ໃບທີ</label>
+              <label><?= te('Leaf No') ?></label>
               <input type="text" name="leaf">
             </div>
             <!-- #26 -->
             <div class="cert-field">
-              <label>26. ແຜນທີ່ດິນເລກທີ</label>
+              <label><?= te('Map No') ?></label>
               <input type="text" name="map_no" placeholder="e.g. A250-038">
             </div>
             <!-- #27 -->
             <div class="cert-field">
-              <label>27. ຕອນດິນເລກທີ</label>
+              <label><?= te('Parcel No') ?></label>
               <input type="text" name="parcel_no" required>
             </div>
 
             <!-- #28 -->
             <div class="cert-field">
-              <label>28. ເນື້ອທີ່ດິນ</label>
+              <label><?= te('Land Area') ?></label>
               <input type="number" step="0.01" min="0" name="area" required>
             </div>
             <!-- #29 -->
             <div class="cert-field">
-              <label>29. ມາດຕາສ່ວນ</label>
+              <label><?= te('Scale') ?></label>
               <input type="text" name="scale" placeholder="e.g. 1/8000">
             </div>
             <!-- #30 -->
             <div class="cert-field">
-              <label>30. ອອກໃຫ້ທີ່</label>
+              <label><?= te('Issued At') ?></label>
               <select name="issued_at" id="issued-prov-select"><option value=""></option></select>
             </div>
             <!-- #31 -->
             <div class="cert-field">
-              <label>31. ວັນທີ</label>
+              <label><?= te('Day') ?></label>
               <input type="number" min="1" max="31" name="issue_day">
             </div>
 
             <!-- #32 -->
             <div class="cert-field">
-              <label>32. ເດືອນ</label>
+              <label><?= te('Month') ?></label>
               <input type="number" min="1" max="12" name="issue_month">
             </div>
             <!-- #33 -->
             <div class="cert-field">
-              <label>33. ປີ</label>
+              <label><?= te('Year') ?></label>
               <input type="number" min="1900" max="2100" name="issue_year">
             </div>
           </div>
