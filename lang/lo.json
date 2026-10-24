@@ -490,5 +490,9 @@
   "Land Area": "ເນື້ອທີ່ດິນ",
   "Scale": "ມາດຕາສ່ວນ",
   "Issued At": "ອອກໃຫ້ທີ່",
-  "Day": "ວັນທີ"
+  "Day": "ວັນທີ",
+  "Connector road": "ທາງສາຍເຊືອມຕໍ່",
+  "Original track / no road": "ທາງດັງເດີມ / ບໍ່ມີທາງ",
+  "Villages in this zone": "ບ້ານທີ່ຢູ່ໃນເຂດນີ້",
+  "A zone can cover several villages. Hold Ctrl/Cmd to select multiple.": "ເຂດໜຶ່ງສາມາດກວມຫຼາຍບ້ານໄດ້. ກົດ Ctrl/Cmd ຄ້າງໄວ້ເພື່ອເລືອກຫຼາຍ."
 }

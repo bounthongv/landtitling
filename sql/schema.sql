@@ -28,10 +28,10 @@ CREATE TABLE road_categories (
   sort_order INT NOT NULL DEFAULT 0
 );
 INSERT INTO road_categories (code, name_lo, name_en, sort_order) VALUES
-  ('main',   'ຖະໜົນຫຼັກ', 'Main road',   1),
-  ('branch', 'ຖະໜົນສາຂາ', 'Branch road', 2),
-  ('alley',  'ຊອຍ',        'Alley',       3),
-  ('none',   'ບໍ່ມີ',       'None',        4);
+  ('main',   'ຖະຫົນສາຍຫຼັກ',        'Main road',               1),
+  ('branch', 'ຖະຫົນສາຍເຊືອມຕໍ່',     'Connector road',          2),
+  ('alley',  'ຖະຫົນສາຍແຍກ',        'Branch road',             3),
+  ('none',   'ທາງດັງເດີມ / ບໍ່ມີທາງ', 'Original track / no road', 4);
 
 -- Populated when the real title/land-use vocabularies are confirmed with officers.
 CREATE TABLE title_types (
@@ -91,10 +91,14 @@ CREATE TABLE villages (
   code VARCHAR(20) NOT NULL,
   name_lo VARCHAR(100) NOT NULL,
   name_en VARCHAR(100),
+  zone_id VARCHAR(20),                       -- valuation zone this village belongs to
   CONSTRAINT fk_villages_district
     FOREIGN KEY (district_id)
     REFERENCES districts(id)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  CONSTRAINT fk_villages_zone
+    FOREIGN KEY (zone_id) REFERENCES zones(code) ON DELETE SET NULL,
+  CONSTRAINT uq_villages_zone UNIQUE (zone_id)
 );
 
 -- Trigram indexes speed up fuzzy name resolution (no-op if pg_trgm is absent).

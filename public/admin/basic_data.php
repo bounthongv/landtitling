@@ -139,9 +139,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $code   = strtoupper(trim((string)($_POST['code'] ?? '')));
         $nameLo = trim((string)($_POST['name_lo'] ?? ''));
         $rates  = [];
-        foreach (['main', 'branch', 'alley', 'none'] as $rc) {
-            $rates[$rc] = (float)($_POST['rate_' . $rc] ?? 0);
-        }
+                foreach (['main', 'branch', 'alley', 'none'] as $rc) {
+                    $rates[$rc] = (float)($_POST['rate_' . $rc] ?? 0);
+                }
+                // Villages assigned to this zone (a zone can cover several villages).
+                $villageIds = [];
+                foreach ((array)($_POST['village_ids'] ?? []) as $vid) {
+                    $vid = (int)$vid;
+                    if ($vid > 0) { $villageIds[] = $vid; }
+                }
         if ($code === '' || $nameLo === '' || max($rates) <= 0) {
             $msg = t('Zone code, Lao name and at least one positive rate are required.');
             $msgType = 'err';
@@ -155,8 +161,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'district_id' => (int)($_POST['district_id'] ?? 0) ?: null,
                 'plan_zone'   => $_POST['plan_zone'] ?? null,
                 'sort_order'  => (int)($_POST['sort_order'] ?? 0),
-                'rates'       => $rates,
-            ];
+                                'rates'       => $rates,
+                                'village_ids' => $villageIds,
+                            ];
             if ($do === 'zone_add') {
                 $r = api_call('POST', 'rates.php', $body, $token);
                 $msg = !empty($r['ok']) ? t('Zone {code} added.', ['code' => $code]) : ($r['error']['message'] ?? t('Add failed'));
@@ -232,6 +239,15 @@ $districtsAll = api_call('GET', 'districts.php?sort=name_lo&dir=asc', null, $tok
 $refdata     = api_call('GET', 'refdata.php', null, $token)['data'] ?? [];
 $zones       = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
 $zonePlans   = api_call('GET', 'refdata.php?table=zone_plans', null, $token)['data'] ?? [];
+// All villages, so the zone modal can assign villages to a zone.
+$allVillages = [];
+$vlist = api_call('GET', 'villages.php?limit=500&sort=name_lo&dir=asc', null, $token);
+if (!empty($vlist['ok'])) { $allVillages = $vlist['data'] ?? []; }
+// Villages already mapped to a zone (code => zone_code) for the modal default-selection.
+$zoneVillages = [];
+foreach ($allVillages as $v) {
+    if (!empty($v['zone_id'])) { $zoneVillages[$v['id']] = $v['zone_id']; }
+}
 $years       = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
 
 // Village table: sortable headers (default code ascending, the official order),
@@ -549,23 +565,25 @@ $refGroups = [
       <p class="sub"><?= te('Fee = zone rate for the parcel’s road access × area. Each zone has four rates: main road, branch road, alley, and no road. Districts own a letter so codes stay unique (e.g. A1–A4 in district 1301). Rates below are placeholders until the province supplies the official figures.') ?></p>
       <table>
         <thead><tr>
-          <th><?= te('Code') ?></th><th><?= te('District') ?></th><th><?= te('Plan') ?></th>
-          <th><?= te('Name (Lao)') ?></th>
-          <th><?= te('Main') ?></th><th><?= te('Branch') ?></th><th><?= te('Alley') ?></th><th><?= te('None') ?></th>
-          <th><?= te('Active') ?></th><th style="width:150px"><?= te('Actions') ?></th>
-        </tr></thead>
-        <tbody>
-        <?php foreach ($zones as $z): $r = $z['rates'] ?? []; ?>
-          <tr>
-            <td><strong><?= e($z['code']) ?></strong></td>
-            <td><?= e($z['district_name'] ?? '—') ?></td>
-            <td><?= $z['plan_zone'] ? e($z['plan_zone'] . ' ' . ($z['plan_name'] ?? '')) : '—' ?></td>
-            <td><?= e($z['name_lo']) ?></td>
-            <td><?= number_format((float)($r['main'] ?? 0), 0) ?></td>
-            <td><?= number_format((float)($r['branch'] ?? 0), 0) ?></td>
-            <td><?= number_format((float)($r['alley'] ?? 0), 0) ?></td>
-            <td><?= number_format((float)($r['none'] ?? 0), 0) ?></td>
-            <td><?= $z['is_active'] ? te('yes') : te('no') ?></td>
+                  <th><?= te('Code') ?></th><th><?= te('District') ?></th><th><?= te('Plan') ?></th>
+                  <th><?= te('Name (Lao)') ?></th>
+                  <th><?= te('Villages') ?></th>
+                  <th><?= te('Main') ?></th><th><?= te('Branch') ?></th><th><?= te('Alley') ?></th><th><?= te('None') ?></th>
+                  <th><?= te('Active') ?></th><th style="width:150px"><?= te('Actions') ?></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($zones as $z): $r = $z['rates'] ?? []; $vils = $z['villages'] ?? []; ?>
+                  <tr>
+                    <td><strong><?= e($z['code']) ?></strong></td>
+                    <td><?= e($z['district_name'] ?? '—') ?></td>
+                    <td><?= $z['plan_zone'] ? e($z['plan_zone'] . ' ' . ($z['plan_name'] ?? '')) : '—' ?></td>
+                    <td><?= e($z['name_lo']) ?></td>
+                    <td style="min-width:160px"><?php if ($vils): ?><?= e(implode(', ', $vils)) ?><?php else: ?><span class="muted">—</span><?php endif; ?></td>
+                    <td><?= number_format((float)($r['main'] ?? 0), 0) ?></td>
+                    <td><?= number_format((float)($r['branch'] ?? 0), 0) ?></td>
+                    <td><?= number_format((float)($r['alley'] ?? 0), 0) ?></td>
+                    <td><?= number_format((float)($r['none'] ?? 0), 0) ?></td>
+                    <td><?= $z['is_active'] ? te('yes') : te('no') ?></td>
             <td class="table-actions">
               <button class="btn btn-blue btn-sm js-modal" type="button"
                 data-form="zone-form" data-title="<?= te('Edit zone') ?>" data-submit="<?= te('Update zone') ?>"
@@ -584,7 +602,7 @@ $refGroups = [
           </tr>
         <?php endforeach; ?>
         <?php if (!$zones): ?>
-          <tr><td colspan="10" class="muted"><?= te('No zones yet — add one.') ?></td></tr>
+          <tr><td colspan="11" class="muted"><?= te('No zones yet — add one.') ?></td></tr>
         <?php endif; ?>
         </tbody>
       </table>
@@ -607,17 +625,57 @@ $refGroups = [
             </select>
           </div>
           <div class="form-group"><label><?= te('Sort order') ?></label><input name="sort_order" type="number" value="0"></div>
-          <div class="form-group"><label><?= te('Main road (kip/m²)') ?></label><input name="rate_main" type="number" min="0" step="1" required></div>
-          <div class="form-group"><label><?= te('Branch road (kip/m²)') ?></label><input name="rate_branch" type="number" min="0" step="1" required></div>
-          <div class="form-group"><label><?= te('Alley (kip/m²)') ?></label><input name="rate_alley" type="number" min="0" step="1" required></div>
-          <div class="form-group"><label><?= te('No road (kip/m²)') ?></label><input name="rate_none" type="number" min="0" step="1" required></div>
-          <div class="form-group"><label><?= te('Note') ?></label><input name="note"></div>
-          <div class="form-group"><label><?= te('Active') ?></label>
-            <select name="is_active"><option value="1"><?= te('yes') ?></option><option value="0"><?= te('no') ?></option></select>
-          </div>
-        </form>
-      </template>
-    </div>
+                    <div class="form-group" style="grid-column:1/-1;"><label><?= te('Villages in this zone') ?></label>
+                      <select name="village_ids" multiple size="8" style="width:100%;">
+                        <?php
+                        // Group villages by district; pre-select ones already in this zone.
+                        $byDist = [];
+                        foreach ($allVillages as $v) {
+                            $byDist[$v['district_id']][] = $v;
+                        }
+                        $vDistNames = [];
+                        foreach ($districtsAll as $dd) { $vDistNames[(int)$dd['id']] = $dd['name_lo']; }
+                        ?>
+                        <?php foreach ($byDist as $did => $vl): ?>
+                          <optgroup label="<?= e($vDistNames[$did] ?? ('#' . $did)) ?>">
+                            <?php foreach ($vl as $vv): ?>
+                              <option value="<?= (int)$vv['id'] ?>" data-zone="<?= e($zoneVillages[$vv['id']] ?? '') ?>"><?= e($vv['name_lo']) ?></option>
+                            <?php endforeach; ?>
+                          </optgroup>
+                        <?php endforeach; ?>
+                      </select>
+                      <p class="sub" style="font-size:12px;"><?= te('A zone can cover several villages. Hold Ctrl/Cmd to select multiple.') ?></p>
+                                          </div>
+                                          <div class="form-group"><label><?= te('Main road (kip/m²)') ?></label><input name="rate_main" type="number" min="0" step="1" required></div>
+                                <div class="form-group"><label><?= te('Branch road (kip/m²)') ?></label><input name="rate_branch" type="number" min="0" step="1" required></div>
+                                <div class="form-group"><label><?= te('Alley (kip/m²)') ?></label><input name="rate_alley" type="number" min="0" step="1" required></div>
+                                <div class="form-group"><label><?= te('No road (kip/m²)') ?></label><input name="rate_none" type="number" min="0" step="1" required></div>
+                                <div class="form-group"><label><?= te('Note') ?></label><input name="note"></div>
+                                <div class="form-group"><label><?= te('Active') ?></label>
+                                  <select name="is_active"><option value="1"><?= te('yes') ?></option><option value="0"><?= te('no') ?></option></select>
+                                </div>
+                              </form>
+                            </template>
+                            <script>
+                            // When the zone modal opens, pre-select the villages already mapped to it.
+                            (function () {
+                              const modal = document.getElementById('modal-bg');
+                              if (!modal) return;
+                              const obs = new MutationObserver(function () {
+                                const form = document.getElementById('modal-form');
+                                if (!form) return;
+                                const sel = form.querySelector('select[name="village_ids"]');
+                                if (!sel) return;
+                                const zoneInput = form.querySelector('input[name="code"]');
+                                const zoneCode = zoneInput ? String(zoneInput.value).trim().toUpperCase() : '';
+                                [...sel.options].forEach(function (o) {
+                                  o.selected = zoneCode !== '' && (o.dataset.zone || '').toUpperCase() === zoneCode;
+                                });
+                              });
+                              obs.observe(modal, { childList: true, subtree: true });
+                            })();
+                            </script>
+                          </div>
 
 <?php elseif ($tab === 'years'): ?>
     <div class="form-box">

@@ -42,6 +42,18 @@ function rate_save_tier(PDO $pdo, string $code, string $rc, float $rate, string 
         ->execute([':zc' => $code, ':rc' => $rc, ':rate' => $rate, ':vf' => $validFrom]);
 }
 
+/** Assign the given villages to a zone (others are detached). */
+function rate_assign_villages(PDO $pdo, string $code, array $villageIds): void
+{
+    $ids = array_values(array_filter(array_map('intval', $villageIds), fn($v) => $v > 0));
+    $pdo->prepare("UPDATE villages SET zone_id = NULL WHERE zone_id = :zc")->execute([':zc' => $code]);
+    if ($ids) {
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $pdo->prepare("UPDATE villages SET zone_id = :zc WHERE id IN ($ph)")
+            ->execute(array_merge([$code], $ids));
+    }
+}
+
 // ---- GET: list zones with district, planning zone and current rates ----
 if ($method === 'GET') {
     $districtId = (int)($_GET['district_id'] ?? 0);
@@ -72,17 +84,29 @@ if ($method === 'GET') {
         ];
     }
     foreach ($zones as &$z) {
-        $z['rates'] = [];
-        foreach (['main', 'branch', 'alley', 'none'] as $rc) {
-            $z['rates'][$rc] = $tiers[$z['code']][$rc]['rate_per_sqm']
-                ?? (float)$z['rate_per_sqm'];
+            $z['rates'] = [];
+            foreach (['main', 'branch', 'alley', 'none'] as $rc) {
+                $z['rates'][$rc] = $tiers[$z['code']][$rc]['rate_per_sqm']
+                    ?? (float)$z['rate_per_sqm'];
+            }
+            $z['tiers'] = $tiers[$z['code']] ?? [];
+            unset($z['plan_sort']);
         }
-        $z['tiers'] = $tiers[$z['code']] ?? [];
-        unset($z['plan_sort']);
+        unset($z);
+
+        // Villages mapped to each zone (one zone covers several villages).
+        $vilStmt = $pdo->query("SELECT zone_id, name_lo FROM villages
+            WHERE zone_id IS NOT NULL ORDER BY name_lo");
+        $vilMap = [];
+        foreach ($vilStmt->fetchAll() as $v) {
+            $vilMap[$v['zone_id']][] = $v['name_lo'];
+        }
+        foreach ($zones as &$z) {
+            $z['villages'] = $vilMap[$z['code']] ?? [];
+        }
+        unset($z);
+        json_ok(['zones' => $zones]);
     }
-    unset($z);
-    json_ok(['zones' => $zones]);
-}
 
 // ---- POST (no ?code): create a zone with its 4 rates ----
 if ($method === 'POST' && !isset($_GET['code'])) {
@@ -136,16 +160,17 @@ if ($method === 'POST' && !isset($_GET['code'])) {
             ':so'   => $sortOrder,
         ]);
         $row = $stmt->fetch();
-        foreach ($rates as $rc => $rate) {
-            rate_save_tier($pdo, $code, $rc, $rate, $validFrom);
-        }
-        $pdo->commit();
-        json_ok($row, 201);
-    } catch (PDOException $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        if ($e->getCode() === '23505') {
+                foreach ($rates as $rc => $rate) {
+                    rate_save_tier($pdo, $code, $rc, $rate, $validFrom);
+                }
+                rate_assign_villages($pdo, $code, $body['village_ids'] ?? []);
+                $pdo->commit();
+                json_ok($row, 201);
+            } catch (PDOException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                if ($e->getCode() === '23505') {
             json_error('Zone ' . $code . ' already exists', 409, 'duplicate_code');
         }
         json_error('Create failed: ' . $e->getMessage(), 500, 'create_failed');
@@ -218,11 +243,14 @@ if ($method === 'PUT') {
             }
         }
         $validFrom = trim((string)($body['valid_from'] ?? '')) ?: date('Y-m-d');
-        foreach ($rates as $rc => $rate) {
-            rate_save_tier($pdo, $code, $rc, $rate, $validFrom);
-        }
-        $pdo->commit();
-        json_ok(['code' => $code, 'rates' => $rates]);
+                foreach ($rates as $rc => $rate) {
+                    rate_save_tier($pdo, $code, $rc, $rate, $validFrom);
+                }
+                if (array_key_exists('village_ids', $body)) {
+                    rate_assign_villages($pdo, $code, $body['village_ids']);
+                }
+                $pdo->commit();
+                json_ok(['code' => $code, 'rates' => $rates]);
     } catch (PDOException $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
