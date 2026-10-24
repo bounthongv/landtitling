@@ -322,7 +322,7 @@ case 'bank': {
     break;
 }
 
-// ---- Rate schedule (current zones × road-access tiers + decree positions) ----
+// ---- Rate schedule (current zones × road-access tiers) ----
 case 'rates': {
     $rows = $pdo->query("SELECT z.code AS zone_code, z.name_lo, z.name_en,
             d.name_lo AS district_name, z.plan_zone,
@@ -330,10 +330,6 @@ case 'rates': {
             COALESCE(MAX(CASE WHEN t.road_category = 'branch' THEN t.rate_per_sqm END), z.rate_per_sqm) AS branch,
             COALESCE(MAX(CASE WHEN t.road_category = 'alley'  THEN t.rate_per_sqm END), z.rate_per_sqm) AS alley,
             COALESCE(MAX(CASE WHEN t.road_category = 'none'   THEN t.rate_per_sqm END), z.rate_per_sqm) AS none,
-            COALESCE(MAX(CASE WHEN p.position = 'center'     THEN p.rate_per_sqm END), z.rate_per_sqm) AS center,
-            COALESCE(MAX(CASE WHEN p.position = 'sub_center' THEN p.rate_per_sqm END), z.rate_per_sqm) AS sub_center,
-            COALESCE(MAX(CASE WHEN p.position = 'lane'       THEN p.rate_per_sqm END), z.rate_per_sqm) AS lane,
-            COALESCE(MAX(CASE WHEN p.position = 'road_side'  THEN p.rate_per_sqm END), z.rate_per_sqm) AS road_side,
             MAX(t.valid_from) AS valid_from,
             CASE WHEN z.is_active THEN 'current' ELSE 'inactive' END AS currency
         FROM zones z
@@ -345,21 +341,12 @@ case 'rates': {
             WHERE valid_from <= CURRENT_DATE
             ORDER BY zone_code, road_category, valid_from DESC, updated_at DESC
         ) t ON t.zone_code = z.code
-        LEFT JOIN (
-            SELECT DISTINCT ON (zone_code, position)
-                   zone_code, position, rate_per_sqm, valid_from
-            FROM zone_rate_positions
-            WHERE valid_from <= CURRENT_DATE
-            ORDER BY zone_code, position, valid_from DESC, updated_at DESC
-        ) p ON p.zone_code = z.code
         GROUP BY z.code, z.name_lo, z.name_en, d.name_lo, d.code, z.plan_zone,
                  z.rate_per_sqm, z.is_active
         ORDER BY z.is_active DESC, d.code NULLS LAST, z.code")->fetchAll();
     $result = [
         'columns' => ['Zone', 'Name (Lao)', 'Name (EN)', 'District', 'Plan',
-                      'Main', 'Branch', 'Alley', 'None',
-                      'Center', 'Sub-center', 'Lane', 'Road-side',
-                      'Valid from', 'Status'],
+                      'Main', 'Branch', 'Alley', 'None', 'Valid from', 'Status'],
         'rows'    => $rows,
         'summary' => ['zones' => count($rows)],
     ];

@@ -133,11 +133,6 @@ confirm or parcel entry) until a mapping table is populated.
 
 1. Back up the DB.
 2. Apply `sql/migrations/006_zone_rates_v2.sql` (additive, idempotent).
-   If it is applied as a different DB role from the web app's role (for example
-   `postgres` vs `landfee_web`), grant that role access to the new objects:
-   `SELECT, INSERT, UPDATE, DELETE` on `zone_plans` and `zone_rate_tiers`, and
-   `USAGE, SELECT` on `zone_rate_tiers_id_seq`. Without these grants the API
-   returns 500s and the admin zones table appears empty.
 3. Apply `sql/seed_zone_rates_savannakhet.sql` (idempotent, non-destructive).
 4. Deploy code; restart Apache/OPcache.
 5. In **Basic Data → Zone rates**, check the 62 skeleton zones and the district
@@ -161,10 +156,5 @@ confirm or parcel entry) until a mapping table is populated.
 - No village → zone mapping (officers pick the zone per parcel).
 - No bulk import of the official rate table yet; the UI edits one zone at a time.
 - Legacy zones `G17/A7/C7/C8` remain active and unassigned until mapped.
-- A legacy zone whose code collides with a skeleton code is left untouched by
-  `ON CONFLICT DO NOTHING`, so that district's plan is skipped. Adopt the legacy
-  row (set `district_id`, `plan_zone`, `sort_order`) instead of deleting it when
-  parcels or obligations already reference it; otherwise delete it and re-run
-  the seed.
 - The `zones.rate_per_sqm` column is retained only as a fallback; new admin
   edits write tiers first.
