@@ -22,6 +22,31 @@ function rate_body_values(array $body): array
     return $out;
 }
 
+/** Read the 4 Decree-142 position values from `positions: {center:…}` or flat keys. */
+function rate_body_positions(array $body): array
+{
+    $out = [];
+    $src = is_array($body['positions'] ?? null) ? $body['positions'] : $body;
+    foreach (['center', 'sub_center', 'lane', 'road_side'] as $pos) {
+        if (array_key_exists($pos, $src) && $src[$pos] !== '' && $src[$pos] !== null) {
+            $out[$pos] = (float)$src[$pos];
+        }
+    }
+    return $out;
+}
+
+/** Insert/refresh one position row for a zone. */
+function rate_save_position(PDO $pdo, string $code, string $pos, float $rate, string $validFrom): void
+{
+    $pdo->prepare("INSERT INTO zone_rate_positions
+            (zone_code, position, rate_per_sqm, valid_from, updated_at)
+        VALUES (:zc, :pos, :rate, :vf, CURRENT_TIMESTAMP)
+        ON CONFLICT (zone_code, position, valid_from) DO UPDATE
+            SET rate_per_sqm = EXCLUDED.rate_per_sqm,
+                updated_at   = CURRENT_TIMESTAMP")
+        ->execute([':zc' => $code, ':pos' => $pos, ':rate' => $rate, ':vf' => $validFrom]);
+}
+
 /** Validate that a lookup row exists; returns false when it does not. */
 function rate_ref_exists(PDO $pdo, string $table, string $column, $value): bool
 {
@@ -45,18 +70,30 @@ function rate_save_tier(PDO $pdo, string $code, string $rc, float $rate, string 
 // ---- GET: list zones with district, planning zone and current rates ----
 if ($method === 'GET') {
     $districtId = (int)($_GET['district_id'] ?? 0);
-    $where = $districtId ? 'WHERE z.district_id = :did' : '';
+    $provinceId = (int)($_GET['province_id'] ?? 0);
+    $where = [];
+    $params = [];
+    if ($districtId) {
+        $where[] = 'z.district_id = :did';
+        $params[':did'] = $districtId;
+    }
+    if ($provinceId) {
+        $where[] = 'd.province_id = :pid';
+        $params[':pid'] = $provinceId;
+    }
+    $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $stmt = $pdo->prepare("SELECT z.code, z.name_lo, z.name_en, z.rate_per_sqm,
             z.valid_from, z.is_active, z.note, z.updated_at,
             z.district_id, d.name_lo AS district_name, d.code AS district_code,
+            d.province_id,
             z.plan_zone, p.name_lo AS plan_name, p.sort_order AS plan_sort,
             z.sort_order
         FROM zones z
         LEFT JOIN districts d ON d.id = z.district_id
         LEFT JOIN zone_plans p ON p.code = z.plan_zone
-        $where
+        $whereSql
         ORDER BY z.is_active DESC, d.code NULLS LAST, z.sort_order, z.code");
-    $stmt->execute($districtId ? [':did' => $districtId] : []);
+    $stmt->execute($params);
     $zones = $stmt->fetchAll();
 
     $tierStmt = $pdo->query("SELECT DISTINCT ON (zone_code, road_category)
@@ -81,6 +118,20 @@ if ($method === 'GET') {
         unset($z['plan_sort']);
     }
     unset($z);
+    // Decree-142 position rates for the officer valuation schedule.
+    $posStmt = $pdo->query("SELECT DISTINCT ON (zone_code, position)
+            zone_code, position, rate_per_sqm, valid_from
+        FROM zone_rate_positions
+        WHERE valid_from <= CURRENT_DATE
+        ORDER BY zone_code, position, valid_from DESC, updated_at DESC");
+    $posMap = [];
+    foreach ($posStmt->fetchAll() as $p) {
+        $posMap[$p['zone_code']][$p['position']] = (float)$p['rate_per_sqm'];
+    }
+    foreach ($zones as &$z) {
+        $z['positions'] = $posMap[$z['code']] ?? [];
+    }
+    unset($z);
     json_ok(['zones' => $zones]);
 }
 
@@ -94,11 +145,12 @@ if ($method === 'POST' && !isset($_GET['code'])) {
     $planZone   = trim((string)($body['plan_zone'] ?? '')) ?: null;
     $sortOrder  = (int)($body['sort_order'] ?? 0);
     $validFrom  = trim((string)($body['valid_from'] ?? '')) ?: date('Y-m-d');
-    $rates      = rate_body_values($body);
-    if (!$rates && isset($body['rate_per_sqm'])) {
-        $legacy = (float)$body['rate_per_sqm'];
-        $rates = array_fill_keys(['main', 'branch', 'alley', 'none'], $legacy);
-    }
+    $rates = rate_body_values($body);
+       if (!$rates && isset($body['rate_per_sqm'])) {
+           $legacy = (float)$body['rate_per_sqm'];
+           $rates = array_fill_keys(['main', 'branch', 'alley', 'none'], $legacy);
+       }
+       $positions = rate_body_positions($body);
 
     $err = collect_errors([
         'code'    => validate_required($code, 'zone code'),
@@ -138,6 +190,9 @@ if ($method === 'POST' && !isset($_GET['code'])) {
         $row = $stmt->fetch();
         foreach ($rates as $rc => $rate) {
             rate_save_tier($pdo, $code, $rc, $rate, $validFrom);
+        }
+        foreach ($positions as $pos => $rate) {
+            rate_save_position($pdo, $code, $pos, $rate, $validFrom);
         }
         $pdo->commit();
         json_ok($row, 201);
@@ -199,7 +254,8 @@ if ($method === 'PUT') {
         $sets[] = 'rate_per_sqm = :fallback';
         $params[':fallback'] = $rates['none'] ?? reset($rates);
     }
-    if (!$sets && !$rates) {
+    $positions = rate_body_positions($body);
+    if (!$sets && !$rates && !$positions) {
         json_error('Nothing to update', 400, 'nothing_to_update');
     }
 
@@ -221,8 +277,11 @@ if ($method === 'PUT') {
         foreach ($rates as $rc => $rate) {
             rate_save_tier($pdo, $code, $rc, $rate, $validFrom);
         }
+        foreach ($positions as $pos => $rate) {
+            rate_save_position($pdo, $code, $pos, $rate, $validFrom);
+        }
         $pdo->commit();
-        json_ok(['code' => $code, 'rates' => $rates]);
+        json_ok(['code' => $code, 'rates' => $rates, 'positions' => $positions]);
     } catch (PDOException $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();

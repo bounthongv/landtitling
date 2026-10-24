@@ -355,6 +355,8 @@
   "{n} row(s)": "{n} ແຖວ",
   "{n} village(s) shown": "ສະແດງ {n} ບ້ານ",
   "{n} village(s) shown (first 500 — narrow with the district filter or search)": "ສະແດງ {n} ບ້ານ (500 ທຳອິດ — ຫຼຸດລົງດ້ວຍຕົວຄົ້ນຫາເມືອງ ຫຼື ການຄົ້ນຫາ)",
+  "{n} zone(s) shown": "ສະແດງ {n} ເຂດ",
+  "filtered by location": "ຄົ້ນຫາຕາມສະຖານທີ່",
   "Month": "ເດືອນ",
   "Payments": "ການຊຳລະ",
   "Collected (kip)": "ເກັບໄດ້ (ກີບ)",
@@ -490,5 +492,13 @@
   "Land Area": "ເນື້ອທີ່ດິນ",
   "Scale": "ມາດຕາສ່ວນ",
   "Issued At": "ອອກໃຫ້ທີ່",
-  "Day": "ວັນທີ"
+  "Day": "ວັນທີ",
+  "Center": "ກາງ",
+  "Sub-center": "ກາງຍ່ອຍ",
+  "Lane": "ແນວ",
+  "Road-side": "ລຽບທາງ",
+  "Center (kip/m²)": "ກາງ (ກີບ/ຕລ.ມ)",
+  "Sub-center (kip/m²)": "ກາງຍ່ອຍ (ກີບ/ຕລ.ມ)",
+  "Lane (kip/m²)": "ແນວ (ກີບ/ຕລ.ມ)",
+  "Road-side (kip/m²)": "ລຽບທາງ (ກີບ/ຕລ.ມ)"
 }

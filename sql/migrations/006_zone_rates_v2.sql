@@ -8,6 +8,13 @@
 -- Additive and idempotent: safe to run on an existing database, and safe to
 -- re-run. It never deletes zones or rates.
 --
+-- If this is applied as a role other than the web app's role (e.g. postgres
+-- vs landfee_web), grant the web role after COMMIT:
+--   GRANT SELECT, INSERT, UPDATE, DELETE
+--     ON zone_plans, zone_rate_tiers TO <web_role>;
+--   GRANT USAGE, SELECT ON SEQUENCE zone_rate_tiers_id_seq TO <web_role>;
+-- Missing grants make rates/refdata/fee return 500 and the admin table empty.
+--
 SET search_path = landfee;
 BEGIN;
 

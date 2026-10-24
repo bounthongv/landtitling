@@ -182,6 +182,32 @@ CREATE TABLE zone_rate_tiers (
 );
 CREATE INDEX idx_zrt_lookup ON zone_rate_tiers (zone_code, road_category, valid_from DESC);
 
+-- Decree-142 position tiers (7-column regulation model): one row per zone ×
+-- position (center / sub_center / lane / road_side). Mirrors Decree 142/ລົງ
+-- columns (4)-(7). Additive — the road-access tiers above stay the fee source;
+-- these position rates are for the officer valuation schedule and future
+-- parcel-position pricing.
+CREATE TABLE zone_rate_positions (
+  id SERIAL PRIMARY KEY,
+  zone_code VARCHAR(20) NOT NULL,
+  position VARCHAR(20) NOT NULL,          -- center | sub_center | lane | road_side
+  rate_per_sqm NUMERIC(14,2) NOT NULL CHECK (rate_per_sqm >= 0),
+  valid_from DATE NOT NULL DEFAULT CURRENT_DATE,
+  note TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_zrp_zone FOREIGN KEY (zone_code) REFERENCES zones(code) ON DELETE CASCADE,
+  CONSTRAINT chk_zrp_position CHECK (position IN ('center','sub_center','lane','road_side')),
+  CONSTRAINT uq_zrp_zone_pos_from UNIQUE (zone_code, position, valid_from)
+);
+CREATE INDEX idx_zrp_lookup ON zone_rate_positions (zone_code, position, valid_from DESC);
+INSERT INTO zone_rate_positions (zone_code, position, rate_per_sqm, valid_from)
+SELECT z.code, p.position, z.rate_per_sqm, z.valid_from
+FROM zones z
+CROSS JOIN (VALUES ('center'), ('sub_center'), ('lane'), ('road_side')) AS p(position)
+WHERE z.rate_per_sqm IS NOT NULL
+ON CONFLICT (zone_code, position, valid_from) DO NOTHING;
+
 -- Legacy zone codes seen in the previous system (kept unassigned on purpose).
 INSERT INTO zones (code, name_lo, name_en, rate_per_sqm, valid_from) VALUES
   ('G17', 'ເຂດ G17', 'Zone G17', 180000.00, CURRENT_DATE),

@@ -142,6 +142,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (['main', 'branch', 'alley', 'none'] as $rc) {
             $rates[$rc] = (float)($_POST['rate_' . $rc] ?? 0);
         }
+        $positions = [];
+        foreach (['center', 'sub_center', 'lane', 'road_side'] as $pos) {
+            $positions[$pos] = (float)($_POST['pos_' . $pos] ?? 0);
+        }
         if ($code === '' || $nameLo === '' || max($rates) <= 0) {
             $msg = t('Zone code, Lao name and at least one positive rate are required.');
             $msgType = 'err';
@@ -156,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'plan_zone'   => $_POST['plan_zone'] ?? null,
                 'sort_order'  => (int)($_POST['sort_order'] ?? 0),
                 'rates'       => $rates,
+                'positions'   => $positions,
             ];
             if ($do === 'zone_add') {
                 $r = api_call('POST', 'rates.php', $body, $token);
@@ -203,7 +208,7 @@ $sort = (string)($_GET['sort'] ?? 'code');
 $dir  = strtolower((string)($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
 if (!in_array($sort, $sortable, true)) { $sort = 'code'; }
 
-// Filter params (province_id is shared by the districts and villages tabs).
+// Filter params (province_id is shared by the districts, villages and zones tabs).
 $vProvince  = (int)($_GET['province_id'] ?? 0);
 $vDistrict  = (int)($_GET['district_id'] ?? 0);
 $vQuery     = trim((string)($_GET['q'] ?? ''));
@@ -230,7 +235,14 @@ $districts   = api_call('GET', 'districts.php?' . http_build_query(['sort' => $d
 // would hide the district of the row being edited.
 $districtsAll = api_call('GET', 'districts.php?sort=name_lo&dir=asc', null, $token)['data'] ?? [];
 $refdata     = api_call('GET', 'refdata.php', null, $token)['data'] ?? [];
-$zones       = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
+// Zone table filter: the cascading province/district selects narrow rates.php.
+$zExtra = [];
+if ($tab === 'zones') {
+    if ($vProvince) { $zExtra['province_id'] = $vProvince; }
+    if ($vDistrict) { $zExtra['district_id'] = $vDistrict; }
+}
+$zonesUrl = 'rates.php' . ($zExtra ? '?' . http_build_query($zExtra) : '');
+$zones       = api_call('GET', $zonesUrl, null, $token)['data']['zones'] ?? [];
 $zonePlans   = api_call('GET', 'refdata.php?table=zone_plans', null, $token)['data'] ?? [];
 $years       = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
 
@@ -547,20 +559,64 @@ $refGroups = [
           data-do-action="zone_add"><?= te('Add zone') ?></button>
       </div>
       <p class="sub"><?= te('Fee = zone rate for the parcel’s road access × area. Each zone has four rates: main road, branch road, alley, and no road. Districts own a letter so codes stay unique (e.g. A1–A4 in district 1301). Rates below are placeholders until the province supplies the official figures.') ?></p>
+      <form method="get" class="form-grid" style="margin-bottom:14px;">
+        <input type="hidden" name="tab" value="zones">
+        <div class="form-group"><label><?= te('Province') ?></label>
+          <select name="province_id" id="z-province"><option value=""><?= te('-- all provinces --') ?></option>
+            <?php foreach ($provinces as $p): ?>
+            <option value="<?= (int)$p['id'] ?>" <?= $vProvince == $p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?> <?= e($p['name_en'] ?: '') ?></option>
+            <?php endforeach; ?></select>
+        </div>
+        <div class="form-group"><label><?= te('District') ?></label>
+          <select name="district_id" id="z-district"><option value=""><?= te('-- all --') ?></option>
+            <?= district_options($districtsAll, $provinces, $vDistrict) ?></select>
+        </div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
+        <?php if ($vProvince || $vDistrict): ?>
+        <div class="form-group"><label>&nbsp;</label><a class="btn btn-gold" href="?tab=zones"><?= te('Clear filter') ?></a></div>
+        <?php endif; ?>
+      </form>
+      <script>
+      // Province -> district cascade in the zone filter form.
+      (function(){
+        const prov = document.getElementById('z-province');
+        const dist = document.getElementById('z-district');
+        if (!prov || !dist) return;
+        function filterDistricts(){
+          const pid = prov.value;
+          [...dist.querySelectorAll('optgroup')].forEach(g => {
+            g.style.display = (pid && g.dataset.province !== pid) ? 'none' : '';
+          });
+          const sel = dist.selectedOptions[0];
+          if (sel && sel.parentElement && sel.parentElement.tagName === 'OPTGROUP'
+              && sel.parentElement.style.display === 'none') {
+            dist.value = '';
+          }
+        }
+        prov.addEventListener('change', filterDistricts);
+        filterDistricts();
+      })();
+      </script>
+      <p class="sub"><?= te('{n} zone(s) shown', ['n' => count($zones)]) ?><?php if ($vProvince || $vDistrict): ?> — <?= te('filtered by location') ?><?php endif; ?></p>
       <table>
         <thead><tr>
           <th><?= te('Code') ?></th><th><?= te('District') ?></th><th><?= te('Plan') ?></th>
           <th><?= te('Name (Lao)') ?></th>
+          <th><?= te('Center') ?></th><th><?= te('Sub-center') ?></th><th><?= te('Lane') ?></th><th><?= te('Road-side') ?></th>
           <th><?= te('Main') ?></th><th><?= te('Branch') ?></th><th><?= te('Alley') ?></th><th><?= te('None') ?></th>
           <th><?= te('Active') ?></th><th style="width:150px"><?= te('Actions') ?></th>
         </tr></thead>
         <tbody>
-        <?php foreach ($zones as $z): $r = $z['rates'] ?? []; ?>
+        <?php foreach ($zones as $z): $r = $z['rates'] ?? []; $ps = $z['positions'] ?? []; ?>
           <tr>
             <td><strong><?= e($z['code']) ?></strong></td>
             <td><?= e($z['district_name'] ?? '—') ?></td>
             <td><?= $z['plan_zone'] ? e($z['plan_zone'] . ' ' . ($z['plan_name'] ?? '')) : '—' ?></td>
             <td><?= e($z['name_lo']) ?></td>
+            <td><?= number_format((float)($ps['center'] ?? 0), 0) ?></td>
+            <td><?= number_format((float)($ps['sub_center'] ?? 0), 0) ?></td>
+            <td><?= number_format((float)($ps['lane'] ?? 0), 0) ?></td>
+            <td><?= number_format((float)($ps['road_side'] ?? 0), 0) ?></td>
             <td><?= number_format((float)($r['main'] ?? 0), 0) ?></td>
             <td><?= number_format((float)($r['branch'] ?? 0), 0) ?></td>
             <td><?= number_format((float)($r['alley'] ?? 0), 0) ?></td>
@@ -575,6 +631,8 @@ $refGroups = [
                 data-sort-order="<?= (int)($z['sort_order'] ?? 0) ?>"
                 data-rate-main="<?= (float)($r['main'] ?? 0) ?>" data-rate-branch="<?= (float)($r['branch'] ?? 0) ?>"
                 data-rate-alley="<?= (float)($r['alley'] ?? 0) ?>" data-rate-none="<?= (float)($r['none'] ?? 0) ?>"
+                data-pos-center="<?= (float)($ps['center'] ?? 0) ?>" data-pos-sub-center="<?= (float)($ps['sub_center'] ?? 0) ?>"
+                data-pos-lane="<?= (float)($ps['lane'] ?? 0) ?>" data-pos-road-side="<?= (float)($ps['road_side'] ?? 0) ?>"
                 data-note="<?= e($z['note'] ?? '') ?>" data-is-active="<?= $z['is_active'] ? 1 : 0 ?>"><?= te('Edit') ?></button>
               <form method="post">
                 <input type="hidden" name="do_action" value="zone_delete"><input type="hidden" name="code" value="<?= e($z['code']) ?>">
@@ -584,7 +642,7 @@ $refGroups = [
           </tr>
         <?php endforeach; ?>
         <?php if (!$zones): ?>
-          <tr><td colspan="10" class="muted"><?= te('No zones yet — add one.') ?></td></tr>
+          <tr><td colspan="14" class="muted"><?= te('No zones yet — add one.') ?></td></tr>
         <?php endif; ?>
         </tbody>
       </table>
@@ -611,6 +669,10 @@ $refGroups = [
           <div class="form-group"><label><?= te('Branch road (kip/m²)') ?></label><input name="rate_branch" type="number" min="0" step="1" required></div>
           <div class="form-group"><label><?= te('Alley (kip/m²)') ?></label><input name="rate_alley" type="number" min="0" step="1" required></div>
           <div class="form-group"><label><?= te('No road (kip/m²)') ?></label><input name="rate_none" type="number" min="0" step="1" required></div>
+          <div class="form-group"><label><?= te('Center (kip/m²)') ?></label><input name="pos_center" type="number" min="0" step="1"></div>
+          <div class="form-group"><label><?= te('Sub-center (kip/m²)') ?></label><input name="pos_sub_center" type="number" min="0" step="1"></div>
+          <div class="form-group"><label><?= te('Lane (kip/m²)') ?></label><input name="pos_lane" type="number" min="0" step="1"></div>
+          <div class="form-group"><label><?= te('Road-side (kip/m²)') ?></label><input name="pos_road_side" type="number" min="0" step="1"></div>
           <div class="form-group"><label><?= te('Note') ?></label><input name="note"></div>
           <div class="form-group"><label><?= te('Active') ?></label>
             <select name="is_active"><option value="1"><?= te('yes') ?></option><option value="0"><?= te('no') ?></option></select>
