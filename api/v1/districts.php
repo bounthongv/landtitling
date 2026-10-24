@@ -43,6 +43,7 @@ if ($method === 'GET') {
     $dir     = strtolower(trim((string)($_GET['dir'] ?? 'asc'))) === 'desc' ? 'DESC' : 'ASC';
 
     $stmt = $pdo->prepare("SELECT d.id, d.code, d.name_lo, d.name_en, d.province_id,
+            d.zone_letter,
             pr.name_lo AS province_name,
             (SELECT COUNT(*) FROM villages v WHERE v.district_id = d.id) AS village_count,
             (SELECT COUNT(*) FROM parcels p WHERE p.district_id = d.id)  AS parcel_count
@@ -80,6 +81,10 @@ if ($method === 'POST' && !isset($_GET['id'])) {
     $nameLo   = trim((string)($body['name_lo'] ?? ''));
     $nameEn   = trim((string)($body['name_en'] ?? ''));
     $provinceId = !empty($body['province_id']) ? (int)$body['province_id'] : 0;
+    $zoneLetter = strtoupper(trim((string)($body['zone_letter'] ?? ''))) ?: null;
+    if ($zoneLetter !== null && !preg_match('/^[A-Z]{1,5}$/', $zoneLetter)) {
+        json_error('Zone letter must be 1–5 Latin letters', 422, 'bad_zone_letter');
+    }
 
     $err = collect_errors([
         'code'        => validate_required($code, 'code'),
@@ -95,12 +100,17 @@ if ($method === 'POST' && !isset($_GET['id'])) {
     }
 
     try {
-        $st = $pdo->prepare("INSERT INTO districts (province_id, code, name_lo, name_en)
-            VALUES (:pid, :code, :nlo, :nen) RETURNING id, code, name_lo, name_en, province_id");
-        $st->execute([':pid' => $provinceId, ':code' => $code, ':nlo' => $nameLo, ':nen' => $nameEn ?: null]);
+        $st = $pdo->prepare("INSERT INTO districts (province_id, code, name_lo, name_en, zone_letter)
+            VALUES (:pid, :code, :nlo, :nen, :zl)
+            RETURNING id, code, name_lo, name_en, province_id, zone_letter");
+        $st->execute([':pid' => $provinceId, ':code' => $code, ':nlo' => $nameLo,
+            ':nen' => $nameEn ?: null, ':zl' => $zoneLetter]);
         json_ok($st->fetch(), 201);
     } catch (PDOException $e) {
         if ($e->getCode() === '23505') {
+            if (str_contains($e->getMessage(), 'uq_districts_province_zone_letter')) {
+                json_error('Zone letter ' . $zoneLetter . ' is already used in this province', 409, 'duplicate_zone_letter');
+            }
             json_error('District code ' . $code . ' already exists', 409, 'duplicate_code');
         }
         json_error('Create failed: ' . $e->getMessage(), 500, 'create_failed');
@@ -125,12 +135,20 @@ if ($method === 'PUT') {
         $sets[] = 'province_id = :pid';
         $params[':pid'] = (int)$body['province_id'];
     }
+    if (array_key_exists('zone_letter', $body)) {
+        $zl = strtoupper(trim((string)$body['zone_letter'])) ?: null;
+        if ($zl !== null && !preg_match('/^[A-Z]{1,5}$/', $zl)) {
+            json_error('Zone letter must be 1–5 Latin letters', 422, 'bad_zone_letter');
+        }
+        $sets[] = 'zone_letter = :zl';
+        $params[':zl'] = $zl;
+    }
     if (!$sets) {
         json_error('Nothing to update', 400, 'nothing_to_update');
     }
     try {
         $st = $pdo->prepare("UPDATE districts SET " . implode(', ', $sets) . " WHERE id = :id
-            RETURNING id, code, name_lo, name_en, province_id");
+            RETURNING id, code, name_lo, name_en, province_id, zone_letter");
         $st->execute($params);
         $row = $st->fetch();
         if (!$row) {
@@ -139,6 +157,9 @@ if ($method === 'PUT') {
         json_ok($row);
     } catch (PDOException $e) {
         if ($e->getCode() === '23505') {
+            if (str_contains($e->getMessage(), 'uq_districts_province_zone_letter')) {
+                json_error('Zone letter is already used in this province', 409, 'duplicate_zone_letter');
+            }
             json_error('District code already exists', 409, 'duplicate_code');
         }
         json_error('Update failed: ' . $e->getMessage(), 500, 'update_failed');

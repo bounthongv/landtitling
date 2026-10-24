@@ -3,31 +3,64 @@
 require_once __DIR__ . '/db.php';
 
 /**
- * Current zone rate for a zone_code as of today.
- * Returns ['rate_per_sqm'=>, 'valid_from'=>] or null.
+ * Normalise a road-access code. Unknown/empty values price as "none" (the
+ * lowest tier) so legacy parcels without a road category still get a fee.
  */
-function zone_rate_for($pdo, $zoneCode)
+function fee_road_category($roadCategory)
 {
-    $stmt = $pdo->prepare("SELECT rate_per_sqm, valid_from
+    $rc = strtolower(trim((string)$roadCategory));
+    return in_array($rc, ['main', 'branch', 'alley', 'none'], true) ? $rc : 'none';
+}
+
+/**
+ * Current rate for a zone_code + road-access tier as of today.
+ * Falls back to zones.rate_per_sqm for legacy zones that have no tier rows.
+ * Returns ['rate_per_sqm'=>, 'valid_from'=>, 'road_category'=>, 'source'=>] or null.
+ */
+function zone_rate_for($pdo, $zoneCode, $roadCategory = null)
+{
+    $zoneCode = strtoupper(trim((string)$zoneCode));
+    $rc = fee_road_category($roadCategory);
+
+    $stmt = $pdo->prepare("SELECT t.rate_per_sqm, t.valid_from, t.road_category, 'tier' AS source
+        FROM zone_rate_tiers t
+        JOIN zones z ON z.code = t.zone_code
+        WHERE t.zone_code = :zc AND t.road_category = :rc
+          AND z.is_active = TRUE AND t.valid_from <= CURRENT_DATE
+        ORDER BY t.valid_from DESC, t.updated_at DESC LIMIT 1");
+    $stmt->execute([':zc' => $zoneCode, ':rc' => $rc]);
+    $row = $stmt->fetch();
+    if ($row) {
+        return $row;
+    }
+
+    $stmt = $pdo->prepare("SELECT rate_per_sqm, valid_from, :rc AS road_category,
+            'zone_default' AS source
         FROM zones
         WHERE code = :zc AND is_active = TRUE AND valid_from <= CURRENT_DATE
         ORDER BY valid_from DESC, updated_at DESC LIMIT 1");
-    $stmt->execute([':zc' => $zoneCode]);
+    $stmt->execute([':zc' => $zoneCode, ':rc' => $rc]);
     $row = $stmt->fetch();
     return $row ?: null;
 }
 
-/** Fee = rate × area, rounded to 2 dp. */
-function fee_compute_amount($pdo, $zoneCode, $areaSqm)
+/** Fee = tier rate × area, rounded to 2 dp. */
+function fee_compute_amount($pdo, $zoneCode, $areaSqm, $roadCategory = null)
 {
-    $r = zone_rate_for($pdo, $zoneCode);
+    $r = zone_rate_for($pdo, $zoneCode, $roadCategory);
     if (!$r) {
-        return ['rate_per_sqm' => 0.0, 'amount' => 0.0, 'rate_found' => false];
+        return [
+            'rate_per_sqm'  => 0.0,
+            'amount'        => 0.0,
+            'rate_found'    => false,
+            'road_category' => fee_road_category($roadCategory),
+        ];
     }
     return [
-        'rate_per_sqm' => (float)$r['rate_per_sqm'],
-        'amount'       => round((float)$r['rate_per_sqm'] * (float)$areaSqm, 2),
-        'rate_found'   => true,
+        'rate_per_sqm'  => (float)$r['rate_per_sqm'],
+        'amount'        => round((float)$r['rate_per_sqm'] * (float)$areaSqm, 2),
+        'rate_found'    => true,
+        'road_category' => $r['road_category'],
     ];
 }
 
@@ -63,23 +96,25 @@ function fee_ensure_year($pdo, $year)
 function fee_upsert_obligation($pdo, $parcelId, $year)
 {
     $parcelId = (int)$parcelId;
-    $stmt = $pdo->prepare("SELECT district_id, zone_code, area_sqm FROM parcels WHERE id = :id");
+    $stmt = $pdo->prepare("SELECT district_id, zone_code, road_category, area_sqm FROM parcels WHERE id = :id");
     $stmt->execute([':id' => $parcelId]);
     $parcel = $stmt->fetch();
     if (!$parcel) {
         return null;
     }
     $zoneCode = $parcel['zone_code'] ?: 'A7'; // fallback so a fee can still be computed
+    $road     = fee_road_category($parcel['road_category'] ?? null);
     $fy   = fee_ensure_year($pdo, $year);
-    $fee  = fee_compute_amount($pdo, $zoneCode, $parcel['area_sqm']);
+    $fee  = fee_compute_amount($pdo, $zoneCode, $parcel['area_sqm'], $road);
 
     $pdo->prepare("
-        INSERT INTO fee_obligations (parcel_id, fee_year, district_id, zone_code, area_sqm,
+        INSERT INTO fee_obligations (parcel_id, fee_year, district_id, zone_code, road_category, area_sqm,
             rate_per_sqm, amount_due, amount_paid, penalty, status, due_date, created_at, updated_at)
-        VALUES (:pid, :fy, :did, :zc, :area, :rate, :amt, 0, 0, 'UNPAID', :due, now(), now())
+        VALUES (:pid, :fy, :did, :zc, :rc, :area, :rate, :amt, 0, 0, 'UNPAID', :due, now(), now())
         ON CONFLICT (parcel_id, fee_year) DO UPDATE
           SET district_id = EXCLUDED.district_id,
               zone_code   = EXCLUDED.zone_code,
+              road_category = EXCLUDED.road_category,
               area_sqm    = EXCLUDED.area_sqm,
               rate_per_sqm = EXCLUDED.rate_per_sqm,
               amount_due  = EXCLUDED.amount_due,
@@ -90,6 +125,7 @@ function fee_upsert_obligation($pdo, $parcelId, $year)
         ':fy'   => (int)$year,
         ':did'  => (int)$parcel['district_id'],
         ':zc'   => $zoneCode,
+        ':rc'   => $road,
         ':area' => (float)$parcel['area_sqm'],
         ':rate' => $fee['rate_found'] ? (float)$fee['rate_per_sqm'] : 0.0,
         ':amt'  => (float)$fee['amount'],

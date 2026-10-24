@@ -322,14 +322,31 @@ case 'bank': {
     break;
 }
 
-// ---- Rate schedule (current zones) ----
+// ---- Rate schedule (current zones × road-access tiers) ----
 case 'rates': {
-    $rows = $pdo->query("SELECT code AS zone_code, name_lo, name_en, rate_per_sqm, valid_from, note, updated_at,
-            CASE WHEN is_active THEN 'current' ELSE 'inactive' END AS currency
-        FROM zones
-        ORDER BY is_active DESC, code")->fetchAll();
+    $rows = $pdo->query("SELECT z.code AS zone_code, z.name_lo, z.name_en,
+            d.name_lo AS district_name, z.plan_zone,
+            COALESCE(MAX(CASE WHEN t.road_category = 'main'   THEN t.rate_per_sqm END), z.rate_per_sqm) AS main,
+            COALESCE(MAX(CASE WHEN t.road_category = 'branch' THEN t.rate_per_sqm END), z.rate_per_sqm) AS branch,
+            COALESCE(MAX(CASE WHEN t.road_category = 'alley'  THEN t.rate_per_sqm END), z.rate_per_sqm) AS alley,
+            COALESCE(MAX(CASE WHEN t.road_category = 'none'   THEN t.rate_per_sqm END), z.rate_per_sqm) AS none,
+            MAX(t.valid_from) AS valid_from,
+            CASE WHEN z.is_active THEN 'current' ELSE 'inactive' END AS currency
+        FROM zones z
+        LEFT JOIN districts d ON d.id = z.district_id
+        LEFT JOIN (
+            SELECT DISTINCT ON (zone_code, road_category)
+                   zone_code, road_category, rate_per_sqm, valid_from
+            FROM zone_rate_tiers
+            WHERE valid_from <= CURRENT_DATE
+            ORDER BY zone_code, road_category, valid_from DESC, updated_at DESC
+        ) t ON t.zone_code = z.code
+        GROUP BY z.code, z.name_lo, z.name_en, d.name_lo, d.code, z.plan_zone,
+                 z.rate_per_sqm, z.is_active
+        ORDER BY z.is_active DESC, d.code NULLS LAST, z.code")->fetchAll();
     $result = [
-        'columns' => ['Zone', 'Name (Lao)', 'Name (EN)', 'Rate (kip/m²)', 'Valid from', 'Status', 'Note', 'Updated'],
+        'columns' => ['Zone', 'Name (Lao)', 'Name (EN)', 'District', 'Plan',
+                      'Main', 'Branch', 'Alley', 'None', 'Valid from', 'Status'],
         'rows'    => $rows,
         'summary' => ['zones' => count($rows)],
     ];

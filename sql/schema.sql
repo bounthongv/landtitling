@@ -79,7 +79,9 @@ CREATE TABLE districts (
   province_id INT NOT NULL REFERENCES provinces(id),
   code VARCHAR(20) UNIQUE NOT NULL,
   name_lo VARCHAR(100) NOT NULL,
-  name_en VARCHAR(100)
+  name_en VARCHAR(100),
+  zone_letter VARCHAR(5),                      -- prefix for valuation zone codes (A, B, …)
+  CONSTRAINT uq_districts_province_zone_letter UNIQUE (province_id, zone_letter)
 );
 CREATE INDEX idx_districts_province ON districts (province_id);
 
@@ -104,7 +106,8 @@ BEGIN
   END IF;
 END $$;
 
--- Zone rates (flat: depends only on location)
+-- Legacy flat zone rates (district × road category) — reference only; the fee
+-- logic uses zone codes below.
 CREATE TABLE zones_rates (
   id SERIAL PRIMARY KEY,
   district_id INT NOT NULL,
@@ -121,6 +124,75 @@ CREATE TABLE zones_rates (
     FOREIGN KEY (road_category)
     REFERENCES road_categories(code)
 );
+
+-- =========================================================================
+-- Valuation zones (Decree 142/ລົງ model)
+--   district → standard planning zone → zone code → road-access tier
+-- =========================================================================
+
+CREATE TABLE zone_plans (
+  code VARCHAR(10) PRIMARY KEY,
+  name_lo VARCHAR(100) NOT NULL,
+  name_en VARCHAR(100),
+  sort_order INT NOT NULL DEFAULT 0
+);
+INSERT INTO zone_plans (code, name_lo, name_en, sort_order) VALUES
+  ('1', 'ເຂດຕົວເມືອງ',  'Urban core',   1),
+  ('2', 'ເຂດຊານເມືອງ',  'Peri-urban',   2),
+  ('3', 'ເຂດກະສິກຳ',   'Agricultural', 3),
+  ('4', 'ເຂດຊົນນະບົດ',  'Rural',        4),
+  ('5', 'ເຂດເສດຖະກິດ',  'Commercial',   5),
+  ('6', 'ເຂດອຸດສາຫະກຳ', 'Industrial',   6);
+
+CREATE TABLE zones (
+  code VARCHAR(20) PRIMARY KEY,
+  name_lo VARCHAR(80),
+  name_en VARCHAR(80),
+  rate_per_sqm DECIMAL(12,2) NOT NULL DEFAULT 0.00,  -- fallback/default tier
+  valid_from DATE NOT NULL DEFAULT CURRENT_DATE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  note TEXT,
+  district_id INT,
+  plan_zone VARCHAR(10),
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_zones_district
+    FOREIGN KEY (district_id) REFERENCES districts(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_zones_plan
+    FOREIGN KEY (plan_zone) REFERENCES zone_plans(code) ON DELETE RESTRICT
+);
+CREATE INDEX idx_zones_district ON zones (district_id);
+
+-- One row per zone × road category; a rate change adds a new valid_from row.
+CREATE TABLE zone_rate_tiers (
+  id SERIAL PRIMARY KEY,
+  zone_code VARCHAR(20) NOT NULL,
+  road_category VARCHAR(10) NOT NULL,
+  rate_per_sqm NUMERIC(14,2) NOT NULL CHECK (rate_per_sqm >= 0),
+  valid_from DATE NOT NULL DEFAULT CURRENT_DATE,
+  note TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_zrt_zone
+    FOREIGN KEY (zone_code) REFERENCES zones(code) ON DELETE CASCADE,
+  CONSTRAINT fk_zrt_road
+    FOREIGN KEY (road_category) REFERENCES road_categories(code),
+  CONSTRAINT uq_zrt_zone_road_from UNIQUE (zone_code, road_category, valid_from)
+);
+CREATE INDEX idx_zrt_lookup ON zone_rate_tiers (zone_code, road_category, valid_from DESC);
+
+-- Legacy zone codes seen in the previous system (kept unassigned on purpose).
+INSERT INTO zones (code, name_lo, name_en, rate_per_sqm, valid_from) VALUES
+  ('G17', 'ເຂດ G17', 'Zone G17', 180000.00, CURRENT_DATE),
+  ('A7',  'ເຂດ A7',  'Zone A7',  140000.00, CURRENT_DATE),
+  ('C7',  'ເຂດ C7',  'Zone C7',  110000.00, CURRENT_DATE),
+  ('C8',  'ເຂດ C8',  'Zone C8',  85000.00,  CURRENT_DATE)
+ON CONFLICT (code) DO NOTHING;
+INSERT INTO zone_rate_tiers (zone_code, road_category, rate_per_sqm, valid_from)
+SELECT z.code, rc.code, z.rate_per_sqm, z.valid_from
+FROM zones z CROSS JOIN road_categories rc
+ON CONFLICT (zone_code, road_category, valid_from) DO NOTHING;
 
 -- =========================================================================
 -- Users (unchanged)
@@ -183,7 +255,8 @@ CREATE TABLE parcels (
   district_id INT NOT NULL,
   village_id INT NOT NULL,
   area_sqm DECIMAL(14,2) NOT NULL DEFAULT 0,
-  road_category VARCHAR(10),
+  zone_code VARCHAR(20),                    -- valuation zone (fee)
+  road_category VARCHAR(10),                -- road-access tier (fee)
   -- title metadata parsed from the scan
   title_no VARCHAR(50),
   title_type VARCHAR(30),
@@ -293,6 +366,7 @@ CREATE TABLE fee_obligations (
   parcel_id INT NOT NULL,
   fee_year INT NOT NULL,
   district_id INT NOT NULL,
+  zone_code VARCHAR(20),                 -- snapshot
   road_category VARCHAR(10),
   area_sqm DECIMAL(14,2) NOT NULL,       -- snapshot
   rate_per_sqm DECIMAL(12,2) NOT NULL,   -- snapshot

@@ -98,8 +98,8 @@ if ($method === 'POST') {
     $subPar = trim((string)($parcelData['sub_parcel_no'] ?? '')) ?: null;
     $province = trim((string)($parcelData['province'] ?? '')) ?: 'Savannakhet';
     $area = $parcelData['area_sqm'] ?? '';
-    $zone = trim((string)($parcelData['zone_code'] ?? '')) ?: null;
-    $road = trim((string)($parcelData['road_category'] ?? '')) ?: null;
+    $zone = strtoupper(trim((string)($parcelData['zone_code'] ?? ''))) ?: null;
+    $road = strtolower(trim((string)($parcelData['road_category'] ?? ''))) ?: null;
     $village = $parcelData['village_id'] ?? '';
     $district = $parcelData['district_id'] ?? '';
     $titleNo = trim((string)($parcelData['title_no'] ?? '')) ?: null;
@@ -132,6 +132,9 @@ if ($method === 'POST') {
         'area_sqm' => validate_required($area, 'area') ?: validate_positive($area, 'area'),
         'district_id' => validate_required($district, 'district') ?: validate_int($district, 'district'),
         'village_id' => validate_required($village, 'village') ?: validate_int($village, 'village'),
+        'zone_code' => validate_required($zone, 'valuation zone'),
+        'road_category' => validate_required($road, 'road access')
+            ?: validate_enum($road, ['main', 'branch', 'alley', 'none'], 'road access'),
     ]);
     reject_on_errors($errors);
     
@@ -147,6 +150,15 @@ if ($method === 'POST') {
     $st = $pdo->prepare("SELECT id FROM villages WHERE id = :id AND district_id = :did");
     $st->execute([':id' => $villageId, ':did' => $districtId]);
     if (!$st->fetch()) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
+
+    // Check the valuation zone exists, is active, and belongs to this district.
+    $st = $pdo->prepare("SELECT district_id FROM zones WHERE code = :zc AND is_active = TRUE");
+    $st->execute([':zc' => $zone]);
+    $zoneRow = $st->fetch();
+    if (!$zoneRow) { json_error('Valuation zone not found or inactive: ' . $zone, 422, 'bad_zone'); }
+    if ($zoneRow['district_id'] !== null && (int)$zoneRow['district_id'] !== $districtId) {
+        json_error('Valuation zone does not belong to the selected district', 422, 'zone_district_mismatch');
+    }
     
     // Check if parcel exists (update mode)
     $existingId = (int)($parcelData['id'] ?? 0);

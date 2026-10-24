@@ -12,7 +12,9 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 | `sql/schema.sql` | PostgreSQL schema (`DROP SCHEMA … CASCADE` + `CREATE SCHEMA landfee`) |
 | `sql/migrations/001_annual_fee_v2.sql` | Additive v1→v2 upgrade (idempotent; apply by hand on the server) |
 | `sql/migrations/002_basic_data_and_email_otp.sql` | Adds `provinces`, `districts.province_id`, `users.email` (apply **after** 001) |
-| `sql/seed_savannakhet.sql` | Province + 15 districts, 1,029 villages, 60 zone rates. **No login users.** Re-seeding truncates and reloads districts/villages; the province row is `DO NOTHING` so admin renames survive. |
+| `sql/migrations/006_zone_rates_v2.sql` | Zone×road rate matrix: adds `zone_plans`, `districts.zone_letter`, zone district/plan columns, `zone_rate_tiers`; backfills tiers from `zones.rate_per_sqm` (idempotent) |
+| `sql/seed_savannakhet.sql` | Province + 15 districts, 1,029 villages, 60 legacy zone rates. **No login users.** Re-seeding truncates and reloads districts/villages; the province row is `DO NOTHING` so admin renames survive. |
+| `sql/seed_zone_rates_savannakhet.sql` | 62 placeholder valuation zones (A1–O4) + 248 tier rates, one letter per district; `ON CONFLICT DO NOTHING`, safe to re-run |
 | `lib/db.php` | PDO connect (`db_connect`) + envelope helpers `json_ok` / `json_error` |
 | `lib/config.php` | DB/JWT config; loads repo-root `.env` (gitignored), env vars win |
 | `lib/auth.php` | HS256 JWT (no deps); reads `Authorization: Bearer` header only |
@@ -33,7 +35,7 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 
 ## Gotchas (things an agent gets wrong)
 - **Root `api/*.php` stubs were deleted** (they called the removed `json_output()`); the live JSON API is `api/v1/*.php`. `public/index.html` is a stale "Phase 0 skeleton" page — ignore it.
-- **`zones_rates`** is the table name (not `zone_rates`); the whole app runs under PostgreSQL schema `landfee` set via `search_path`.
+- **`zones_rates`** is the legacy district×road table name (not `zone_rates`); live fees use `zones` + `zone_rate_tiers`. The whole app runs under PostgreSQL schema `landfee` set via `search_path`.
 - **The seed creates no users.** `sav_officer` / `demo1234` exists only in the live DB; the local Docker DB has no officer (and historically a bad hash). Insert a user manually if you need local login.
 - **Same-origin URLs are path-based:** API base = `/api/v1`, officer UI = `/public/admin`, citizen UI = `/public/citizen`. `lib/config.php` derives the host from the request, so never hardcode `localhost` or the domain. Env overrides `API_BASE` and `UPLOADS` exist for local dev/testing (defaults unchanged in prod).
 - **`lib/auth.php` only reads the `Authorization` header.** Admin server pages decode the session JWT directly (see `admin/common.php::admin_user()`); the fallback header path is for CLI/cookie-less access.
@@ -42,8 +44,9 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 - **`OTP_DEBUG=1` is required for local citizen login and MUST be unset in production.** The OTP is now a stateless signed token (`lib/otp.php`) carried through `otp/request` → `otp/verify`; the old session-based code could never verify because the citizen pages call the API server-side with no cookie. With `OTP_DEBUG=1` the code is echoed in `data.debug_code` so the login screen can show it — without it, any caller could read the code.
 - **SMS was dropped; OTPs go by email.** Citizen login is email-based (`users.email`, nullable + unique-indexed). Delivery goes through `lib/mail.php` → PHP `mail()`, which needs a working MTA on the host **and** `MAIL_FROM` in `.env`; without them `otp/request` still succeeds but nothing is sent (`data.sent === false`).
 - **Basic data is admin-maintained** via `public/admin/basic_data.php` (province, districts, villages, lookups, zone rates, fee years) and `public/admin/users.php`. Both are **admin-role only**. Deleting a row that is still referenced is refused with a message naming the counts, rather than failing on an FK.
-- **Fee values are placeholders.** `zones_rates` ships with sample kip/m² rates; the province is expected to overwrite them. Re-seeding resets district/village names (it truncates them) but leaves the province row alone.
-- **Zone rates are history-tracked** (`zones_rates.valid_from`); "current" is the newest row per (district, road_category).
+- **Fee values are placeholders.** `seed_zone_rates_savannakhet.sql` ships sample kip/m² tiers; the province is expected to overwrite them. Re-seeding resets district/village names (it truncates them) but leaves the province row alone.
+- **Zone rates are history-tracked** (`zone_rate_tiers.valid_from`); "current" is the newest tier per (zone_code, road_category). `zones.rate_per_sqm` survives only as a fallback for legacy zones with no tier rows.
+- **Zone codes are district-lettered.** `districts.zone_letter` (A–O for Savannakhet) prefixes each zone code (`A1`, `O4`). Legacy zones `G17/A7/C7/C8` stay active with `district_id = NULL` ("unassigned").
 - **Citizens are scoped by `owners.citizen_user_id`** (not `payments.payer_owner_id`, which is an `owners.id`). A parcel links a citizen only when that column is set — officer scan-confirm never sets it, so new parcels are invisible to citizens until linked.
 - **Windows PHP built-in server is single-threaded** (`PHP_CLI_SERVER_WORKERS` is Unix-only). Admin pages that call the API server-side deadlock if both share one process. For testing run the API on one port and the UI on another with `API_BASE` pointing at the API.
 - **Production PHP runs under mod_php, not FPM.** The shared `php8.3-fpm` pool has `disable_functions` including `proc_open`/`exec`, which breaks `lib/ocr.php` (Tesseract is launched via `proc_open`). The `landtax.apis.com.la` vhost therefore serves `.php` via `SetHandler "application/x-httpd-php"` (mod_php) so OCR works; the server-wide FPM ini must NOT be edited to un-disable `proc_open` (other apps depend on it). If scan uploads 500 with an empty body, first confirm the landtax vhost is still on mod_php.
@@ -52,7 +55,7 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 
 ## Local Dev
 - PHP 8.3+ built-in server from repo root: `php -S localhost:8080` with `PGHOST=localhost PGPORT=5432 PGDATABASE=landfee PGUSER=postgres PGPASSWORD=test1234 PG_SCHEMA=landfee`.
-- DB: Docker `landfee-test-postgres` (postgres:16-alpine) on localhost:5432. Load `sql/schema.sql` then `sql/seed_savannakhet.sql`.
+- DB: Docker `landfee-test-postgres` (postgres:16-alpine) on localhost:5432. Load `sql/schema.sql` then `sql/seed_savannakhet.sql` (and `sql/seed_zone_rates_savannakhet.sql` for the A1–O4 zone skeleton).
 - OCR needs the `tesseract` binary with `lao` + `eng` language data and PHP GD; uploads land in `public/uploads` (gitignored).
 - Flutter app: `cd mobile && flutter pub get && flutter run --dart-define=API_BASE=http://10.0.2.2:8091/api/v1`. `flutter analyze` must be clean. There is **no Android SDK on this dev machine**, so no APK can be built here — the app has never been run on a device.
 
@@ -70,5 +73,5 @@ The one automated check is `mobile/tool/smoke_test.dart` (Dart) — it drives th
 - **Deploy:** GitHub Actions `deploy.yml` on push to `main` (needs `VPS_SSH_KEY`); restarts Apache to clear OPcache
 
 ## Fee Model (user-confirmed)
-Flat, location-only: `fee = zone_rate(district, road_category) × area_sqm`.
-Zone rates: main=180k, branch=140k, alley=110k, none=85k kip/m². `transaction_type` and land-use are descriptive labels for reporting only — never fee multipliers.
+Flat, location-only: `fee = zone_rate(zone_code, road_category) × area_sqm`.
+Zone rates: main=180k, branch=140k, alley=110k, none=85k kip/m² (placeholder band; official figures come from the province). `transaction_type` and land-use are descriptive labels for reporting only — never fee multipliers.

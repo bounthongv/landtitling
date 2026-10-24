@@ -266,10 +266,18 @@ $landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agric
             </div>
             <div class="form-group">
               <label><?= te('Zone (fee rate)') ?></label>
-              <select name="zone_code">
+              <select name="zone_code" required>
                 <option value=""><?= te('-- select --') ?></option>
                 <?php foreach ($zones as $z): ?>
-                <option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?> — <?= number_format((float)$z['rate_per_sqm'], 0) ?> kip/m²</option>
+                <option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?> — <?= e($z['district_name'] ?? te('unassigned')) ?><?= $z['plan_zone'] ? ' / ' . e($z['plan_zone']) : '' ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="form-group">
+              <label><?= te('Road access') ?></label>
+              <select name="road_category" required>
+                <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
+                <option value="<?= $rc ?>" <?= ($val('road_category') ?: 'none') === $rc ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>

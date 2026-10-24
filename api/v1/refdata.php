@@ -36,6 +36,12 @@ $tables = [
         'required' => ['code', 'name_lo', 'name_en'],
         'order' => 'code',
     ],
+    'zone_plans' => [
+        'label' => 'Planning zone',
+        'columns' => ['code', 'name_lo', 'name_en', 'sort_order'],
+        'required' => ['code', 'name_lo'],
+        'order' => 'sort_order',
+    ],
 ];
 
 // All codes are also a valid order-by list, so a caller can request one or all.

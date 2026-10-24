@@ -46,8 +46,8 @@ $owners = is_array($body['owners'] ?? null) ? $body['owners'] : [];
 
 $parcelNo = trim((string)($parcel['parcel_no'] ?? ''));
 $area     = $parcel['area_sqm'] ?? '';
-$zone     = trim((string)($parcel['zone_code'] ?? ''));
-$road     = $parcel['road_category'] ?? ''; // optional legacy display field
+$zone     = strtoupper(trim((string)($parcel['zone_code'] ?? '')));
+$road     = strtolower(trim((string)($parcel['road_category'] ?? 'none')));
 $village  = $parcel['village_id'] ?? '';
 $district = $parcel['district_id'] ?? '';
 $status   = $parcel['status'] ?? 'confirmed';
@@ -57,6 +57,7 @@ $errors = collect_errors([
     'parcel_no'     => validate_required($parcelNo, 'parcel no'),
     'area_sqm'      => validate_required($area, 'area') ?: validate_positive($area, 'area'),
     'zone_code'     => validate_required($zone, 'zone code'),
+    'road_category' => validate_enum($road, ['main', 'branch', 'alley', 'none'], 'road access'),
     'village_id'    => validate_required($village, 'village') ?: validate_int($village, 'village'),
     'district_id'   => validate_required($district, 'district') ?: validate_int($district, 'district'),
     'status'        => validate_enum($status, ['draft', 'scanned', 'confirmed', 'active', 'archived'], 'status'),
@@ -74,6 +75,14 @@ if ($scope['district_id'] !== null && $districtId !== $scope['district_id']) {
 $st = $pdo->prepare("SELECT id FROM villages WHERE id = :id AND district_id = :did");
 $st->execute([':id' => $villageId, ':did' => $districtId]);
 if (!$st->fetch()) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
+
+$st = $pdo->prepare("SELECT district_id FROM zones WHERE code = :zc AND is_active = TRUE");
+$st->execute([':zc' => $zone]);
+$zoneRow = $st->fetch();
+if (!$zoneRow) { json_error('Valuation zone not found or inactive: ' . $zone, 422, 'bad_zone'); }
+if ($zoneRow['district_id'] !== null && (int)$zoneRow['district_id'] !== $districtId) {
+    json_error('Valuation zone does not belong to the selected district', 422, 'zone_district_mismatch');
+}
 
 // Optional title metadata (blank -> NULL). Reference codes are FK-checked.
 $province  = trim((string)($parcel['province'] ?? '')) ?: 'Savannakhet';
@@ -93,7 +102,7 @@ if (($d = trim((string)($parcel['issued_date'] ?? ''))) !== '') {
 
 $cols = [
     ':pn'  => $parcelNo, ':spn' => $subPar, ':prov' => $province, ':vid' => $villageId,
-    ':did' => $districtId, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road ?: null, ':tn' => $titleNo,
+    ':did' => $districtId, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road, ':tn' => $titleNo,
     ':tt'  => $titleType, ':bn' => $bookNo, ':von' => $volumeNo, ':pg' => $pageNo,
     ':lu'  => $landUse, ':idate' => $issuedDate, ':st' => $status,
 ];

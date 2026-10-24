@@ -283,6 +283,18 @@ $parsedLabels = [
               <label><?= te('Zone') ?></label>
               <input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ">
             </div>
+            <div class="cert-field">
+              <label><?= te('Valuation zone (fee)') ?></label>
+              <select name="zone_code" id="zone-code-select" required><option value=""><?= te('-- select --') ?></option></select>
+            </div>
+            <div class="cert-field">
+              <label><?= te('Road access') ?></label>
+              <select name="road_category" required>
+                <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
+                <option value="<?= $rc ?>" <?= $rc === 'none' ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
 
             <!-- #24 -->
             <div class="cert-field">
@@ -455,6 +467,7 @@ function switchTab(name) {
 /* ---------- load districts + villages + provinces ---------- */
 let allDistricts = [];
 let allVillages  = [];
+let allZones     = [];
 let provinces    = [];
 
 async function loadGeoData() {
@@ -465,6 +478,11 @@ async function loadGeoData() {
   const vRes = await fetch('/api/v1/villages.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
   const vJson = await vRes.json();
   allVillages = vJson.data || [];
+
+  const zRes = await fetch('/api/v1/rates.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+  const zJson = await zRes.json();
+  allZones = zJson.data?.zones || [];
+  populateZoneSelect(null);
 
   // Extract unique provinces from districts (each district has province_name)
   const provSet = new Set();
@@ -484,6 +502,18 @@ function populateProvSelects() {
   document.getElementById('issued-prov-select').innerHTML = opts;
 }
 
+/* ---------- valuation zones: filter by selected district ---------- */
+function populateZoneSelect(districtId) {
+  const sel = document.getElementById('zone-code-select');
+  if (!sel) return;
+  const did = districtId ? Number(districtId) : 0;
+  const opts = allZones.filter(z => !did || !z.district_id || Number(z.district_id) === did);
+  sel.innerHTML = '<option value="">' + esc(I18N.select) + '</option>' +
+    opts.map(z => '<option value="' + esc(z.code) + '">' +
+      esc(z.code + (z.district_name ? ' — ' + z.district_name : '') + (z.plan_zone ? ' / ' + z.plan_zone : '')) +
+      '</option>').join('');
+}
+
 /* ---------- land location cascade: #4 province → #5 district (id) → #6 village (id) ---------- */
 document.getElementById('prov-select').addEventListener('change', function() {
   const prov = this.value;
@@ -500,6 +530,7 @@ document.getElementById('dist-select').addEventListener('change', function() {
     allVillages.filter(v => v.district_id === dId)
       .map(v => '<option value="' + v.id + '">' + esc(v.name_lo) + '</option>').join('');
   document.getElementById('vill-select').innerHTML = opts;
+  populateZoneSelect(dId || null);
 });
 
 /* ---------- address cascade: #15 province → #14 district (name) → #12 village (name) ---------- */
@@ -537,6 +568,8 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
     ownership_status:   v('status') || null,
     land_use_class:     v('land_type') || null,
     zone_text:          v('zone') || null,
+    zone_code:          v('zone_code') || null,
+    road_category:      v('road_category') || null,
     book_no:            v('book') || null,
     page_no:            v('leaf') || null,
     map_ref_no:         v('map_no') || null,
