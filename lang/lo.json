@@ -500,5 +500,8 @@
   "Loading villages…": "ກຳລັງໂຫຼດບ້ານ…",
   "{n} village(s) in this district. Hold Ctrl/Cmd to select multiple.": "{n} ບ້ານໃນເມືອງນີ້. ກົດ Ctrl/Cmd ຄ້າງໄວ້ເພື່ອເລືອກຫຼາຍ.",
   "— no villages in this district —": "— ບໍ່ມີບ້ານໃນເມືອງນີ້ —",
-  "Failed to load villages.": "ບໍ່ສາມາດໂຫຼດບ້ານໄດ້."
+  "Failed to load villages.": "ບໍ່ສາມາດໂຫຼດບ້ານໄດ້.",
+  "-- all districts --": "-- ທຸກເມືອງ --",
+  "{n} zone(s) shown": "{n} ເຂດທີ່ສະແດງ",
+  "filtered": "ຖືກກັ່ນກອງ"
 }

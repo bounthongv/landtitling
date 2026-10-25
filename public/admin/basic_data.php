@@ -243,7 +243,15 @@ $roadCatByCode = [];
 foreach (($refdata['road_categories'] ?? []) as $rc) {
     $roadCatByCode[$rc['code']] = $rc;
 }
-$zones       = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
+// Filter zones by province and/or district (same GET params as the villages tab).
+$zProvince = (int)($_GET['province_id'] ?? 0);
+$zDistrict = (int)($_GET['district_id'] ?? 0);
+$zUrl = 'rates.php';
+$zParams = [];
+if ($zProvince) { $zParams['province_id'] = $zProvince; }
+if ($zDistrict) { $zParams['district_id'] = $zDistrict; }
+if ($zParams) { $zUrl .= '?' . http_build_query($zParams); }
+$zones       = api_call('GET', $zUrl, null, $token)['data']['zones'] ?? [];
 $zonePlans   = api_call('GET', 'refdata.php?table=zone_plans', null, $token)['data'] ?? [];
 // All villages, so the zone modal can assign villages to a zone.
 $allVillages = [];
@@ -569,8 +577,47 @@ $refGroups = [
           data-do-action="zone_add"><?= te('Add zone') ?></button>
       </div>
       <p class="sub"><?= te('Fee = zone rate for the parcel’s road access × area. Each zone has four rates: main road, branch road, alley, and no road. Districts own a letter so codes stay unique (e.g. A1–A4 in district 1301). Rates below are placeholders until the province supplies the official figures.') ?></p>
-      <table>
-        <thead><tr>
+            <form method="get" class="form-grid" style="margin-bottom:14px;">
+              <input type="hidden" name="tab" value="zones">
+              <div class="form-group"><label><?= te('Province') ?></label>
+                <select name="province_id" id="z-province"><option value=""><?= te('-- all provinces --') ?></option>
+                  <?php foreach ($provinces as $p): ?>
+                  <option value="<?= (int)$p['id'] ?>" <?= $zProvince == $p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?></option>
+                  <?php endforeach; ?></select>
+              </div>
+              <div class="form-group"><label><?= te('District') ?></label>
+                <select name="district_id" id="z-district"><option value=""><?= te('-- all districts --') ?></option>
+                  <?= district_options($districtsAll, $provinces, $zDistrict) ?></select>
+              </div>
+              <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
+              <?php if ($zProvince || $zDistrict): ?>
+              <div class="form-group"><label>&nbsp;</label><a class="btn btn-gold" href="?tab=zones"><?= te('Clear') ?></a></div>
+              <?php endif; ?>
+            </form>
+            <script>
+            // Province -> district cascade in the zone filter form.
+            (function(){
+              const prov = document.getElementById('z-province');
+              const dist = document.getElementById('z-district');
+              if (!prov || !dist) return;
+              function filterDistricts(){
+                const pid = prov.value;
+                [...dist.querySelectorAll('optgroup')].forEach(g => {
+                  g.style.display = (pid && g.dataset.province !== pid) ? 'none' : '';
+                });
+                const sel = dist.selectedOptions[0];
+                if (sel && sel.parentElement && sel.parentElement.tagName === 'OPTGROUP'
+                    && sel.parentElement.style.display === 'none') {
+                  dist.value = '';
+                }
+              }
+              prov.addEventListener('change', filterDistricts);
+              filterDistricts();
+            })();
+            </script>
+            <p class="sub"><?= te('{n} zone(s) shown', ['n' => count($zones)]) ?><?php if ($zProvince || $zDistrict): ?> — <?= te('filtered') ?><?php endif; ?></p>
+            <table>
+              <thead><tr>
                   <th><?= te('Code') ?></th><th><?= te('District') ?></th><th><?= te('Valuation zone') ?></th>
                   <th><?= te('Name (Lao)') ?></th>
                   <th><?= te('Villages') ?></th>

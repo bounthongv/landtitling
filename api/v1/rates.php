@@ -57,18 +57,30 @@ function rate_assign_villages(PDO $pdo, string $code, array $villageIds): void
 // ---- GET: list zones with district, planning zone and current rates ----
 if ($method === 'GET') {
     $districtId = (int)($_GET['district_id'] ?? 0);
-    $where = $districtId ? 'WHERE z.district_id = :did' : '';
+    $provinceId = (int)($_GET['province_id'] ?? 0);
+    $where = [];
+    $params = [];
+    if ($provinceId) {
+        $where[] = 'd.province_id = :pid';
+        $params[':pid'] = $provinceId;
+    }
+    if ($districtId) {
+        $where[] = 'z.district_id = :did';
+        $params[':did'] = $districtId;
+    }
+    $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $stmt = $pdo->prepare("SELECT z.code, z.name_lo, z.name_en, z.rate_per_sqm,
             z.valid_from, z.is_active, z.note, z.updated_at,
             z.district_id, d.name_lo AS district_name, d.code AS district_code,
+            d.province_id,
             z.plan_zone, p.name_lo AS plan_name, p.sort_order AS plan_sort,
             z.sort_order
         FROM zones z
         LEFT JOIN districts d ON d.id = z.district_id
         LEFT JOIN zone_plans p ON p.code = z.plan_zone
-        $where
+        $whereSql
         ORDER BY z.is_active DESC, d.code NULLS LAST, z.sort_order, z.code");
-    $stmt->execute($districtId ? [':did' => $districtId] : []);
+    $stmt->execute($params);
     $zones = $stmt->fetchAll();
 
     $tierStmt = $pdo->query("SELECT DISTINCT ON (zone_code, road_category)
