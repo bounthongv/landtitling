@@ -137,7 +137,7 @@ if ($method === 'POST' && !isset($_GET['code'])) {
         json_error('District not found', 422, 'bad_district');
     }
     if ($planZone && !rate_ref_exists($pdo, 'zone_plans', 'code', $planZone)) {
-        json_error('Planning zone not found', 422, 'bad_plan');
+        json_error('Valuation zone not found', 422, 'bad_plan');
     }
 
     try {
@@ -204,7 +204,7 @@ if ($method === 'PUT') {
     if (array_key_exists('plan_zone', $body)) {
         $pz = trim((string)$body['plan_zone']) ?: null;
         if ($pz && !rate_ref_exists($pdo, 'zone_plans', 'code', $pz)) {
-            json_error('Planning zone not found', 422, 'bad_plan');
+            json_error('Valuation zone not found', 422, 'bad_plan');
         }
         $sets[] = 'plan_zone = :pz';
         $params[':pz'] = $pz;

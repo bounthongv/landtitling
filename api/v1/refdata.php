@@ -37,7 +37,7 @@ $tables = [
         'order' => 'code',
     ],
     'zone_plans' => [
-        'label' => 'Planning zone',
+        'label' => 'Valuation zone',
         'columns' => ['code', 'name_lo', 'name_en', 'sort_order'],
         'required' => ['code', 'name_lo'],
         'order' => 'sort_order',

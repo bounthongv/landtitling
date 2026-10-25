@@ -19,7 +19,9 @@ SET search_path = landfee;
 BEGIN;
 
 -- ---------------------------------------------------------------------------
--- 1. Standard planning zones (ເຂດວາງແຜນມາດຕະຖານ) — editable lookup
+-- 1. Valuation-zone categories (ເຂດປະເມີນລາຄາທີ່ດິນ) — editable lookup.
+--    Each zone code (A1, A2, …) belongs to one of these categories, which name
+--    the grouping on the Decree 142 valuation table (column 1).
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS zone_plans (
   code VARCHAR(10) PRIMARY KEY,

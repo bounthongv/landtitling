@@ -237,6 +237,12 @@ $districts   = api_call('GET', 'districts.php?' . http_build_query(['sort' => $d
 // would hide the district of the row being edited.
 $districtsAll = api_call('GET', 'districts.php?sort=name_lo&dir=asc', null, $token)['data'] ?? [];
 $refdata     = api_call('GET', 'refdata.php', null, $token)['data'] ?? [];
+// Road-category lookup by code: decree road types for the zone table headers
+// and the add/edit modal labels.
+$roadCatByCode = [];
+foreach (($refdata['road_categories'] ?? []) as $rc) {
+    $roadCatByCode[$rc['code']] = $rc;
+}
 $zones       = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
 $zonePlans   = api_call('GET', 'refdata.php?table=zone_plans', null, $token)['data'] ?? [];
 // All villages, so the zone modal can assign villages to a zone.
@@ -568,8 +574,10 @@ $refGroups = [
                   <th><?= te('Code') ?></th><th><?= te('District') ?></th><th><?= te('Plan') ?></th>
                   <th><?= te('Name (Lao)') ?></th>
                   <th><?= te('Villages') ?></th>
-                  <th><?= te('Main') ?></th><th><?= te('Branch') ?></th><th><?= te('Alley') ?></th><th><?= te('None') ?></th>
-                  <th><?= te('Active') ?></th><th style="width:150px"><?= te('Actions') ?></th>
+                                    <?php foreach (['main', 'branch', 'alley', 'none'] as $rcCode): ?>
+                                      <th title="<?= e($roadCatByCode[$rcCode]['name_en'] ?? $rcCode) ?>"><?= e($roadCatByCode[$rcCode]['name_lo'] ?? $rcCode) ?></th>
+                                    <?php endforeach; ?>
+                                    <th><?= te('Active') ?></th><th style="width:150px"><?= te('Actions') ?></th>
                 </tr></thead>
                 <tbody>
                 <?php foreach ($zones as $z): $r = $z['rates'] ?? []; $vils = $z['villages'] ?? []; ?>
@@ -617,8 +625,8 @@ $refGroups = [
             <select name="district_id"><option value=""><?= te('— unassigned / legacy —') ?></option>
               <?= district_options($districtsAll, $provinces) ?></select>
           </div>
-          <div class="form-group"><label><?= te('Planning zone') ?></label>
-            <select name="plan_zone"><option value=""><?= te('—') ?></option>
+          <div class="form-group"><label><?= te('Valuation zone') ?></label>
+                      <select name="plan_zone"><option value=""><?= te('—') ?></option>
               <?php foreach ($zonePlans as $zp): ?>
                 <option value="<?= e($zp['code']) ?>"><?= e($zp['code'] . ' — ' . $zp['name_lo']) ?></option>
               <?php endforeach; ?>
@@ -639,17 +647,17 @@ $refGroups = [
                         <?php foreach ($byDist as $did => $vl): ?>
                           <optgroup label="<?= e($vDistNames[$did] ?? ('#' . $did)) ?>">
                             <?php foreach ($vl as $vv): ?>
-                              <option value="<?= (int)$vv['id'] ?>" data-zone="<?= e($zoneVillages[$vv['id']] ?? '') ?>"><?= e($vv['name_lo']) ?></option>
+                              <option value="<?= (int)$vv['id'] ?>" data-zone="<?= e($zoneVillages[$vv['id']] ?? '') ?>" data-district="<?= (int)$vv['district_id'] ?>"><?= e($vv['name_lo']) ?></option>
                             <?php endforeach; ?>
                           </optgroup>
                         <?php endforeach; ?>
                       </select>
                       <p class="sub" style="font-size:12px;"><?= te('A zone can cover several villages. Hold Ctrl/Cmd to select multiple.') ?></p>
                                           </div>
-                                          <div class="form-group"><label><?= te('Main road (kip/m²)') ?></label><input name="rate_main" type="number" min="0" step="1" required></div>
-                                <div class="form-group"><label><?= te('Branch road (kip/m²)') ?></label><input name="rate_branch" type="number" min="0" step="1" required></div>
-                                <div class="form-group"><label><?= te('Alley (kip/m²)') ?></label><input name="rate_alley" type="number" min="0" step="1" required></div>
-                                <div class="form-group"><label><?= te('No road (kip/m²)') ?></label><input name="rate_none" type="number" min="0" step="1" required></div>
+                                          <div class="form-group"><label><?= e($roadCatByCode['main']['name_lo'] ?? 'Main') ?> (kip/m²)</label><input name="rate_main" type="number" min="0" step="1" required></div>
+                                                                          <div class="form-group"><label><?= e($roadCatByCode['branch']['name_lo'] ?? 'Branch') ?> (kip/m²)</label><input name="rate_branch" type="number" min="0" step="1" required></div>
+                                                                          <div class="form-group"><label><?= e($roadCatByCode['alley']['name_lo'] ?? 'Alley') ?> (kip/m²)</label><input name="rate_alley" type="number" min="0" step="1" required></div>
+                                                                          <div class="form-group"><label><?= e($roadCatByCode['none']['name_lo'] ?? 'No road') ?> (kip/m²)</label><input name="rate_none" type="number" min="0" step="1" required></div>
                                 <div class="form-group"><label><?= te('Note') ?></label><input name="note"></div>
                                 <div class="form-group"><label><?= te('Active') ?></label>
                                   <select name="is_active"><option value="1"><?= te('yes') ?></option><option value="0"><?= te('no') ?></option></select>
@@ -657,24 +665,51 @@ $refGroups = [
                               </form>
                             </template>
                             <script>
-                            // When the zone modal opens, pre-select the villages already mapped to it.
-                            (function () {
-                              const modal = document.getElementById('modal-bg');
-                              if (!modal) return;
-                              const obs = new MutationObserver(function () {
-                                const form = document.getElementById('modal-form');
-                                if (!form) return;
-                                const sel = form.querySelector('select[name="village_ids"]');
-                                if (!sel) return;
-                                const zoneInput = form.querySelector('input[name="code"]');
-                                const zoneCode = zoneInput ? String(zoneInput.value).trim().toUpperCase() : '';
-                                [...sel.options].forEach(function (o) {
-                                  o.selected = zoneCode !== '' && (o.dataset.zone || '').toUpperCase() === zoneCode;
-                                });
-                              });
-                              obs.observe(modal, { childList: true, subtree: true });
-                            })();
-                            </script>
+                                                        // When the zone modal opens: show only villages of the zone's
+                                                        // district)Skip pre-select the ones already mapped to it. Reacts
+                                                        // to district changes too.
+                                                        (function () {
+                                                          const modal = document.getElementById('modal-bg');
+                                                          if (!modal) return;
+                                                                                                                    const distOpts = { childList: true, subtree: true };
+                                                          function syncVillages(form) {
+                                                            const sel = form.querySelector('select[name="village_ids"]');
+                                                            const distSel = form.querySelector('select[name="district_id"]');
+                                                            if (!sel || !distSel) return;
+                                                            const did = String(distSel.value || '');
+                                                            const zoneInput = form.querySelector('input[name="code"]');
+                                                            const zoneCode = zoneInput ? String(zoneInput.value).trim().toUpperCase() : '';
+                                                            [...sel.options].forEach(function (o) {
+                                                              // Show only the selected district's villages ('' = unassigned/legacy zone: show none).
+                                                              const show = did !== '' && String(o.dataset.district || '') === did;
+                                                              o.hidden = !show;
+                                                              if (show) {
+                                                                o.selected = zoneCode !== '' && (o.dataset.zone || '').toUpperCase() === zoneCode;
+                                                              } else {
+                                                                o.selected = false;
+                                                              }
+                                                            });
+                                                            // Hide optgroups with no visible options.
+                                                            [...sel.querySelectorAll('optgroup')].forEach(function (g) {
+                                                              const any = Array.from(g.options).some(function (o) { return !o.hidden; });
+                                                              g.hidden = !any;
+                                                            });
+                                                          }
+                                                          const obs = new MutationObserver(function () {
+                                                            const form = document.getElementById('modal-form');
+                                                            if (!form) return;
+                                                            const distSel = form.querySelector('select[name="district_id"]');
+                                                            if (!distSel) return;
+                                                            // Attach change listener once.
+                                                            if (!distSel.dataset.villageBound) {
+                                                              distSel.dataset.villageBound = '1';
+                                                              distSel.addEventListener('change', function () { syncVillages(form); });
+                                                            }
+                                                            syncVillages(form);
+                                                          });
+                                                          obs.observe(modal, distOpts);
+                                                        })();
+                                                        </script>
                           </div>
 
 <?php elseif ($tab === 'years'): ?>

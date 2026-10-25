@@ -46,8 +46,8 @@ INSERT INTO zones (code, name_lo, name_en, rate_per_sqm, valid_from, is_active,
                    note, district_id, plan_zone, sort_order)
 SELECT
   d.zone_letter || n::text,
-  'ເຂດວາງແຜນ ' || d.zone_letter || n::text,
-  'Planning zone ' || d.zone_letter || n::text,
+  zpl.name_lo,
+  zpl.name_en,
   CASE n
     WHEN 1 THEN 180000
     WHEN 2 THEN 160000
@@ -58,11 +58,12 @@ SELECT
   END,
   CURRENT_DATE,
   TRUE,
-  d.name_lo || ' — ເຂດວາງແຜນມາດຕະຖານ ' || n::text || ' (placeholder)',
+  d.name_lo || ' — ' || zpl.name_lo || ' (placeholder)',
   d.id,
   n::text,
   n
 FROM districts d
+JOIN zone_plans zpl ON zpl.code = n::text
 JOIN LATERAL generate_series(1, CASE WHEN d.code = '1301' THEN 6 ELSE 4 END) AS n ON TRUE
 WHERE d.code IN ('1301','1302','1303','1304','1305','1306','1307','1308',
                  '1309','1310','1311','1312','1313','1314','1315')
