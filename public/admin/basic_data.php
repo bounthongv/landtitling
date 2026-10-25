@@ -634,7 +634,7 @@ $refGroups = [
           </div>
           <div class="form-group"><label><?= te('Sort order') ?></label><input name="sort_order" type="number" value="0"></div>
                     <div class="form-group" style="grid-column:1/-1;"><label><?= te('Villages in this zone') ?></label>
-                                          <select name="village_ids" multiple size="8" style="width:100%;"></select>
+                                          <select name="village_ids[]" multiple size="8" style="width:100%;"></select>
                                           <p class="sub" style="font-size:12px;" id="village-hint"><?= te('Select a district to load its villages, then choose the ones in this zone. Hold Ctrl/Cmd to select multiple.') ?></p>
                                                               </div>
                                           <div class="form-group"><label><?= e($roadCatByCode['main']['name_lo'] ?? 'Main') ?> (kip/m²)</label><input name="rate_main" type="number" min="0" step="1" required></div>
@@ -657,7 +657,7 @@ $refGroups = [
                                                             const modal = document.getElementById('modal-bg');
                                                             if (!modal) return false;
                                                             function loadVillages(form, did) {
-                                                              const sel = form.querySelector('select[name="village_ids"]');
+                                                              const sel = form.querySelector('select[name="village_ids[]"]');
                                                               if (!sel) return;
                                                               const zoneInput = form.querySelector('input[name="code"]');
                                                               const zoneCode = zoneInput ? String(zoneInput.value).trim().toUpperCase() : '';
