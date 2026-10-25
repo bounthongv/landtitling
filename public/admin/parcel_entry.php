@@ -514,6 +514,31 @@ document.getElementById('dist-select').addEventListener('change', function() {
   populateZoneSelect(dId || null);
 });
 
+/* Auto-fill the valuation zone from the chosen parcel village (#6).
+   A village maps to exactly one zone (villages.zone_id); picking the village
+   selects that zone in the Tax footer. The officer can still override it. */
+document.getElementById('vill-select').addEventListener('change', function() {
+  const vid = parseInt(this.value, 10);
+  const v = allVillages.find(x => x.id === vid);
+  const zoneCode = v && v.zone_id ? v.zone_id : '';
+  const zsel = document.getElementById('zone-code-select');
+  if (!zsel) return;
+  if (zoneCode) {
+    // Ensure the option exists (it should, since the zone is mapped to this village).
+    let found = false;
+    Array.from(zsel.options).forEach(o => { if (o.value === zoneCode) found = true; });
+    if (!found) {
+      const opt = document.createElement('option');
+      opt.value = zoneCode;
+      opt.textContent = zoneCode;
+      zsel.appendChild(opt);
+    }
+    zsel.value = zoneCode;
+  } else {
+    zsel.value = '';
+  }
+});
+
 /* ---------- address cascade: #15 province → #14 district (name) → #12 village (name) ---------- */
 document.getElementById('addr-prov-select').addEventListener('change', function() {
   const prov = this.value;
@@ -728,7 +753,11 @@ document.getElementById('apply-ocr').addEventListener('click', () => {
       allDistricts.map(d => '<option value="' + d.id + '">' + esc(d.name_lo) + '</option>').join('');
     document.getElementById('dist-select').value = String(parsed.district_id);
     document.getElementById('dist-select').dispatchEvent(new Event('change'));
-    if (parsed.village_id) setVal('village_id', parsed.village_id);
+    if (parsed.village_id) {
+      setVal('village_id', parsed.village_id);
+      // Fire the change so the valuation-zone auto-fill runs for the scanned village.
+      document.getElementById('vill-select').dispatchEvent(new Event('change'));
+    }
   }
 
   // Owner (#8–#11)
