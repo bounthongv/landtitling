@@ -46,10 +46,10 @@ function rate_save_tier(PDO $pdo, string $code, string $rc, float $rate, string 
 function rate_assign_villages(PDO $pdo, string $code, array $villageIds): void
 {
     $ids = array_values(array_filter(array_map('intval', $villageIds), fn($v) => $v > 0));
-    $pdo->prepare("UPDATE villages SET zone_id = NULL WHERE zone_id = :zc")->execute([':zc' => $code]);
+    $pdo->prepare("UPDATE villages SET zone_id = NULL WHERE zone_id = ?")->execute([$code]);
     if ($ids) {
         $ph = implode(',', array_fill(0, count($ids), '?'));
-        $pdo->prepare("UPDATE villages SET zone_id = :zc WHERE id IN ($ph)")
+        $pdo->prepare("UPDATE villages SET zone_id = ? WHERE id IN ($ph)")
             ->execute(array_merge([$code], $ids));
     }
 }
