@@ -571,7 +571,7 @@ $refGroups = [
       <p class="sub"><?= te('Fee = zone rate for the parcel’s road access × area. Each zone has four rates: main road, branch road, alley, and no road. Districts own a letter so codes stay unique (e.g. A1–A4 in district 1301). Rates below are placeholders until the province supplies the official figures.') ?></p>
       <table>
         <thead><tr>
-                  <th><?= te('Code') ?></th><th><?= te('District') ?></th><th><?= te('Plan') ?></th>
+                  <th><?= te('Code') ?></th><th><?= te('District') ?></th><th><?= te('Valuation zone') ?></th>
                   <th><?= te('Name (Lao)') ?></th>
                   <th><?= te('Villages') ?></th>
                                     <?php foreach (['main', 'branch', 'alley', 'none'] as $rcCode): ?>
