@@ -56,7 +56,7 @@ if ($method === 'GET') {
         $orderBy = 'd.name_lo, v.name_lo';
     }
 
-    $st = $pdo->prepare("SELECT v.id, v.district_id, v.code, v.name_lo, v.name_en,
+    $st = $pdo->prepare("SELECT v.id, v.district_id, v.code, v.name_lo, v.name_en, v.zone_id,
             d.name_lo AS district_name, d.province_id AS province_id,
             p.name_lo AS province_name,
             (SELECT COUNT(*) FROM parcels p WHERE p.village_id = v.id) AS parcel_count

@@ -634,26 +634,9 @@ $refGroups = [
           </div>
           <div class="form-group"><label><?= te('Sort order') ?></label><input name="sort_order" type="number" value="0"></div>
                     <div class="form-group" style="grid-column:1/-1;"><label><?= te('Villages in this zone') ?></label>
-                      <select name="village_ids" multiple size="8" style="width:100%;">
-                        <?php
-                        // Group villages by district; pre-select ones already in this zone.
-                        $byDist = [];
-                        foreach ($allVillages as $v) {
-                            $byDist[$v['district_id']][] = $v;
-                        }
-                        $vDistNames = [];
-                        foreach ($districtsAll as $dd) { $vDistNames[(int)$dd['id']] = $dd['name_lo']; }
-                        ?>
-                        <?php foreach ($byDist as $did => $vl): ?>
-                          <optgroup label="<?= e($vDistNames[$did] ?? ('#' . $did)) ?>">
-                            <?php foreach ($vl as $vv): ?>
-                              <option value="<?= (int)$vv['id'] ?>" data-zone="<?= e($zoneVillages[$vv['id']] ?? '') ?>" data-district="<?= (int)$vv['district_id'] ?>"><?= e($vv['name_lo']) ?></option>
-                            <?php endforeach; ?>
-                          </optgroup>
-                        <?php endforeach; ?>
-                      </select>
-                      <p class="sub" style="font-size:12px;"><?= te('A zone can cover several villages. Hold Ctrl/Cmd to select multiple.') ?></p>
-                                          </div>
+                                          <select name="village_ids" multiple size="8" style="width:100%;"></select>
+                                          <p class="sub" style="font-size:12px;" id="village-hint"><?= te('Select a district to load its villages, then choose the ones in this zone. Hold Ctrl/Cmd to select multiple.') ?></p>
+                                                              </div>
                                           <div class="form-group"><label><?= e($roadCatByCode['main']['name_lo'] ?? 'Main') ?> (kip/m²)</label><input name="rate_main" type="number" min="0" step="1" required></div>
                                                                           <div class="form-group"><label><?= e($roadCatByCode['branch']['name_lo'] ?? 'Branch') ?> (kip/m²)</label><input name="rate_branch" type="number" min="0" step="1" required></div>
                                                                           <div class="form-group"><label><?= e($roadCatByCode['alley']['name_lo'] ?? 'Alley') ?> (kip/m²)</label><input name="rate_alley" type="number" min="0" step="1" required></div>
@@ -665,49 +648,73 @@ $refGroups = [
                               </form>
                             </template>
                             <script>
-                                                        // When the zone modal opens: show only villages of the zone's
-                                                        // district)Skip pre-select the ones already mapped to it. Reacts
-                                                        // to district changes too.
+                                                        // When the zone modal opens, load ONLY the villages of the
+                                                        // zone's district via AJAX and pre-select those already
+                                                        // mapped to the zone. Reacts to district changes too.
                                                         (function () {
-                                                          const modal = document.getElementById('modal-bg');
-                                                          if (!modal) return;
-                                                                                                                    const distOpts = { childList: true, subtree: true };
-                                                          function syncVillages(form) {
-                                                            const sel = form.querySelector('select[name="village_ids"]');
-                                                            const distSel = form.querySelector('select[name="district_id"]');
-                                                            if (!sel || !distSel) return;
-                                                            const did = String(distSel.value || '');
-                                                            const zoneInput = form.querySelector('input[name="code"]');
-                                                            const zoneCode = zoneInput ? String(zoneInput.value).trim().toUpperCase() : '';
-                                                            [...sel.options].forEach(function (o) {
-                                                              // Show only the selected district's villages ('' = unassigned/legacy zone: show none).
-                                                              const show = did !== '' && String(o.dataset.district || '') === did;
-                                                              o.hidden = !show;
-                                                              if (show) {
-                                                                o.selected = zoneCode !== '' && (o.dataset.zone || '').toUpperCase() === zoneCode;
-                                                              } else {
-                                                                o.selected = false;
+                                                          const TOKEN = '<?= e($token) ?>';
+                                                          function setup() {
+                                                            const modal = document.getElementById('modal-bg');
+                                                            if (!modal) return false;
+                                                            function loadVillages(form, did) {
+                                                              const sel = form.querySelector('select[name="village_ids"]');
+                                                              if (!sel) return;
+                                                              const zoneInput = form.querySelector('input[name="code"]');
+                                                              const zoneCode = zoneInput ? String(zoneInput.value).trim().toUpperCase() : '';
+                                                              const hint = document.getElementById('village-hint');
+                                                              sel.innerHTML = '<option value="">' + '<?= te('Loading…') ?>' + '</option>';
+                                                              if (hint) hint.textContent = '<?= te('Loading villages…') ?>';
+                                                              fetch('/api/v1/villages.php?district_id=' + encodeURIComponent(did) + '&limit=500', {
+                                                                headers: { 'Authorization': 'Bearer ' + TOKEN }
+                                                              }).then(function (r) { return r.json(); }).then(function (res) {
+                                                                const list = (res && res.data) ? res.data : [];
+                                                                sel.innerHTML = '';
+                                                                list.forEach(function (v) {
+                                                                  const opt = document.createElement('option');
+                                                                  opt.value = v.id;
+                                                                  opt.textContent = v.name_lo;
+                                                                  opt.dataset.zone = v.zone_id || '';
+                                                                  // Pre-select villages already mapped to this zone.
+                                                                  if (zoneCode !== '' && (v.zone_id || '').toUpperCase() === zoneCode) {
+                                                                    opt.selected = true;
+                                                                  }
+                                                                  sel.appendChild(opt);
+                                                                });
+                                                                if (hint) hint.textContent = '<?= te('{n} village(s) in this district. Hold Ctrl/Cmd to select multiple.') ?>'.replace('{n}', list.length);
+                                                                if (!list.length) sel.innerHTML = '<option value=""><?= te('— no villages in this district —') ?></option>';
+                                                              }).catch(function () {
+                                                                if (hint) hint.textContent = '<?= te('Failed to load villages.') ?>';
+                                                              });
+                                                            }
+                                                            const obs = new MutationObserver(function () {
+                                                              const form = document.getElementById('modal-form');
+                                                              if (!form) return;
+                                                              const distSel = form.querySelector('select[name="district_id"]');
+                                                              if (!distSel) return;
+                                                              if (!distSel.dataset.villageBound) {
+                                                                distSel.dataset.villageBound = '1';
+                                                                distSel.addEventListener('change', function () {
+                                                                  const did = String(distSel.value || '');
+                                                                  if (did !== '') loadVillages(form, did);
+                                                                });
+                                                              }
+                                                              const did = String(distSel.value || '');
+                                                              if (did !== '' && !distSel.dataset.loadedFor) {
+                                                                distSel.dataset.loadedFor = did;
+                                                                loadVillages(form, did);
+                                                              } else if (distSel.dataset.loadedFor !== did) {
+                                                                distSel.dataset.loadedFor = did;
+                                                                if (did !== '') loadVillages(form, did);
                                                               }
                                                             });
-                                                            // Hide optgroups with no visible options.
-                                                            [...sel.querySelectorAll('optgroup')].forEach(function (g) {
-                                                              const any = Array.from(g.options).some(function (o) { return !o.hidden; });
-                                                              g.hidden = !any;
-                                                            });
+                                                            obs.observe(modal, { childList: true, subtree: true });
+                                                            return true;
                                                           }
-                                                          const obs = new MutationObserver(function () {
-                                                            const form = document.getElementById('modal-form');
-                                                            if (!form) return;
-                                                            const distSel = form.querySelector('select[name="district_id"]');
-                                                            if (!distSel) return;
-                                                            // Attach change listener once.
-                                                            if (!distSel.dataset.villageBound) {
-                                                              distSel.dataset.villageBound = '1';
-                                                              distSel.addEventListener('change', function () { syncVillages(form); });
-                                                            }
-                                                            syncVillages(form);
-                                                          });
-                                                          obs.observe(modal, distOpts);
+                                                          if (document.readyState === 'loading') {
+                                                            document.addEventListener('DOMContentLoaded', setup);
+                                                          } else {
+                                                            setup();
+                                                          }
                                                         })();
                                                         </script>
                           </div>

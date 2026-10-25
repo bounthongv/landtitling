@@ -495,5 +495,10 @@
   "Original track / no road": "ທາງດັງເດີມ / ບໍ່ມີທາງ",
   "Villages in this zone": "ບ້ານທີ່ຢູ່ໃນເຂດນີ້",
   "A zone can cover several villages. Hold Ctrl/Cmd to select multiple.": "ເຂດໜຶ່ງສາມາດກວມຫຼາຍບ້ານໄດ້. ກົດ Ctrl/Cmd ຄ້າງໄວ້ເພື່ອເລືອກຫຼາຍ.",
-  "Valuation zone": "ເຂດປະເມີນລາຄາທີ່ດິນ"
+  "Valuation zone": "ເຂດປະເມີນລາຄາທີ່ດິນ",
+  "Select a district to load its villages, then choose the ones in this zone. Hold Ctrl/Cmd to select multiple.": "ເລືອກເມືອງເພື່ອໂຫຼດບ້ານຕ່າງໆ, ຈາກນັ້ນເລືອກບ້ານທີ່ຢູ່ໃນເຂດນີ້. ກົດ Ctrl/Cmd ຄ້າງໄວ້ເພື່ອເລືອກຫຼາຍ.",
+  "Loading villages…": "ກຳລັງໂຫຼດບ້ານ…",
+  "{n} village(s) in this district. Hold Ctrl/Cmd to select multiple.": "{n} ບ້ານໃນເມືອງນີ້. ກົດ Ctrl/Cmd ຄ້າງໄວ້ເພື່ອເລືອກຫຼາຍ.",
+  "— no villages in this district —": "— ບໍ່ມີບ້ານໃນເມືອງນີ້ —",
+  "Failed to load villages.": "ບໍ່ສາມາດໂຫຼດບ້ານໄດ້."
 }
