@@ -92,14 +92,13 @@ CREATE TABLE villages (
   name_lo VARCHAR(100) NOT NULL,
   name_en VARCHAR(100),
   zone_id VARCHAR(20),                       -- valuation zone this village belongs to
-  CONSTRAINT fk_villages_district
-    FOREIGN KEY (district_id)
-    REFERENCES districts(id)
-    ON DELETE CASCADE,
-  CONSTRAINT fk_villages_zone
-    FOREIGN KEY (zone_id) REFERENCES zones(code) ON DELETE SET NULL,
-  CONSTRAINT uq_villages_zone UNIQUE (zone_id)
-);
+    CONSTRAINT fk_villages_district
+      FOREIGN KEY (district_id)
+      REFERENCES districts(id)
+      ON DELETE CASCADE,
+    CONSTRAINT fk_villages_zone
+      FOREIGN KEY (zone_id) REFERENCES zones(code) ON DELETE SET NULL
+  );
 
 -- Trigram indexes speed up fuzzy name resolution (no-op if pg_trgm is absent).
 DO $$

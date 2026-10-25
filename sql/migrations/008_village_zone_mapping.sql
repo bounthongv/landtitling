@@ -37,8 +37,9 @@ UPDATE road_categories SET
 
 -- ---------------------------------------------------------------------------
 -- 2. Village → zone. A zone covers several villages; each village belongs to
---    exactly one zone (NULL until assigned). zone_code gets a UNIQUE
---    constraint to keep the lookup deterministic.
+--    exactly one zone (NULL until assigned). A single zone_id column already
+--    enforces one zone per village, so NO unique constraint on zone_id (that
+--    would wrongly limit a zone to one village).
 -- ---------------------------------------------------------------------------
 ALTER TABLE villages ADD COLUMN IF NOT EXISTS zone_id VARCHAR(20);
 
@@ -47,9 +48,6 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_villages_zone') THEN
     ALTER TABLE villages ADD CONSTRAINT fk_villages_zone
       FOREIGN KEY (zone_id) REFERENCES zones(code) ON DELETE SET NULL;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_villages_zone') THEN
-    ALTER TABLE villages ADD CONSTRAINT uq_villages_zone UNIQUE (zone_id);
   END IF;
 END $$;
 
