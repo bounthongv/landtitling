@@ -117,6 +117,19 @@ $parsedLabels = [
     .cert-head .l1 { font-size: 13px; color: #333; }
     .cert-head .l2 { font-size: 12px; color: #555; }
     .cert-head .l3 { font-size: 12px; color: #555; }
+    /* Tax footer block — like the header frame, distinct colour, sits below
+       the certificate fields (these two are system fields, not on the paper form). */
+    .cert-foot {
+      border-top: 2px solid #4a7c59;
+      background: #e8f0ea;
+      padding: 12px;
+      text-align: left;
+    }
+    .cert-foot .ft-title { font-size: 13px; font-weight: 700; color: #1b5e20; margin-bottom: 8px; }
+    .cert-foot .inline { display: flex; flex-wrap: wrap; gap: 10px 20px; }
+    .cert-foot .inline .ci { display: flex; align-items: center; gap: 6px; }
+    .cert-foot .inline .ci label { min-width: 0; font-weight: 600; font-size: 12px; color: #1b5e20; }
+    .cert-foot .inline .ci select { width: 200px; padding: 7px 9px; border: 1px solid #4a7c59; border-radius: 3px; font-size: 14px; }
     .cert-row {
       display: flex;
       flex-wrap: wrap;
@@ -276,20 +289,8 @@ $parsedLabels = [
                 <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Zone') ?></label><input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ"></span>
               </div>
             </div>
-            <!-- Valuation zone (fee) + Road access -->
-            <div class="cert-row">
-              <label><?= te('Fee') ?></label>
-              <div class="inline">
-                <span class="ci"><label><?= te('Valuation zone (fee)') ?></label><select name="zone_code" id="zone-code-select" required><option value=""><?= te('-- select --') ?></option></select></span>
-                <span class="ci"><label><?= te('Road access') ?></label><select name="road_category" required>
-                  <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
-                  <option value="<?= $rc ?>" <?= $rc === 'none' ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
-                  <?php endforeach; ?>
-                </select></span>
-              </div>
-            </div>
             <!-- #24-27: book/leaf/map/parcel -->
-            <div class="cert-row">
+                        <div class="cert-row">
               <label><?= te('Registration') ?></label>
               <div class="inline">
                 <span class="ci"><label><?= te('Registration Book') ?></label><input type="text" name="book"></span>
@@ -316,7 +317,19 @@ $parsedLabels = [
                 <span class="ci"><label><?= te('Year') ?></label><input type="number" min="1900" max="2100" name="issue_year"></span>
               </div>
             </div>
-          </div></div>
+            <!-- System fields (not on the paper certificate): valuation zone + road access -->
+            <div class="cert-foot">
+              <div class="ft-title"><?= te('Tax') ?></div>
+              <div class="inline">
+                <span class="ci"><label><?= te('Valuation zone (tax)') ?></label><select name="zone_code" id="zone-code-select" required><option value=""><?= te('-- select --') ?></option></select></span>
+                <span class="ci"><label><?= te('Road access') ?></label><select name="road_category" required>
+                  <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
+                  <option value="<?= $rc ?>" <?= $rc === 'none' ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
+                  <?php endforeach; ?>
+                </select></span>
+              </div>
+            </div>
+          </div>
 
           <div class="form-actions">
             <button type="submit" class="btn btn-green"><?= te('Save') ?></button>
