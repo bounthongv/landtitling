@@ -447,18 +447,31 @@ function switchTab(name) {
 
 /* ---------- load districts + villages + provinces ---------- */
 let allDistricts = [];
-let allVillages  = [];
 let allZones     = [];
 let provinces    = [];
+// Villages are loaded per district on demand (there are ~8.8k nationwide, too
+// many to fetch at once). Cache by district id.
+const villageCache = {};   // districtId -> [villages]
+let allVillages    = [];   // flattened current district's villages (for submit/fill)
+
+async function ensureVillages(districtId) {
+  const did = Number(districtId);
+  if (!did || villageCache[did]) return villageCache[did] || [];
+  try {
+    const r = await fetch('/api/v1/villages.php?district_id=' + did + '&limit=500', {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    const j = await r.json();
+    const list = (j && j.data) ? j.data : [];
+    villageCache[did] = list;
+    return list;
+  } catch (e) { return []; }
+}
 
 async function loadGeoData() {
   const dRes = await fetch('/api/v1/districts.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
   const dJson = await dRes.json();
   allDistricts = dJson.data || [];
-
-  const vRes = await fetch('/api/v1/villages.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
-  const vJson = await vRes.json();
-  allVillages = vJson.data || [];
 
   const zRes = await fetch('/api/v1/rates.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
   const zJson = await zRes.json();
@@ -505,13 +518,16 @@ document.getElementById('prov-select').addEventListener('change', function() {
   document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
 });
 
-document.getElementById('dist-select').addEventListener('change', function() {
+document.getElementById('dist-select').addEventListener('change', async function() {
   const dId = parseInt(this.value, 10);
-  const opts = '<option value="">' + esc(I18N.select) + '</option>' +
-    allVillages.filter(v => v.district_id === dId)
-      .map(v => '<option value="' + v.id + '">' + esc(v.name_lo) + '</option>').join('');
-  document.getElementById('vill-select').innerHTML = opts;
+  document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
   populateZoneSelect(dId || null);
+  if (!dId) { document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>'; return; }
+  const vils = await ensureVillages(dId);
+  allVillages = vils;
+  const opts = '<option value="">' + esc(I18N.select) + '</option>' +
+    vils.map(v => '<option value="' + v.id + '">' + esc(v.name_lo) + '</option>').join('');
+  document.getElementById('vill-select').innerHTML = opts;
 });
 
 /* Auto-fill the valuation zone from the chosen parcel village (#6).
@@ -549,13 +565,15 @@ document.getElementById('addr-prov-select').addEventListener('change', function(
   document.getElementById('addr-vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
 });
 
-document.getElementById('addr-dist-select').addEventListener('change', function() {
+document.getElementById('addr-dist-select').addEventListener('change', async function() {
   const dName = this.value;
   const d = allDistricts.find(x => x.name_lo === dName);
   const dId = d ? d.id : null;
+  document.getElementById('addr-vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+  if (!dId) return;
+  const vils = await ensureVillages(dId);
   const opts = '<option value="">' + esc(I18N.select) + '</option>' +
-    allVillages.filter(v => v.district_id === dId)
-      .map(v => '<option value="' + esc(v.name_lo) + '">' + esc(v.name_lo) + '</option>').join('');
+    vils.map(v => '<option value="' + esc(v.name_lo) + '">' + esc(v.name_lo) + '</option>').join('');
   document.getElementById('addr-vill-select').innerHTML = opts;
 });
 
@@ -726,7 +744,7 @@ function renderScanResults(scan) {
   document.getElementById('scan-results').classList.add('show');
 }
 
-document.getElementById('apply-ocr').addEventListener('click', () => {
+document.getElementById('apply-ocr').addEventListener('click', async () => {
   if (!lastScan) return;
   let parsed = lastScan.parsed_fields;
   if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch(e) { parsed = {}; } }
@@ -746,19 +764,27 @@ document.getElementById('apply-ocr').addEventListener('click', () => {
   });
 
   // Land location cascade: set district_id and village_id selects
-  if (parsed.district_id) {
-    document.getElementById('prov-select').value = '';
-    document.getElementById('dist-select').innerHTML =
-      '<option value="">' + esc(I18N.select) + '</option>' +
-      allDistricts.map(d => '<option value="' + d.id + '">' + esc(d.name_lo) + '</option>').join('');
-    document.getElementById('dist-select').value = String(parsed.district_id);
-    document.getElementById('dist-select').dispatchEvent(new Event('change'));
-    if (parsed.village_id) {
-      setVal('village_id', parsed.village_id);
-      // Fire the change so the valuation-zone auto-fill runs for the scanned village.
-      document.getElementById('vill-select').dispatchEvent(new Event('change'));
+    if (parsed.district_id) {
+      document.getElementById('prov-select').value = '';
+      document.getElementById('dist-select').innerHTML =
+        '<option value="">' + esc(I18N.select) + '</option>' +
+        allDistricts.map(d => '<option value="' + d.id + '">' + esc(d.name_lo) + '</option>').join('');
+      document.getElementById('dist-select').value = String(parsed.district_id);
+      document.getElementById('dist-select').dispatchEvent(new Event('change'));
+      // The dist-select change handler loads villages asynchronously; wait for them
+      // before setting the village and firing the zone auto-fill.
+      const dId = parseInt(parsed.district_id, 10);
+      const vils = await ensureVillages(dId);
+      allVillages = vils;
+      document.getElementById('vill-select').innerHTML =
+        '<option value="">' + esc(I18N.select) + '</option>' +
+        vils.map(v => '<option value="' + v.id + '">' + esc(v.name_lo) + '</option>').join('');
+      if (parsed.village_id) {
+        setVal('village_id', parsed.village_id);
+        // Fire the change so the valuation-zone auto-fill runs for the scanned village.
+        document.getElementById('vill-select').dispatchEvent(new Event('change'));
+      }
     }
-  }
 
   // Owner (#8–#11)
   const names = parsed.owner_names || (parsed.owner_name ? [parsed.owner_name] : []);
