@@ -503,5 +503,19 @@
   "Failed to load villages.": "ບໍ່ສາມາດໂຫຼດບ້ານໄດ້.",
   "-- all districts --": "-- ທຸກເມືອງ --",
   "{n} zone(s) shown": "{n} ເຂດທີ່ສະແດງ",
-  "filtered": "ຖືກກັ່ນກອງ"
+  "filtered": "ຖືກກັ່ນກອງ",
+  "Ministry of Natural Resources and Environment": "ກະຊວງຊັບພະຍາກອນທຳມະຊາດ ແລະ ສິ່ງແວດລ້ອມ",
+  "Province/District Land &amp; Environment Office": "ພະແນກ/ຫ້ອງວ່າການ ຊັບພະຍາກອນທຳມະຊາດ ແລະ ສິ່ງແວດລ້ອມ ປະຈຳແຂວງ/ນະຄອນ",
+  "LAND TITLE": "LAND TITLE",
+  "Parcel address": "ທີ່ຕັ້ງຕອນດິນ",
+  "Owner identity": "ຂໍ້ມູນເຈົ້າຂອງ",
+  "Current address": "ທີ່ຢູ່ປະຈຸບັນ",
+  "Spouse": "ຄູ່ສົມລົດ",
+  "Land type / Zone": "ປະເພດທີ່ດິນ / ເຂດ",
+  "Fee": "ຄ່າພາສີ",
+  "Land measure": "ການວັດແທກທີ່ດິນ",
+  "Road access": "ທາງເຂົ້າ",
+  "Valuation zone (fee)": "ເຂດປະເມີນລາຄາທີ່ດິນ (ຄ່າພາສີ)",
+  "ໃບຕາດິນ": "ໃບຕາດິນ",
+  "Issue location": "ສະຖານທີ່ອອກໃຫ້"
 }

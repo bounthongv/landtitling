@@ -97,26 +97,56 @@ $parsedLabels = [
   .entry-tabs button { padding: 9px 18px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; font-size: 14px; }
   .entry-tabs button.active { background: #4a7c59; color: #fff; border-color: #4a7c59; }
 
-  /* Flat certificate form — no grouping */
-  .cert-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px 12px;
-  }
-  @media (max-width: 768px) { .cert-grid { grid-template-columns: repeat(2, 1fr); } }
-  .cert-field { display: flex; flex-direction: column; gap: 4px; }
-  .cert-field label {
-    font-size: 12px; font-weight: 500; color: #333;
-    line-height: 1.4; word-wrap: break-word;
-  }
-  .cert-field input, .cert-field select {
-    padding: 8px; border: 1px solid #ccc; border-radius: 3px;
-    font-size: 14px; width: 100%; box-sizing: border-box;
-  }
-  .cert-field input:focus, .cert-field select:focus {
-    border-color: #4a7c59; outline: none;
-  }
-  .cert-field.wide { grid-column: span 2; }
+  /* Flat certificate form — mirrors the Lao Land Title Certificate layout:
+       a single-column document where each field is a "label: value" row in
+       certificate order, with a header block and a footer. */
+    .cert-grid {
+      max-width: 860px;
+      margin: 0 auto;
+      border: 2px solid #4a7c59;
+      border-radius: 6px;
+      background: #fffdf5;
+      padding: 0;
+    }
+    .cert-head {
+      text-align: center;
+      padding: 14px 12px;
+      border-bottom: 2px solid #4a7c59;
+      background: #f4f9f4;
+    }
+    .cert-head .l1 { font-size: 13px; color: #333; }
+    .cert-head .l2 { font-size: 12px; color: #555; }
+    .cert-head .l3 { font-size: 12px; color: #555; }
+    .cert-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 18px;
+      align-items: flex-start;
+      padding: 8px 12px;
+      border-bottom: 1px solid #e8e0d0;
+    }
+    .cert-row:last-child { border-bottom: none; }
+    .cert-row label {
+      font-size: 13px; font-weight: 600; color: #222;
+      min-width: 150px;
+    }
+    .cert-row .val {
+      flex: 1;
+      min-width: 200px;
+    }
+    .cert-row input, .cert-row select {
+      padding: 7px 9px; border: 1px solid #ccc; border-radius: 3px;
+      font-size: 14px; width: 100%; box-sizing: border-box;
+    }
+    .cert-row input:focus, .cert-row select:focus {
+      border-color: #4a7c59; outline: none;
+    }
+    .cert-row .inline { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+    .cert-row .inline .ci { display: flex; align-items: center; gap: 6px; }
+    .cert-row .inline .ci label { min-width: 0; font-weight: 500; font-size: 12px; color: #444; }
+    .cert-row .inline .ci input, .cert-row .inline .ci select { width: 110px; }
+    .cert-row.wide { }
+    @media (max-width: 768px) { .cert-row .val { min-width: 100%; } }
 
   .form-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
   .preview-box { padding: 10px 12px; margin-top: 14px; font-size: 13px; border-radius: 4px; background: #fafafa; border: 1px solid #ddd; }
@@ -163,192 +193,130 @@ $parsedLabels = [
       <div data-content="manual">
         <form id="parcel-form">
           <div class="cert-grid">
+            <!-- Certificate header -->
+            <div class="cert-head">
+              <div class="l1"><?= te('Ministry of Natural Resources and Environment') ?></div>
+              <div class="l2"><?= te('Province/District Land &amp; Environment Office') ?></div>
+              <div class="l3"><?= te('LAND TITLE') ?> — <?= te('ໃບຕາດິນ') ?></div>
+            </div>
             <!-- #1 -->
-            <div class="cert-field">
+            <div class="cert-row">
               <label><?= te('Ref No') ?></label>
-              <input type="text" name="ref_no" required>
+              <div class="val"><input type="text" name="ref_no" required></div>
             </div>
             <!-- #2 -->
-            <div class="cert-field">
+            <div class="cert-row">
               <label><?= te('Issue Batch') ?></label>
-              <input type="text" name="issue_batch">
+              <div class="val"><input type="text" name="issue_batch"></div>
             </div>
             <!-- #3 -->
-            <div class="cert-field">
+            <div class="cert-row">
               <label><?= te('Parcel Location') ?></label>
-              <input type="text" name="location" placeholder="10.002.0027">
+              <div class="val"><input type="text" name="location" placeholder="10.002.0027"></div>
             </div>
-            <!-- #4 -->
-            <div class="cert-field">
-              <label><?= te('Province') ?></label>
-              <select name="province" id="prov-select"><option value=""></option></select>
-            </div>
-
-            <!-- #5 -->
-            <div class="cert-field">
-              <label><?= te('District') ?></label>
-              <select name="district_id" id="dist-select"><option value=""></option></select>
-            </div>
-            <!-- #6 -->
-            <div class="cert-field">
-              <label><?= te('Village') ?></label>
-              <select name="village_id" id="vill-select"><option value=""></option></select>
-            </div>
-            <!-- #7 -->
-            <div class="cert-field">
-              <label><?= te('Unit') ?></label>
-              <input type="text" name="unit">
+            <!-- #4-7: Province / District / Village / Unit -->
+            <div class="cert-row">
+              <label><?= te('Parcel address') ?></label>
+              <div class="inline">
+                <span class="ci"><label><?= te('Province') ?></label><select name="province" id="prov-select"><option value=""></option></select></span>
+                <span class="ci"><label><?= te('District') ?></label><select name="district_id" id="dist-select"><option value=""></option></select></span>
+                <span class="ci"><label><?= te('Village') ?></label><select name="village_id" id="vill-select"><option value=""></option></select></span>
+                <span class="ci"><label><?= te('Unit') ?></label><input type="text" name="unit"></span>
+              </div>
             </div>
             <!-- #8 -->
-            <div class="cert-field">
+            <div class="cert-row">
               <label><?= te('Issued To') ?></label>
-              <input type="text" name="owner_name" required>
+              <div class="val"><input type="text" name="owner_name" required></div>
             </div>
-
-            <!-- #9 -->
-            <div class="cert-field">
-              <label><?= te('Date of Birth') ?></label>
-              <input type="date" name="dob">
+            <!-- #9-11: DOB / Nationality / Occupation -->
+            <div class="cert-row">
+              <label><?= te('Owner identity') ?></label>
+              <div class="inline">
+                <span class="ci"><label><?= te('Date of Birth') ?></label><input type="date" name="dob"></span>
+                <span class="ci"><label><?= te('Nationality') ?></label><input type="text" name="nationality"></span>
+                <span class="ci"><label><?= te('Occupation') ?></label><input type="text" name="occupation"></span>
+              </div>
             </div>
-            <!-- #10 -->
-            <div class="cert-field">
-              <label><?= te('Nationality') ?></label>
-              <input type="text" name="nationality">
+            <!-- #12-15: current address village/unit/district/province (cascade order: prov, dist, vill, unit) -->
+            <div class="cert-row">
+              <label><?= te('Current address') ?></label>
+              <div class="inline">
+                <span class="ci"><label><?= te('Province') ?></label><select name="addr_province" id="addr-prov-select"><option value=""></option></select></span>
+                <span class="ci"><label><?= te('District') ?></label><select name="addr_district" id="addr-dist-select"><option value=""></option></select></span>
+                <span class="ci"><label><?= te('Village') ?></label><select name="addr_village" id="addr-vill-select"><option value=""></option></select></span>
+                <span class="ci"><label><?= te('Unit') ?></label><input type="text" name="addr_unit"></span>
+              </div>
             </div>
-            <!-- #11 -->
-            <div class="cert-field">
-              <label><?= te('Occupation') ?></label>
-              <input type="text" name="occupation">
-            </div>
-            <!-- #15 (address province — reordered before #14) -->
-            <div class="cert-field">
-              <label><?= te('Province') ?></label>
-              <select name="addr_province" id="addr-prov-select"><option value=""></option></select>
-            </div>
-
-            <!-- #14 (address district) -->
-            <div class="cert-field">
-              <label><?= te('District') ?></label>
-              <select name="addr_district" id="addr-dist-select"><option value=""></option></select>
-            </div>
-            <!-- #12 (address village) -->
-            <div class="cert-field">
-              <label><?= te('Village') ?></label>
-              <select name="addr_village" id="addr-vill-select"><option value=""></option></select>
-            </div>
-            <!-- #13 (address unit) -->
-            <div class="cert-field">
-              <label><?= te('Unit') ?></label>
-              <input type="text" name="addr_unit">
-            </div>
-            <!-- #16 -->
-            <div class="cert-field">
-              <label><?= te('Spouse Name') ?></label>
-              <input type="text" name="spouse_name">
-            </div>
-
-            <!-- #17 -->
-            <div class="cert-field">
-              <label><?= te('Spouse Date of Birth') ?></label>
-              <input type="date" name="spouse_dob">
-            </div>
-            <!-- #18 -->
-            <div class="cert-field">
-              <label><?= te('Spouse Nationality') ?></label>
-              <input type="text" name="spouse_nat">
-            </div>
-            <!-- #19 -->
-            <div class="cert-field">
-              <label><?= te('Spouse Occupation') ?></label>
-              <input type="text" name="spouse_occ">
+            <!-- #16-19: spouse block -->
+            <div class="cert-row">
+              <label><?= te('Spouse') ?></label>
+              <div class="inline">
+                <span class="ci" style="flex:1; min-width:220px;"><label><?= te('Spouse Name') ?></label><input type="text" name="spouse_name"></span>
+                <span class="ci"><label><?= te('Date of Birth') ?></label><input type="date" name="spouse_dob"></span>
+                <span class="ci"><label><?= te('Nationality') ?></label><input type="text" name="spouse_nat"></span>
+                <span class="ci"><label><?= te('Occupation') ?></label><input type="text" name="spouse_occ"></span>
+              </div>
             </div>
             <!-- #20 -->
-            <div class="cert-field wide">
+            <div class="cert-row">
               <label><?= te('Land Right Acquired') ?></label>
-              <input type="text" name="acquired">
+              <div class="val"><input type="text" name="acquired"></div>
             </div>
-
             <!-- #21 -->
-            <div class="cert-field wide">
+            <div class="cert-row">
               <label><?= te('Land Right Owner Status') ?></label>
-              <input type="text" name="status">
+              <div class="val"><input type="text" name="status"></div>
             </div>
-            <!-- #22 -->
-            <div class="cert-field">
-              <label><?= te('Land Type') ?></label>
-              <input type="text" name="land_type">
+            <!-- #22-23: land type + descriptive zone -->
+            <div class="cert-row">
+              <label><?= te('Land type / Zone') ?></label>
+              <div class="inline">
+                <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Land Type') ?></label><input type="text" name="land_type"></span>
+                <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Zone') ?></label><input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ"></span>
+              </div>
             </div>
-            <!-- #23 -->
-            <div class="cert-field">
-              <label><?= te('Zone') ?></label>
-              <input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ">
+            <!-- Valuation zone (fee) + Road access -->
+            <div class="cert-row">
+              <label><?= te('Fee') ?></label>
+              <div class="inline">
+                <span class="ci"><label><?= te('Valuation zone (fee)') ?></label><select name="zone_code" id="zone-code-select" required><option value=""><?= te('-- select --') ?></option></select></span>
+                <span class="ci"><label><?= te('Road access') ?></label><select name="road_category" required>
+                  <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
+                  <option value="<?= $rc ?>" <?= $rc === 'none' ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
+                  <?php endforeach; ?>
+                </select></span>
+              </div>
             </div>
-            <div class="cert-field">
-              <label><?= te('Valuation zone (fee)') ?></label>
-              <select name="zone_code" id="zone-code-select" required><option value=""><?= te('-- select --') ?></option></select>
+            <!-- #24-27: book/leaf/map/parcel -->
+            <div class="cert-row">
+              <label><?= te('Registration') ?></label>
+              <div class="inline">
+                <span class="ci"><label><?= te('Registration Book') ?></label><input type="text" name="book"></span>
+                <span class="ci"><label><?= te('Leaf No') ?></label><input type="text" name="leaf"></span>
+                <span class="ci"><label><?= te('Map No') ?></label><input type="text" name="map_no" placeholder="e.g. A250-038"></span>
+                <span class="ci"><label><?= te('Parcel No') ?></label><input type="text" name="parcel_no" required></span>
+              </div>
             </div>
-            <div class="cert-field">
-              <label><?= te('Road access') ?></label>
-              <select name="road_category" required>
-                <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
-                <option value="<?= $rc ?>" <?= $rc === 'none' ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
-                <?php endforeach; ?>
-              </select>
+            <!-- #28-29: area + scale -->
+            <div class="cert-row">
+              <label><?= te('Land measure') ?></label>
+              <div class="inline">
+                <span class="ci"><label><?= te('Land Area') ?></label><input type="number" step="0.01" min="0" name="area" required></span>
+                <span class="ci"><label><?= te('Scale') ?></label><input type="text" name="scale" placeholder="e.g. 1/8000"></span>
+              </div>
             </div>
-
-            <!-- #24 -->
-            <div class="cert-field">
-              <label><?= te('Registration Book') ?></label>
-              <input type="text" name="book">
+            <!-- #30-33: issued at + date -->
+                        <div class="cert-row">
+                          <label><?= te('Issue location') ?></label>
+                          <div class="inline">
+                            <span class="ci"><label><?= te('Issued At') ?></label><select name="issued_at" id="issued-prov-select"><option value=""></option></select></span>
+                <span class="ci"><label><?= te('Day') ?></label><input type="number" min="1" max="31" name="issue_day"></span>
+                <span class="ci"><label><?= te('Month') ?></label><input type="number" min="1" max="12" name="issue_month"></span>
+                <span class="ci"><label><?= te('Year') ?></label><input type="number" min="1900" max="2100" name="issue_year"></span>
+              </div>
             </div>
-            <!-- #25 -->
-            <div class="cert-field">
-              <label><?= te('Leaf No') ?></label>
-              <input type="text" name="leaf">
-            </div>
-            <!-- #26 -->
-            <div class="cert-field">
-              <label><?= te('Map No') ?></label>
-              <input type="text" name="map_no" placeholder="e.g. A250-038">
-            </div>
-            <!-- #27 -->
-            <div class="cert-field">
-              <label><?= te('Parcel No') ?></label>
-              <input type="text" name="parcel_no" required>
-            </div>
-
-            <!-- #28 -->
-            <div class="cert-field">
-              <label><?= te('Land Area') ?></label>
-              <input type="number" step="0.01" min="0" name="area" required>
-            </div>
-            <!-- #29 -->
-            <div class="cert-field">
-              <label><?= te('Scale') ?></label>
-              <input type="text" name="scale" placeholder="e.g. 1/8000">
-            </div>
-            <!-- #30 -->
-            <div class="cert-field">
-              <label><?= te('Issued At') ?></label>
-              <select name="issued_at" id="issued-prov-select"><option value=""></option></select>
-            </div>
-            <!-- #31 -->
-            <div class="cert-field">
-              <label><?= te('Day') ?></label>
-              <input type="number" min="1" max="31" name="issue_day">
-            </div>
-
-            <!-- #32 -->
-            <div class="cert-field">
-              <label><?= te('Month') ?></label>
-              <input type="number" min="1" max="12" name="issue_month">
-            </div>
-            <!-- #33 -->
-            <div class="cert-field">
-              <label><?= te('Year') ?></label>
-              <input type="number" min="1900" max="2100" name="issue_year">
-            </div>
-          </div>
+          </div></div>
 
           <div class="form-actions">
             <button type="submit" class="btn btn-green"><?= te('Save') ?></button>
