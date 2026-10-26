@@ -174,41 +174,53 @@ $roadMap = [
 
 <script>
 (function(){
-  const districtSel = document.getElementById('parcels-district');
-  const villageSel  = document.getElementById('parcels-village');
+  var districtSel = document.getElementById('parcels-district');
+  var villageSel  = document.getElementById('parcels-village');
   if (!districtSel || !villageSel) return;
 
-  // If a district is already selected on load, load its villages immediately
-  // so the current village_id filter is reflected in the dropdown.
-  if (districtSel.value) { loadVillages(districtSel.value, false); }
+  if (districtSel.value) { loadVillages(districtSel.value); }
 
   districtSel.addEventListener('change', function() {
-    loadVillages(this.value || '', true);
+    loadVillages(this.value || '');
   });
 
-  async function loadVillages(districtId, reset) {
+  function loadVillages(districtId) {
     if (!districtId) {
-      villageSel.innerHTML = '<option value=""><?= e(te('-- select district first --')) ?></option>';
+      villageSel.innerHTML = '<option value="">-- select district first --</option>';
       villageSel.disabled = true;
       return;
     }
-    villageSel.innerHTML = '<option value=""><?= e(te('-- loading --')) ?></option>';
+    villageSel.innerHTML = '<option value="">-- loading --</option>';
     villageSel.disabled = false;
     try {
-      const res = await fetch('/api/v1/villages.php?district_id=' + districtId + '&limit=500');
-      const json = await res.json();
-      const list = (json && json.data) ? json.data : [];
-      const opts = '<option value=""><?= e(te('-- all --')) ?></option>' +
-        list.map(v => '<option value="' + v.id + '">' + (v.name_lo || v.name) + '</option>').join('');
-      villageSel.innerHTML = opts;
-      // Restore selected village_id from query string if present
-      const urlParams = new URLSearchParams(window.location.search);
-      const vid = urlParams.get('village_id');
-      if (vid && list.some(v => String(v.id) === String(vid))) {
-        villageSel.value = vid;
-      }
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/api/v1/villages.php?district_id=' + encodeURIComponent(districtId) + '&limit=500', true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState !== 4) return;
+        if (xhr.status !== 200) {
+          villageSel.innerHTML = '<option value="">-- error loading --</option>';
+          return;
+        }
+        var json = JSON.parse(xhr.responseText);
+        var list = (json && json.data) ? json.data : [];
+        var opts = '<option value="">-- all --</option>';
+        for (var i = 0; i < list.length; i++) {
+          var v = list[i];
+          opts += '<option value="' + v.id + '">' + (v.name_lo || v.name) + '</option>';
+        }
+        villageSel.innerHTML = opts;
+        var urlParams = window.location.search ? window.location.search.substring(1).split('&') : [];
+        for (var j = 0; j < urlParams.length; j++) {
+          var kv = urlParams[j].split('=');
+          if (kv[0] === 'village_id' && kv[1]) {
+            villageSel.value = kv[1];
+            break;
+          }
+        }
+      };
+      xhr.send();
     } catch (e) {
-      villageSel.innerHTML = '<option value=""><?= e(te('-- error loading --')) ?></option>';
+      villageSel.innerHTML = '<option value="">-- error loading --</option>';
     }
   }
 })();
