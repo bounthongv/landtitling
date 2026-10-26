@@ -125,6 +125,9 @@ if ($method === 'POST') {
         if ($dt && $dt->format('Y-m-d') === $d) $issuedDate = $d;
     }
     $status = trim((string)($parcelData['status'] ?? 'confirmed'));
+    // Officers may only create as draft or confirmed; other lifecycle states
+    // (active, archived, scanned) are set elsewhere, not on entry.
+    if (!in_array($status, ['draft', 'confirmed'], true)) { $status = 'confirmed'; }
     
     // Validation
     $errors = collect_errors([

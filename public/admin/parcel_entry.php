@@ -332,7 +332,8 @@ $parsedLabels = [
           </div>
 
           <div class="form-actions">
-            <button type="submit" class="btn btn-green"><?= te('Save') ?></button>
+            <button type="submit" name="save_action" value="draft" class="btn btn-gold"><?= te('Save as Draft') ?></button>
+            <button type="submit" name="save_action" value="confirm" class="btn btn-green"><?= te('Save and Confirm') ?></button>
             <button type="button" class="btn btn-red" id="clear-form"><?= te('Clear') ?></button>
           </div>
         </form>
@@ -580,8 +581,13 @@ document.getElementById('addr-dist-select').addEventListener('change', async fun
 /* ---------- form submit ---------- */
 document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  // Which button submitted the form? e.submitter is the <button> that fired it;
+  // fall back to the active element (covers Enter-key submits too).
+  const submitter = e.submitter || document.activeElement;
+  const saveAction = (submitter && submitter.value) || 'confirm';
 
   const parcel = {
+    status:             saveAction === 'draft' ? 'draft' : 'confirmed',
     title_no:           v('ref_no') || null,
     order_no:           v('issue_batch') || null,
     location_code:      v('location') || null,

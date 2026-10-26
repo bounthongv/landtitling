@@ -253,6 +253,8 @@
   "Run": "ດຳເນີນການ",
   "Safe to re-run: existing unpaid obligations are updated to the current rate; paid ones are left alone.": "ສາມາດດຳເນີນການຄືນໄດ້ຢ່າງປອດໄພ: ພັນທະທີ່ຍັງບໍ່ຈ່າຍຈະຖືກອັບເດດເປັນອັດຕາປັດຈຸບັນ; ສ່ວນທີ່ຈ່າຍແລ້ວຈະບໍ່ຖືກປ່ຽນ.",
   "Save": "ບັນທຶກ",
+  "Save as Draft": "ບັນທຶກເປັນສະບັບຮ່າງ",
+  "Save and Confirm": "ບັນທຶກ ແລະ ຢືນຢັນ",
   "Save failed": "ບັນທຶກລົ້ມເຫຼວ",
   "Save rate": "ບັນທຶກອັດຕາ",
   "Save year": "ບັນທຶກປີ",
