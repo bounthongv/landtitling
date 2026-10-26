@@ -5,13 +5,15 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 
 $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
-$parcel_no = $_GET['parcel_no'] ?? '';
-$status = $_GET['status'] ?? '';
+$province    = $_GET['province'] ?? '';
+$parcel_no   = $_GET['parcel_no'] ?? '';
+$status      = $_GET['status'] ?? '';
 
 $url = 'parcels.php';
 if ($district_id) { $url .= '?district_id=' . $district_id; }
-if ($parcel_no) { $url .= ($district_id ? '&' : '?') . 'parcel_no=' . urlencode($parcel_no); }
-if ($status) { $url .= ($district_id || $parcel_no ? '&' : '?') . 'status=' . $status; }
+if ($province)    { $url .= ($district_id ? '&' : '?') . 'province=' . urlencode($province); }
+if ($parcel_no)   { $url .= ($district_id || $province ? '&' : '?') . 'parcel_no=' . urlencode($parcel_no); }
+if ($status)      { $url .= ($district_id || $province || $parcel_no ? '&' : '?') . 'status=' . urlencode($status); }
 
 $parcels = [];
 $count = 0;
@@ -19,8 +21,76 @@ $d = api_call('GET', $url, null, $_SESSION['admin_token']);
 if (!empty($d['ok'])) { $parcels = $d['data']['parcels'] ?? []; $count = $d['data']['count'] ?? 0; }
 
 // districts for filter
-$districts = [];
 $districts = api_call('GET', 'districts.php')['data'] ?? [];
+$provinces = [];
+foreach ($districts as $drow) {
+    $p = $drow['province_name'] ?? $drow['province'] ?? '';
+    if ($p && !in_array($p, $provinces, true)) { $provinces[] = $p; }
+}
+sort($provinces);
+
+// Province filter on the fetched set (server-side province filter could be added
+// to the API later; for now the result set is capped at 200 by the API).
+if ($province !== '') {
+    $parcels = array_values(array_filter($parcels, function($p) use ($province) {
+        return ($p['province'] ?? '') === $province;
+    }));
+    $count = count($parcels);
+}
+
+// Batch-fetch current zone rates so we can show Rate (kip/m²) and Tax (kip)
+// without an N+1 query per parcel.
+$pdo = db_connect();
+$zoneRates = [];   // "ZONE:ROAD" => rate_per_sqm
+$zoneFallback = []; // ZONE => rate_per_sqm (legacy zones with no tiers)
+
+if (!empty($parcels)) {
+    $zoneCodes = [];
+    foreach ($parcels as $p) {
+        $zc = strtoupper(trim((string)($p['zone_code'] ?? '')));
+        if ($zc && !in_array($zc, $zoneCodes, true)) { $zoneCodes[] = $zc; }
+    }
+    if ($zoneCodes) {
+        $in = implode(',', array_fill(0, count($zoneCodes), '?'));
+        // Current tier rate per (zone_code, road_category)
+        $st = $pdo->prepare("
+            SELECT DISTINCT ON (t.zone_code, t.road_category) t.zone_code, t.road_category, t.rate_per_sqm
+            FROM zone_rate_tiers t
+            WHERE t.zone_code IN ($in)
+            ORDER BY t.zone_code, t.road_category, t.valid_from DESC
+        ");
+        $st->execute($zoneCodes);
+        foreach ($st->fetchAll() as $r) {
+            $key = strtoupper($r['zone_code']) . ':' . strtolower($r['road_category']);
+            $zoneRates[$key] = (float)$r['rate_per_sqm'];
+        }
+        // Legacy fallback: zones.rate_per_sqm for zones with no tiers
+        $st2 = $pdo->prepare("SELECT code, rate_per_sqm FROM zones WHERE code IN ($in) AND is_active = TRUE");
+        $st2->execute($zoneCodes);
+        foreach ($st2->fetchAll() as $z) {
+            $zoneFallback[strtoupper($z['code'])] = (float)$z['rate_per_sqm'];
+        }
+    }
+}
+
+foreach ($parcels as &$p) {
+    $zc = strtoupper(trim((string)($p['zone_code'] ?? '')));
+    $rc = strtolower(trim((string)($p['road_category'] ?? '')));
+    $key = $zc . ':' . $rc;
+    $rate = $zoneRates[$key] ?? ($zoneFallback[$zc] ?? 0.0);
+    $p['_rate_per_sqm'] = $rate;
+    $p['_tax_amount']   = round($rate * (float)($p['area_sqm'] ?? 0), 2);
+}
+unset($p);
+
+// Road category Lao mapping (same as fee.php)
+$roadMap = [
+    'main'      => 'ທາງຫຼັກ',
+    'connector' => 'ທາງສາຍເຊືອມຕໍ່',
+    'branch'    => 'ທາງສາຍແຍກ',
+    'alley'     => 'ທາງສາຍແຍກ',
+    'none'      => 'ທາງດັງເດີມ / ບໍ່ມີທາງ',
+];
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -38,9 +108,12 @@ $districts = api_call('GET', 'districts.php')['data'] ?? [];
   </aside>
   <main class="main">
     <h1><?= te('Parcels') ?></h1>
-    <p class="sub"><?= te('Registry of land parcels (from confirmed scans). Filter by district, parcel no, status.') ?></p>
+    <p class="sub"><?= te('Registry of land parcels. Filter by province, district, parcel no, status.') ?></p>
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
+        <div class="form-group"><label><?= te('Province') ?></label>
+          <select name="province"><option value=""><?= te('-- all --') ?></option><?php foreach ($provinces as $p): ?><option value="<?= e($p) ?>" <?= $province === $p ? 'selected' : '' ?>><?= e($p) ?></option><?php endforeach; ?></select>
+        </div>
         <div class="form-group"><label><?= te('District') ?></label><select name="district_id"><option value=""><?= te('-- all --') ?></option><?php foreach ($districts as $d): ?><option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option><?php endforeach; ?></select></div>
         <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" value="<?= e($parcel_no) ?>"></div>
         <div class="form-group"><label><?= te('Status') ?></label>
@@ -51,15 +124,33 @@ $districts = api_call('GET', 'districts.php')['data'] ?? [];
 
     <?php if ($count === 0): ?><p class="empty"><?= te('No parcels match the filter.') ?></p><?php else: ?>
     <table style="margin-top:8px;">
-      <thead><tr><th><?= te('Parcel No') ?></th><th><?= te('District') ?></th><th><?= te('Village') ?></th><th><?= te('Area (m²)') ?></th><th><?= te('Road') ?></th><th><?= te('Status') ?></th><th><?= te('Updated') ?></th></tr></thead>
+      <thead>
+        <tr>
+          <th><?= te('Parcel No') ?></th>
+          <th><?= te('Province') ?></th>
+          <th><?= te('District') ?></th>
+          <th><?= te('Village') ?></th>
+          <th><?= te('Area (m²)') ?></th>
+          <th><?= te('Valuation Zone') ?></th>
+          <th><?= te('Road') ?></th>
+          <th><?= te('Rate') ?></th>
+          <th><?= te('Tax') ?></th>
+          <th><?= te('Status') ?></th>
+          <th><?= te('Updated') ?></th>
+        </tr>
+      </thead>
       <tbody>
         <?php foreach ($parcels as $p): ?>
         <tr>
           <td><a href="<?= $base ?>/parcel.php?id=<?= (int)$p['id'] ?>"><?= e($p['parcel_no']) ?></a></td>
+          <td><?= e($p['province'] ?? '') ?></td>
           <td><?= e($p['district_name']) ?></td>
           <td><?= e($p['village_name']) ?></td>
           <td><?= number_format((float)$p['area_sqm'], 2) ?></td>
-          <td><?= e(t(ucfirst($p['road_category']))) ?></td>
+          <td><?= e($p['zone_code'] ?? '—') ?></td>
+          <td><?= e($roadMap[strtolower((string)($p['road_category'] ?? ''))] ?? ucfirst($p['road_category'] ?? '')) ?></td>
+          <td><?= $p['_rate_per_sqm'] > 0 ? number_format((float)$p['_rate_per_sqm'], 0) . ' ກີບ' : '—' ?></td>
+          <td><?= $p['_tax_amount'] > 0 ? number_format((float)$p['_tax_amount'], 0) . ' ກີບ' : '—' ?></td>
           <td><span class="pill pill-<?= e($p['status']) ?>"><?= e(t(ucfirst($p['status']))) ?></span></td>
           <td><?= e($p['updated_at'] ?? $p['created_at']) ?></td>
         </tr>
