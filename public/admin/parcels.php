@@ -22,7 +22,7 @@ $d = api_call('GET', $url, null, $_SESSION['admin_token']);
 if (!empty($d['ok'])) { $parcels = $d['data']['parcels'] ?? []; $count = $d['data']['count'] ?? 0; }
 
 // districts for filter
-$districts = api_call('GET', 'districts.php')['data'] ?? [];
+$districts = api_call('GET', 'districts.php', null, $_SESSION['admin_token'])['data'] ?? [];
 $provinces = [];
 foreach ($districts as $drow) {
     $p = $drow['province_name'] ?? $drow['province'] ?? '';
