@@ -180,9 +180,9 @@ $roadMap = [
 
   if (districtSel.value) { loadVillages(districtSel.value); }
 
-  districtSel.addEventListener('change', function() {
+  districtSel.onchange = function() {
     loadVillages(this.value || '');
-  });
+  };
 
   function loadVillages(districtId) {
     if (!districtId) {
