@@ -664,8 +664,8 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
     box.className = 'preview-box err';
     box.style.display = 'block';
     const msg = result.error && result.error.fields
-      ? result.error.fields.join('; ')
-      : ((result.error && result.error.message) || I18N.saveFailed);
+          ? Object.values(result.error.fields).join('; ')
+          : ((result.error && result.error.message) || I18N.saveFailed);
     box.textContent = msg;
   }
 });
