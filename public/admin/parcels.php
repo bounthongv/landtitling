@@ -5,6 +5,7 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 
 $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
+$village_id   = isset($_GET['village_id']) ? (int)$_GET['village_id'] : 0;
 $province    = $_GET['province'] ?? '';
 $parcel_no   = $_GET['parcel_no'] ?? '';
 $status      = $_GET['status'] ?? '';
@@ -34,6 +35,14 @@ sort($provinces);
 if ($province !== '') {
     $parcels = array_values(array_filter($parcels, function($p) use ($province) {
         return ($p['province'] ?? '') === $province;
+    }));
+    $count = count($parcels);
+}
+
+// Village filter on the fetched set.
+if ($village_id > 0) {
+    $parcels = array_values(array_filter($parcels, function($p) use ($village_id) {
+        return (int)($p['village_id'] ?? 0) === $village_id;
     }));
     $count = count($parcels);
 }
@@ -114,10 +123,11 @@ $roadMap = [
         <div class="form-group"><label><?= te('Province') ?></label>
           <select name="province"><option value=""><?= te('-- all --') ?></option><?php foreach ($provinces as $p): ?><option value="<?= e($p) ?>" <?= $province === $p ? 'selected' : '' ?>><?= e($p) ?></option><?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label><?= te('District') ?></label><select name="district_id"><option value=""><?= te('-- all --') ?></option><?php foreach ($districts as $d): ?><option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option><?php endforeach; ?></select></div>
-        <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" value="<?= e($parcel_no) ?>"></div>
+        <div class="form-group"><label><?= te('District') ?></label><select name="district_id" id="parcels-district"><option value=""><?= te('-- all --') ?></option><?php foreach ($districts as $d): ?><option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option><?php endforeach; ?></select></div>
+        <div class="form-group"><label><?= te('Village') ?></label><select name="village_id" id="parcels-village" disabled><option value=""><?= te('-- select district first --') ?></option></select></div>
         <div class="form-group"><label><?= te('Status') ?></label>
           <select name="status"><option value=""><?= te('-- all --') ?></option><option value="confirmed" <?= $status === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option><option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option><option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>><?= te('Draft') ?></option></select></div>
+        <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" value="<?= e($parcel_no) ?>"></div>
         <div class="form-group"><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
       </form>
     </div>
@@ -132,7 +142,7 @@ $roadMap = [
           <th><?= te('Village') ?></th>
           <th><?= te('Area (m²)') ?></th>
           <th><?= te('Valuation Zone') ?></th>
-          <th><?= te('Road') ?></th>
+          <th><?= te('Road category') ?></th>
           <th><?= te('Rate') ?></th>
           <th><?= te('Tax') ?></th>
           <th><?= te('Status') ?></th>
@@ -161,5 +171,47 @@ $roadMap = [
     <?php endif; ?>
   </main>
 </div>
+
+<script>
+(function(){
+  const districtSel = document.getElementById('parcels-district');
+  const villageSel  = document.getElementById('parcels-village');
+  if (!districtSel || !villageSel) return;
+
+  // If a district is already selected on load, load its villages immediately
+  // so the current village_id filter is reflected in the dropdown.
+  if (districtSel.value) { loadVillages(districtSel.value, false); }
+
+  districtSel.addEventListener('change', function() {
+    loadVillages(this.value || '', true);
+  });
+
+  async function loadVillages(districtId, reset) {
+    if (!districtId) {
+      villageSel.innerHTML = '<option value=""><?= e(te('-- select district first --')) ?></option>';
+      villageSel.disabled = true;
+      return;
+    }
+    villageSel.innerHTML = '<option value=""><?= e(te('-- loading --')) ?></option>';
+    villageSel.disabled = false;
+    try {
+      const res = await fetch('/api/v1/villages.php?district_id=' + districtId + '&limit=500');
+      const json = await res.json();
+      const list = (json && json.data) ? json.data : [];
+      const opts = '<option value=""><?= e(te('-- all --')) ?></option>' +
+        list.map(v => '<option value="' + v.id + '">' + (v.name_lo || v.name) + '</option>').join('');
+      villageSel.innerHTML = opts;
+      // Restore selected village_id from query string if present
+      const urlParams = new URLSearchParams(window.location.search);
+      const vid = urlParams.get('village_id');
+      if (vid && list.some(v => String(v.id) === String(vid))) {
+        villageSel.value = vid;
+      }
+    } catch (e) {
+      villageSel.innerHTML = '<option value=""><?= e(te('-- error loading --')) ?></option>';
+    }
+  }
+})();
+</script>
 </body>
 </html>
