@@ -44,6 +44,19 @@ $role = $user['role'];
 if (!in_array($role, ['officer','admin','manager'], true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
 
+// ---- Edit mode: fetch existing parcel if ?id= is provided ----
+$editParcel = null;
+$editId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+if ($editId > 0) {
+    $resp = api_call('GET', 'parcels.php?id=' . $editId, null, $token);
+    if (!empty($resp['ok']) && !empty($resp['data']['parcels'])) {
+        $editParcel = $resp['data']['parcels'][0];
+        // Also fetch owners for this parcel
+        $ownResp = api_call('GET', 'owners.php?parcel_id=' . $editId, null, $token);
+        $editOwners = $ownResp['data']['owners'] ?? [];
+    }
+}
+
 $parsedLabels = [
     'parcel_no'            => t('Parcel no'),
     'sub_parcel_no'        => t('Sub-parcel'),
@@ -415,7 +428,12 @@ const I18N = <?= json_encode([
   'conf'          => t('Conf.'),
   'noFields'      => t('No fields parsed — fill them in below.'),
   'applied'       => t('OCR applied to the form. Review, correct, then Save.'),
-], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+  ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+// Edit parcel data passed from PHP
+const EDIT_PARCEL = <?php echo json_encode($editParcel ?? null, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+const EDIT_OWNERS = <?php echo json_encode($editOwners ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+const EDIT_MODE = !!EDIT_PARCEL;
 
 /* ---------- helpers ---------- */
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -587,6 +605,7 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   const saveAction = (submitter && submitter.value) || 'confirm';
 
   const parcel = {
+    id:                 EDIT_MODE ? EDIT_PARCEL.id : undefined,
     status:             saveAction === 'draft' ? 'draft' : 'confirmed',
     title_no:           v('ref_no') || null,
     order_no:           v('issue_batch') || null,
@@ -852,6 +871,74 @@ document.getElementById('do-import').addEventListener('click', async () => {
   if (errs.length) html += '<ul>' + errs.slice(0,20).map(r => '<li>Line ' + r.line + ': ' + esc(r.message) + '</li>').join('') + '</ul>';
   box.innerHTML = html;
 });
+
+// Pre-fill form when editing an existing parcel
+function prefillEditParcel() {
+  if (!EDIT_MODE || !EDIT_PARCEL) return;
+  const p = EDIT_PARCEL;
+
+  // Direct text inputs
+  const directMap = {
+    'title_no': 'ref_no',
+    'order_no': 'issue_batch',
+    'location_code': 'location',
+    'unit_no': 'unit',
+    'acquisition_method': 'acquired',
+    'ownership_status': 'status',
+    'land_use_class': 'land_type',
+    'zone_text': 'zone',
+    'book_no': 'book',
+    'page_no': 'leaf',
+    'map_ref_no': 'map_no',
+    'parcel_no': 'parcel_no',
+    'area_sqm': 'area',
+    'map_scale': 'scale',
+    'issued_place': 'issued_at',
+    'sub_parcel_no': 'sub_parcel_no',
+  };
+  Object.entries(directMap).forEach(([apiKey, formName]) => {
+    if (p[apiKey]) setVal(formName, p[apiKey]);
+  });
+
+  // Select dropdowns - these need to be set after loadGeoData populates them
+  // We'll set them after a short delay to let the cascades populate
+  setTimeout(() => {
+    if (p.district_id) setVal('district_id', p.district_id);
+    if (p.village_id) setVal('village_id', p.village_id);
+    if (p.zone_code) setVal('zone_code', p.zone_code);
+    if (p.road_category) setVal('road_category', p.road_category);
+
+    // Issued date
+    if (p.issued_date && /^\d{4}-\d{2}-\d{2}$/.test(p.issued_date)) {
+      const [py, pm, pd] = p.issued_date.split('-');
+      setVal('issue_year', py);
+      setVal('issue_month', pm);
+      setVal('issue_day', pd);
+    }
+
+    // Owners
+    if (EDIT_OWNERS && EDIT_OWNERS.length) {
+      const o = EDIT_OWNERS[0];
+      if (o.full_name) setVal('owner_name', o.full_name);
+      if (o.date_of_birth) setVal('dob', o.date_of_birth);
+      if (o.nationality) setVal('nationality', o.nationality);
+      if (o.occupation) setVal('occupation', o.occupation);
+      if (o.address_province) setVal('addr_province', o.address_province);
+      if (o.address_district) setVal('addr_district', o.address_district);
+      if (o.address_village) setVal('addr_village', o.address_village);
+      if (o.address_unit) setVal('addr_unit', o.address_unit);
+    }
+    if (EDIT_OWNERS && EDIT_OWNERS.length > 1) {
+      const s = EDIT_OWNERS[1];
+      if (s.full_name) setVal('spouse_name', s.full_name);
+      if (s.date_of_birth) setVal('spouse_dob', s.date_of_birth);
+      if (s.nationality) setVal('spouse_nat', s.nationality);
+      if (s.occupation) setVal('spouse_occ', s.occupation);
+    }
+  }, 300);
+}
+
+prefillEditParcel();
 
 loadGeoData();
 </script>

@@ -128,6 +128,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
       </table>
       <?php endif; ?>
     </div>
+    <?php if (in_array($parcel['status'] ?? '', ['draft', 'confirmed'], true)): ?>
+    <div class="form-actions" style="margin-top:16px;">
+      <a href="<?= $base ?>/parcel_entry.php?id=<?= (int)$parcel['id'] ?>" class="btn btn-gold"><?= te('Edit parcel') ?></a>
+    </div>
+    <?php endif; ?>
     <p><a href="<?= $base ?>/parcels.php">&larr; <?= te('Back to parcels') ?></a></p>
     <?php endif; ?>
   </main>
