@@ -182,6 +182,10 @@ $parsedLabels = [
     background: #e8f0ea;
   }
   .req-field input:focus, .req-field select:focus { background: #fff; }
+  /* The two footer fields are required too — give them the same fill as the
+     seven above, so all nine read identically (green border + light green). */
+  .cert-foot select { background: #e8f0ea; }
+  .cert-foot select:focus { background: #fff; }
   .cert-row .inline .ci.req-field label { color: #1b5e20; font-weight: 600; }
   .cert-row.req-row > label { color: #1b5e20; }
   .req-legend {
