@@ -126,7 +126,7 @@ $roadMap = [
           <select name="status"><option value=""><?= te('-- all --') ?></option><option value="confirmed" <?= $status === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option><option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option><option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>><?= te('Draft') ?></option></select></div>
         <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" value="<?= e($parcel_no) ?>"></div>
         <div class="form-group"><label><?= te('Land Parcel Owner') ?></label><input name="owner_name" value="<?= e($owner_name) ?>"></div>
-        <div class="form-group"><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
       </form>
     </div>
 
