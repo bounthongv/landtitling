@@ -52,9 +52,12 @@ function payment_district(PDO $pdo, array $payment): ?int {
 }
 
 // ---- CREATE a payment (settlement) against an obligation ----
+// ?settle=1 = counter fast path (officer): money already in hand (cash/cheque),
+// the payment is created directly PAID with verify_method='counter'.
 if ($method === 'POST' && !isset($_GET['id'])) {
     $me = require_auth(['citizen', 'officer', 'admin']);
     $body = read_json_body();
+    $settle = isset($_GET['settle']);
 
     $obligationId = (int)($body['obligation_id'] ?? 0);
     if (!$obligationId) {
@@ -94,8 +97,18 @@ if ($method === 'POST' && !isset($_GET['id'])) {
     }
 
     $method_ = $body['method'] ?? 'counter';
-    if (!in_array($method_, ['counter', 'bank_transfer', 'mobile', 'cash'], true)) {
+    if (!in_array($method_, ['counter', 'bank_transfer', 'mobile', 'cash', 'cheque'], true)) {
         json_error('Invalid payment method', 400, 'invalid_method');
+    }
+    // Cheque is a district-office channel only — a citizen cannot present a cheque through the app.
+    if ($me['role'] === 'citizen' && in_array($method_, ['cheque', 'cash'], true)) {
+        json_error('This payment method is only available at the district office', 403, 'counter_method_only');
+    }
+    if ($settle) {
+        require_staff_write($me);
+        if (!in_array($method_, ['cash', 'cheque'], true)) {
+            json_error('Counter settlement accepts cash or cheque only', 400, 'invalid_method');
+        }
     }
     $payerOwnerId = !empty($body['payer_owner_id']) ? (int)$body['payer_owner_id'] : null;
     $amount = isset($body['amount']) && $body['amount'] !== '' ? (float)$body['amount'] : $outstanding;
@@ -104,15 +117,33 @@ if ($method === 'POST' && !isset($_GET['id'])) {
 
     $reference = slip_generate_no($pdo);
     $qr = slip_qr_payload($reference, $amount);
+    $chequeNo = trim((string)($body['cheque_no'] ?? $body['bank_ref'] ?? '')) ?: null;
 
     $st = $pdo->prepare("INSERT INTO payments
-        (obligation_id, parcel_id, fee_year, payer_owner_id, method, amount, reference_no, slip_qr, status)
-        VALUES (:oid, :pid, :fy, :poid, :m, :amt, :ref, :qr, 'ISSUED') RETURNING id");
+        (obligation_id, parcel_id, fee_year, payer_owner_id, method, amount, reference_no, slip_qr, status,
+         paid_at, verified_by, verify_method, verify_note, bank_ref)
+        VALUES (:oid, :pid, :fy, :poid, :m, :amt, :ref, :qr, :status,
+         :paid_at, :vby, :vm, :vnote, :bref) RETURNING id");
     $st->execute([
         ':oid' => $obligationId, ':pid' => (int)$ob['parcel_id'], ':fy' => (int)$ob['fee_year'],
         ':poid' => $payerOwnerId, ':m' => $method_, ':amt' => $amount, ':ref' => $reference, ':qr' => $qr,
+        ':status' => $settle ? 'PAID' : 'ISSUED',
+        ':paid_at' => $settle ? date('Y-m-d H:i:s') : null,
+        ':vby' => $settle ? $me['sub'] : null,
+        ':vm' => $settle ? 'counter' : null,
+        ':vnote' => $settle ? (trim((string)($body['note'] ?? '')) ?: null) : null,
+        ':bref' => $chequeNo,
     ]);
     $paymentId = (int)$st->fetch()['id'];
+    if ($settle) {
+        $obligation = fee_settle_obligation($pdo, $obligationId);
+        fee_audit($pdo, $me['sub'] ?? null, 'payment_counter', 'payment', $paymentId, [
+            'obligation_id' => $obligationId, 'amount' => $amount, 'reference_no' => $reference,
+            'method' => $method_, 'cheque_no' => $chequeNo,
+        ]);
+        json_ok(['id' => $paymentId, 'reference_no' => $reference, 'amount' => $amount,
+            'status' => 'PAID', 'obligation' => $obligation, 'receipt' => 'payments.php?id=' . $paymentId . '&receipt=1'], 201);
+    }
     fee_audit($pdo, $me['sub'] ?? null, 'payment_issue', 'payment', $paymentId, [
         'obligation_id' => $obligationId, 'amount' => $amount, 'reference_no' => $reference, 'method' => $method_,
     ]);
@@ -120,8 +151,9 @@ if ($method === 'POST' && !isset($_GET['id'])) {
         'slip_qr' => $qr, 'status' => 'ISSUED', 'due_date' => $ob['due_date']], 201);
 }
 
-// ---- Printable slip ----
-if ($method === 'GET' && isset($_GET['id']) && isset($_GET['slip'])) {
+// ---- Printable slip / receipt ----
+if ($method === 'GET' && isset($_GET['id']) && (isset($_GET['slip']) || isset($_GET['receipt']))) {
+    $receipt = isset($_GET['receipt']);
     $me = require_auth(['citizen', 'officer', 'admin', 'manager']);
     $id = (int)$_GET['id'];
     $st = $pdo->prepare("SELECT * FROM payments WHERE id = :id");
@@ -142,9 +174,15 @@ if ($method === 'GET' && isset($_GET['id']) && isset($_GET['slip'])) {
     $slip['amount']        = (float)$payment['amount'];
     $slip['rate_per_sqm']  = (float)($ctx['obligation']['rate_per_sqm'] ?? 0);
     $slip['due_date']      = $ctx['obligation']['due_date'] ?? '';
+    $officerName = '';
+    if ($receipt && !empty($payment['verified_by'])) {
+        $stU = $pdo->prepare("SELECT username FROM users WHERE id = :id");
+        $stU->execute([':id' => (int)$payment['verified_by']]);
+        $officerName = (string)($stU->fetchColumn() ?: '');
+    }
     $qr_url = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . urlencode((string)$payment['slip_qr']);
     header('Content-Type: text/html; charset=UTF-8');
-    echo slip_render_html($slip, $ctx['parcel'] ?? [], $ctx['parcel']['district_name'] ?? '', $ctx['parcel']['village_name'] ?? '', $qr_url);
+    echo slip_render_html($slip, $ctx['parcel'] ?? [], $ctx['parcel']['district_name'] ?? '', $ctx['parcel']['village_name'] ?? '', $qr_url, $receipt, $officerName);
     exit;
 }
 
@@ -209,14 +247,29 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['verify'])) {
     if ($payment['status'] === 'PAID') { json_error('Already paid', 409, 'already_paid'); }
     if ($payment['status'] === 'REJECTED') { json_error('Payment was rejected', 409, 'rejected'); }
 
-    $pdo->prepare("UPDATE payments SET status='PAID', paid_at=CURRENT_TIMESTAMP, verified_by=:v,
-        verify_method='manual', verify_note=:n WHERE id=:id")
-        ->execute([':v' => $me['sub'], ':n' => $body['note'] ?? null, ':id' => $id]);
+    // Amount actually received: defaults to the slip amount, but the officer may
+    // record less (partial) or more (overpaid) — fee_settle_obligation derives
+    // the obligation status from the SUM of PAID payments.
+    $received = (isset($body['amount']) && $body['amount'] !== '' && $body['amount'] !== null)
+        ? round((float)$body['amount'], 2)
+        : null;
+    if ($received !== null && $received <= 0) {
+        json_error('amount must be positive', 400, 'invalid_amount');
+    }
+
+    $sets  = "status='PAID', paid_at=CURRENT_TIMESTAMP, verified_by=:v, verify_method='manual', verify_note=:n";
+    $params = [':v' => $me['sub'], ':n' => $body['note'] ?? null];
+    if ($received !== null) {
+        $sets .= ', amount = :amt';
+        $params[':amt'] = $received;
+    }
+    $params[':id'] = $id;
+    $pdo->prepare("UPDATE payments SET $sets WHERE id=:id")->execute($params);
     $obligation = !empty($payment['obligation_id']) ? fee_settle_obligation($pdo, (int)$payment['obligation_id']) : null;
     fee_audit($pdo, $me['sub'] ?? null, 'payment_verify', 'payment', $id, [
-        'reference_no' => $payment['reference_no'], 'amount' => (float)$payment['amount'], 'method' => 'manual',
+        'reference_no' => $payment['reference_no'], 'amount' => $received ?? (float)$payment['amount'], 'method' => 'manual',
     ]);
-    json_ok(['id' => $id, 'status' => 'PAID', 'obligation' => $obligation]);
+    json_ok(['id' => $id, 'status' => 'PAID', 'amount' => $received ?? (float)$payment['amount'], 'obligation' => $obligation]);
 }
 
 // ---- REJECT (officer) ----
@@ -271,12 +324,14 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['waive'])) {
 if ($method === 'GET') {
     $me = require_auth(['citizen', 'officer', 'admin', 'manager']);
     $status   = $_GET['status'] ?? null;
+    $methodF  = $_GET['method'] ?? '';
     $feeYear  = isset($_GET['fee_year']) ? (int)$_GET['fee_year'] : 0;
     $district = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
 
     $where = [];
     $params = [];
     if ($status !== null && $status !== '') { $where[] = 'pay.status = :s'; $params[':s'] = $status; }
+    if ($methodF !== '') { $where[] = 'pay.method = :m'; $params[':m'] = $methodF; }
     if ($feeYear)  { $where[] = 'pay.fee_year = :fy'; $params[':fy'] = $feeYear; }
     if ($district) { $where[] = 'par.district_id = :did'; $params[':did'] = $district; }
     // District staff see only their own district's payments.

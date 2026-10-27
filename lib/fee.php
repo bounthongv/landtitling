@@ -269,3 +269,23 @@ function fee_audit($pdo, $actorId, $action, $entity, $entityId, $detail = [])
         // auditing must never break the flow
     }
 }
+
+/**
+ * Display label for a payments.method value. Single place the UI and the
+ * printed slip/slip_receipt read, so labels never drift:
+ *   counter -> Counter (ຈ່າຍຢູ່ຫ້ອງການ), cash -> Cash (ເງິນສົດ),
+ *   bank_transfer -> Bank transfer (ໂອນທະນາຄານ), mobile -> Mobile app (ແອັບມືຖື),
+ *   cheque -> Cheque (ເຊັກ).
+ */
+function payment_method_label(string $method): string
+{
+    require_once __DIR__ . '/i18n.php';   // t() — fee.php is also loaded by API/cron paths
+    $labels = [
+        'counter'       => 'Counter',
+        'cash'          => 'Cash',
+        'bank_transfer' => 'Bank transfer',
+        'mobile'        => 'Mobile app',
+        'cheque'        => 'Cheque',
+    ];
+    return t($labels[strtolower($method)] ?? ucfirst($method));
+}

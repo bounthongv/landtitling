@@ -421,7 +421,7 @@ CREATE TABLE payments (
   fee_year INT NOT NULL,
   payer_owner_id INT,
   method VARCHAR(20) NOT NULL DEFAULT 'counter'
-    CHECK (method IN ('counter','bank_transfer','mobile','cash')),
+    CHECK (method IN ('counter','bank_transfer','mobile','cash','cheque')),
   amount DECIMAL(14,2) NOT NULL,
   reference_no VARCHAR(50) UNIQUE NOT NULL,  -- printed on the slip, used for matching
   bank_ref VARCHAR(100),                     -- reference seen on the bank statement
@@ -432,7 +432,7 @@ CREATE TABLE payments (
   paid_at TIMESTAMP,
   verified_by INT,
   verify_method VARCHAR(20)
-    CHECK (verify_method IN ('manual','auto_statement','auto_ocr')),
+    CHECK (verify_method IN ('manual','auto_statement','auto_ocr','counter')),
   verify_note TEXT,
   bank_import_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

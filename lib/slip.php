@@ -122,27 +122,37 @@ function slip_qr_emvco(string $reference, string $amount, string $parcel, string
 }
 
 /**
- * Render a printable A4 payment slip as HTML (bilingual Lao/EN).
+ * Render a printable A4 payment document as HTML (bilingual Lao/EN).
  * Expects the v2 payment row (reference_no, fee_year, amount, method) plus parcel context.
+ * $receipt=true renders the settlement receipt (status, paid date, officer) instead
+ * of the payment-order slip; $officerName is the verifying officer's username.
  */
-function slip_render_html(array $payment, array $parcel, $district_name, $village_name, $qr_url) {
+function slip_render_html(array $payment, array $parcel, $district_name, $village_name, $qr_url, $receipt = false, $officerName = '') {
     $h = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
     $amount = number_format((float)$payment['amount'], 0);
     $area   = number_format((float)($parcel['area_sqm'] ?? 0), 0);
     $rate   = number_format((float)($payment['rate_per_sqm'] ?? 0), 0);
     $year   = $h($payment['fee_year'] ?? date('Y'));
     $ref    = $h($payment['reference_no'] ?? '');
-    $method = $h(ucfirst((string)($payment['method'] ?? 'counter')));
+    $method = $h(payment_method_label((string)($payment['method'] ?? 'counter')));
     $due    = $h($payment['due_date'] ?? '');
     $district_name = $h($district_name);
     $village_name  = $h($village_name);
     $parcel_no     = $h($parcel['parcel_no'] ?? '');
     // Province comes from the parcel record when available, else the seeded default.
     $province = $h($parcel['province'] ?? 'Savannakhet');
+    $titleLo  = $receipt ? 'ໃບຮັບເງິນ' : 'ໃບຊໍາລະ';
+    $titleEn  = $receipt ? 'Land Fee Payment Receipt' : 'Land Fee Payment Slip';
+    $paidAt   = $h($payment['paid_at'] ?? '');
+    $officer  = $h($officerName);
+    $statusLo = $receipt ? '<div class="paid-mark">ຈ່າຍແລ້ວ / PAID</div>' : '';
+    $foot = $receipt
+        ? 'ຊໍາລະສໍາເລັດແລ້ວ — ຂອບໃຈທີ່ຊໍາລະ / Payment received — thank you'
+        : 'ກະລຸນາຊໍາລະທີ່ທະນາຄານ ຫຼື ຫ້ອງການອາກອນ ພາຍໃນວັນທີ ' . $due . ' ແລ້ວສົ່ງຫຼັກຖານການຊໍາລະ';
     return <<<HTML
 <!DOCTYPE html>
 <html lang="lo">
-<head><meta charset="UTF-8"><title>Land Fee Payment Slip</title>
+<head><meta charset="UTF-8"><title>{$titleEn}</title>
 <style>
   body { font-family: sans-serif; padding: 30px; }
   .slip { border: 2px solid #333; padding: 24px; max-width: 700px; margin: auto; }
@@ -152,25 +162,33 @@ function slip_render_html(array $payment, array $parcel, $district_name, $villag
   .amount { font-size: 24px; font-weight: bold; text-align: center; margin: 16px 0; }
   .qr { text-align: center; margin: 16px 0; }
   .foot { text-align: center; font-size: 12px; margin-top: 16px; color: #555; }
+  .paid-mark { display: inline-block; margin-top: 8px; padding: 4px 16px; border: 2px solid #1b5e20; color: #1b5e20; font-weight: bold; border-radius: 4px; }
 </style>
 </head>
 <body>
 <div class="slip">
   <div class="head">
-    <h2>ບັກຊຳລະຄ່າທຳນຽມທີ່ດິນ</h2>
-    <p>Land Fee Payment Slip — {$year}</p>
+    <h2>{$titleLo}</h2>
+    <p>{$titleEn} — {$year}</p>
+    {$statusLo}
   </div>
   <div class="row"><span class="label">ເລກທີອ້າງອງິງ / Reference</span><span>{$ref}</span></div>
   <div class="row"><span class="label">ແຂວງ / Province</span><span>{$province}</span></div>
   <div class="row"><span class="label">ເມືອງ / District</span><span>{$district_name}</span></div>
   <div class="row"><span class="label">ບ້ານ / Village</span><span>{$village_name}</span></div>
   <div class="row"><span class="label">ຕອນດິນ / Parcel No.</span><span>{$parcel_no}</span></div>
-  <div class="row"><span class="label">ພື້ນທີ່ / Area</span><span>{$area} ຕາລາງແມັດ (m²)</span></div>
-  <div class="row"><span class="label">ອັດຕາ / Rate</span><span>{$rate} ກີບ/ມ²</span></div>
-  <div class="row"><span class="label">ວິທີຊຳລະ / Method</span><span>{$method}</span></div>
+  <div class="row"><span class="label">ພື້ນທີ່ / Area</span><span>{$area} ຕາລາງແມັດ (m2)</span></div>
+  <div class="row"><span class="label">ອັດຕາ / Rate</span><span>{$rate} ກີບ/ມ2</span></div>
+  <div class="row"><span class="label">ວິທີຊໍາລະ / Method</span><span>{$method}</span></div>
+HTML
+    . ($receipt && $paidAt !== '' ? "
+  <div class=\"row\"><span class=\"label\">ວັນທີຊໍາລະ / Paid on</span><span>{$paidAt}</span></div>" : '')
+    . ($receipt && $officer !== '' ? "
+  <div class=\"row\"><span class=\"label\">ຜູ້ຮັບເງິນ / Received by</span><span>{$officer}</span></div>" : '')
+    . <<<HTML
   <div class="amount">{$amount} ກີບ (kip)</div>
   <div class="qr"><img src="{$qr_url}" width="160" height="160" alt="QR"></div>
-  <div class="foot">ກະລຸນາຊຳລະທີ່ທະນາຄານ ຫຼື ຫ້ອງການອາກອນ ພາຍໃນວັນທີ {$due} ແລ້ວສົ່ງຫຼັກຖານການຊຳລະ</div>
+  <div class="foot">{$foot}</div>
 </div>
 </body>
 </html>

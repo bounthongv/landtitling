@@ -1,35 +1,77 @@
 <?php
 // public/admin/payments.php — payment verification queue (v2 settlements)
 require __DIR__ . '/common.php';
+require_once __DIR__ . '/../../lib/fee.php';   // payment_method_label()
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
 
 $status = $_GET['status'] ?? 'ISSUED';
+$methodF = $_GET['method'] ?? '';
 $fee_year = isset($_GET['fee_year']) ? (int)$_GET['fee_year'] : 0;
 
 $msg = '';
 $msgType = 'ok';
+$lastReceipt = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
     $id = (int)($_POST['payment_id'] ?? 0);
-    $action = $_POST['do_action'];                 // verify | reject | waive
+    $action = $_POST['do_action'];                 // verify | reject | waive | settle
     $body = [];
     if ($action === 'reject') { $body['reason'] = $_POST['reason'] ?? t('Rejected by officer'); }
-    if ($action === 'verify') { $body['note'] = $_POST['note'] ?? null; }
+    if ($action === 'verify') {
+        $body['note'] = $_POST['note'] ?? null;
+        // Amount actually received (optional) — partial/overpaid recorded here.
+        if (isset($_POST['amount']) && $_POST['amount'] !== '') {
+            $body['amount'] = (float)$_POST['amount'];
+        }
+    }
     if ($action === 'waive')  { $body['reason'] = $_POST['reason'] ?? t('Waived by officer'); }
-    $d = api_call('POST', 'payments.php?id=' . $id . '&' . $action . '=1', $body, $token);
-    if (!empty($d['ok'])) {
-        $msg = ['verify' => t('Payment verified — obligation settled.'),
-                'reject' => t('Payment rejected.'),
-                'waive'  => t('Obligation waived.')][$action] ?? t('Done');
-    } else {
-        $msg = $d['error']['message'] ?? t('Action failed');
-        $msgType = 'err';
+    if ($action === 'settle') {
+        // Counter fast path: money in hand (cash/cheque) — create + settle in one step.
+        $parcelNo = trim((string)($_POST['parcel_no'] ?? ''));
+        $year = (int)($_POST['fee_year'] ?? date('Y'));
+        $method = $_POST['method'] ?? 'cash';
+        $chequeNo = trim((string)($_POST['cheque_no'] ?? ''));
+        $amount = (isset($_POST['amount']) && $_POST['amount'] !== '') ? (float)$_POST['amount'] : null;
+        $pid = 0;
+        if ($parcelNo !== '') {
+            $res = api_call('GET', 'parcels.php?parcel_no=' . urlencode($parcelNo), null, $token);
+            foreach (($res['data']['parcels'] ?? []) as $row) {
+                if (($row['parcel_no'] ?? '') === $parcelNo) { $pid = (int)$row['id']; break; }
+            }
+        }
+        if (!$pid) {
+            $msg = t('Parcel not found.');
+            $msgType = 'err';
+        } else {
+            $body = ['parcel_id' => $pid, 'fee_year' => $year, 'method' => $method, 'note' => $_POST['note'] ?? null];
+            if ($amount !== null) { $body['amount'] = $amount; }
+            if ($chequeNo !== '')  { $body['cheque_no'] = $chequeNo; }
+            $d = api_call('POST', 'payments.php?settle=1', $body, $token);
+            if (!empty($d['ok'])) {
+                $msg = t('Payment received and settled — receipt ready.');
+                $lastReceipt = $d['data']['receipt'] ?? '';
+            } else {
+                $msg = $d['error']['message'] ?? t('Settle failed.');
+                $msgType = 'err';
+            }
+        }
+    } elseif ($id) {
+        $d = api_call('POST', 'payments.php?id=' . $id . '&' . $action . '=1', $body, $token);
+        if (!empty($d['ok'])) {
+            $msg = ['verify' => t('Payment verified — obligation settled.'),
+                    'reject' => t('Payment rejected.'),
+                    'waive'  => t('Obligation waived.')][$action] ?? t('Done');
+        } else {
+            $msg = $d['error']['message'] ?? t('Action failed');
+            $msgType = 'err';
+        }
     }
 }
 
 // Queue + counts
 $qs = 'status=' . urlencode($status);
+if ($methodF !== '') { $qs .= '&method=' . urlencode($methodF); }
 if ($fee_year) { $qs .= '&fee_year=' . $fee_year; }
 $d = api_call('GET', 'payments.php?' . $qs, null, $token);
 $payments = $d['data']['payments'] ?? [];
@@ -64,7 +106,11 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
       <div class="card"><h3><?= te('Rejected') ?></h3><p class="num"><?= (int)$countRej ?></p></div>
     </div>
 
-    <?php if ($msg): ?><p class="flash <?= $msgType === 'err' ? 'err' : 'ok' ?>"><?= e($msg) ?></p><?php endif; ?>
+    <?php if ($msg): ?>
+      <p class="flash <?= $msgType === 'err' ? 'err' : 'ok' ?>"><?= e($msg) ?>
+        <?php if ($lastReceipt): ?> <a href="<?= e($api_base) ?>/<?= e($lastReceipt) ?>" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a><?php endif; ?>
+      </p>
+    <?php endif; ?>
 
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
@@ -75,7 +121,15 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><label><?= te('Fee year') ?></label>
+        <div class="form-group"><label><?= te('Method') ?></label>
+          <select name="method">
+            <option value=""><?= te('-- all --') ?></option>
+            <?php foreach (['cash','bank_transfer','mobile','cheque','counter'] as $m): ?>
+            <option value="<?= $m ?>" <?= $methodF === $m ? 'selected' : '' ?>><?= e(payment_method_label($m)) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-group"><label><?= te('Tax year') ?></label>
           <select name="fee_year"><option value=""><?= te('-- all --') ?></option>
             <?php foreach ($years as $y): ?>
             <option value="<?= e($y['year']) ?>" <?= $fee_year == $y['year'] ? 'selected' : '' ?>><?= e($y['year']) ?></option>
@@ -83,6 +137,32 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
           </select>
         </div>
         <div class="form-group"><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
+      </form>
+    </div>
+
+    <div class="form-box" style="border-left:4px solid #b8860b;">
+      <h2><?= te('Record counter payment') ?></h2>
+      <p class="sub"><?= te('Cash or cheque received at the district office — settles the obligation immediately and prints the receipt.') ?></p>
+      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
+        <input type="hidden" name="do_action" value="settle">
+        <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" required></div>
+        <div class="form-group"><label><?= te('Tax year') ?></label>
+          <select name="fee_year">
+            <?php foreach ($years as $y): ?>
+            <option value="<?= e($y['year']) ?>" <?= (int)$y['year'] === (int)date('Y') ? 'selected' : '' ?>><?= e($y['year']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-group"><label><?= te('Method') ?></label>
+          <select name="method" id="counter-method">
+            <option value="cash"><?= e(payment_method_label('cash')) ?></option>
+            <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
+          </select>
+        </div>
+        <div class="form-group" id="counter-cheque-group"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
+        <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
+        <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
+        <div class="form-group" style="align-self:end;"><button class="btn btn-gold" type="submit"><?= te('Receive & settle') ?></button></div>
       </form>
     </div>
 
@@ -101,7 +181,7 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
               <?= te('Area') ?> <?= number_format((float)$p['area_sqm'], 2) ?> m²
             </p>
             <p><b><?= te('Amount') ?>:</b> <?= number_format((float)$p['amount'], 0) ?> <?= te('kip') ?>
-               &nbsp;<b><?= te('Method') ?>:</b> <?= e(t(ucfirst($p['method']))) ?>
+               &nbsp;<b><?= te('Method') ?>:</b> <?= e(payment_method_label((string)$p['method'])) ?>
                <?php if ($p['payer_name']): ?> &nbsp;<b><?= te('Payer') ?>:</b> <?= e($p['payer_name']) ?><?php endif; ?>
             </p>
             <?php if ($p['obligation_status']): ?>
@@ -114,16 +194,25 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
               <p class="sub"><?= te('Bank ref') ?>: <?= e($p['bank_ref']) ?></p>
             <?php endif; ?>
             <?php if (!empty($p['slip_path'])): ?>
-              <p><b><?= te('Slip photo') ?>:</b><br><img src="<?= e($p['slip_path']) ?>" style="max-width:220px; border-radius:4px; background:#fff;" alt="<?= te('Slip photo') ?>"></p>
+              <p><b><?= te('Slip photo') ?>:</b><br><img src="<?= e($p['slip_path']) ?>" class="slip-zoom" style="max-width:220px; border-radius:4px; background:#fff; cursor:zoom-in;" alt="<?= te('Slip photo') ?>"></p>
             <?php endif; ?>
-            <p><a href="<?= $api_base ?>/payments.php?id=<?= (int)$p['id'] ?>&slip=1" target="_blank"><?= te('Print slip') ?></a></p>
+            <p><?php if ($p['status'] === 'PAID'): ?>
+              <a href="<?= $api_base ?>/payments.php?id=<?= (int)$p['id'] ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a>
+            <?php else: ?>
+              <a href="<?= $api_base ?>/payments.php?id=<?= (int)$p['id'] ?>&slip=1" target="_blank" class="btn btn-blue btn-sm"><?= te('Print slip') ?></a>
+            <?php endif; ?></p>
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <span class="pill pill-<?= e(strtolower($p['status'])) ?>"><?= e(t($p['status'])) ?></span>
+            <?php if ($p['status'] === 'ISSUED' && in_array($p['method'], ['bank_transfer', 'mobile'], true) && empty($p['slip_path']) && empty($p['bank_ref'])): ?>
+              <span class="pill pill-warn" style="background:#fdecea; border:1px solid #c62828; color:#b71c1c;"><?= te('Awaiting proof') ?></span>
+            <?php endif; ?>
             <?php if ($p['status'] === 'ISSUED'): ?>
               <form method="post" style="display:inline">
                 <input type="hidden" name="do_action" value="verify">
                 <input type="hidden" name="payment_id" value="<?= (int)$p['id'] ?>">
+                <input name="amount" type="number" step="any" min="0" value="<?= number_format((float)$p['amount'], 2, '.', '') ?>" title="<?= te('Amount received') ?>" style="width:110px;">
+                <input name="note" placeholder="<?= te('Note') ?>" title="<?= te('Note') ?>" style="width:110px;">
                 <button class="btn btn-green btn-sm" type="submit"><?= te('Verify') ?></button>
               </form>
               <form method="post" style="display:inline">
@@ -148,5 +237,28 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
     <?php endif; ?>
   </main>
 </div>
+<div id="slip-lightbox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:999; align-items:center; justify-content:center; cursor:zoom-out;" onclick="this.style.display='none'">
+  <img src="" alt="" style="max-width:92vw; max-height:92vh; background:#fff; border-radius:6px;">
+</div>
+<script>
+(function(){
+  // Slip photo click-to-zoom.
+  var lb = document.getElementById('slip-lightbox');
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.classList && e.target.classList.contains('slip-zoom')) {
+      lb.style.display = 'flex';
+      lb.querySelector('img').src = e.target.src;
+    }
+  });
+  // Counter form: show Cheque no only when method = cheque.
+  var cm = document.getElementById('counter-method');
+  var cg = document.getElementById('counter-cheque-group');
+  if (cm && cg) {
+    var sync = function() { cg.style.display = cm.value === 'cheque' ? '' : 'none'; };
+    cm.onchange = sync;
+    sync();
+  }
+})();
+</script>
 </body>
 </html>
