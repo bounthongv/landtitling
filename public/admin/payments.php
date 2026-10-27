@@ -137,7 +137,7 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
       </form>
     </div>
 
