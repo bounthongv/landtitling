@@ -527,5 +527,14 @@
   "This village is not mapped to a valuation zone — ask the administrator to map it before this parcel can be billed.": "ບ້ານນີ້ຍັງບໍ່ໄດ້ກຳນົດເຂດປະເມີນລາຄາທີ່ດິນ — ກະລຸນາແຈ້ງຜູ້ດູແລລະບົບ ໃຫ້ກຳນົດເຂດກ່ອນ ຈຶ່ງຈະຄິດໄລ່ຄ່າພາສີໄດ້",
   "Land Parcel Owner": "ເຈົ້າຂອງຕອນດິນ",
   "Tax year": "ປີພັນທະ",
-  "Province (optional)": "ແຂວງ (ບໍ່ບັງຄັບ)"
+  "Province (optional)": "ແຂວງ (ບໍ່ບັງຄັບ)",
+  "UNPAID": "ຍັງບໍ່ຈ່າຍ",
+  "PARTIAL": "ບາງສ່ວນ",
+  "PAID": "ຈ່າຍແລ້ວ",
+  "OVERPAID": "ຈ່າຍເກີນ",
+  "WAIVED": "ຍົກເວັ້ນແລ້ວ",
+  "REJECTED": "ປະຕິເສດແລ້ວ",
+  "REFUNDED": "ຄືນເງິນແລ້ວ",
+  "DISPUTED": "ມີຂໍ້ຂັດແຍ່ງ",
+  "ISSUED": "ອອກແລ້ວ"
 }
