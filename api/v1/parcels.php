@@ -14,6 +14,7 @@ $scope = staff_scope($me);
 // ---- GET: list/search / fetch by id ----
 if ($method === 'GET') {
     $district = $_GET['district_id'] ?? null;
+    $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
     $parcel_no = $_GET['parcel_no'] ?? '';
     $status = $_GET['status'] ?? null;
     $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -67,6 +68,7 @@ if ($method === 'GET') {
     $where = [];
     $params = [];
     if ($district) { $where[] = 'p.district_id = :district'; $params[':district'] = (int)$district; }
+    if ($province_id) { $where[] = 'd.province_id = :province_id'; $params[':province_id'] = $province_id; }
     if ($parcel_no !== '') { $where[] = 'p.parcel_no ILIKE :parcel'; $params[':parcel'] = '%' . $parcel_no . '%'; }
     if ($status) { $where[] = 'p.status = :status'; $params[':status'] = $status; }
     if ($staff && $scope['district_id'] !== null) {
@@ -75,10 +77,15 @@ if ($method === 'GET') {
     }
 
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-    $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name
+    // pr.name_lo AS province overrides the free-text parcels.province column with the
+    // authoritative province name (same source as the filter dropdown), so the UI
+    // never mixes English/Lao spellings of the same province.
+    $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name,
+            pr.name_lo AS province
         FROM parcels p
         JOIN districts d ON d.id = p.district_id
         JOIN villages v ON v.id = p.village_id
+        LEFT JOIN provinces pr ON pr.id = d.province_id
         $whereSql
         ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC
         LIMIT 200");

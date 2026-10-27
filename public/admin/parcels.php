@@ -6,15 +6,15 @@ $role = $user['role'];
 
 $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
 $village_id   = isset($_GET['village_id']) ? (int)$_GET['village_id'] : 0;
-$province    = $_GET['province'] ?? '';
+$province_id  = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
 $parcel_no   = $_GET['parcel_no'] ?? '';
 $status      = $_GET['status'] ?? '';
 
 $url = 'parcels.php';
 if ($district_id) { $url .= '?district_id=' . $district_id; }
-if ($province)    { $url .= ($district_id ? '&' : '?') . 'province=' . urlencode($province); }
-if ($parcel_no)   { $url .= ($district_id || $province ? '&' : '?') . 'parcel_no=' . urlencode($parcel_no); }
-if ($status)      { $url .= ($district_id || $province || $parcel_no ? '&' : '?') . 'status=' . urlencode($status); }
+if ($province_id) { $url .= ($district_id ? '&' : '?') . 'province_id=' . $province_id; }
+if ($parcel_no)   { $url .= ($district_id || $province_id ? '&' : '?') . 'parcel_no=' . urlencode($parcel_no); }
+if ($status)      { $url .= ($district_id || $province_id || $parcel_no ? '&' : '?') . 'status=' . urlencode($status); }
 
 $parcels = [];
 $count = 0;
@@ -23,21 +23,15 @@ if (!empty($d['ok'])) { $parcels = $d['data']['parcels'] ?? []; $count = $d['dat
 
 // districts for filter
 $districts = api_call('GET', 'districts.php', null, $_SESSION['admin_token'])['data'] ?? [];
+// Province dropdown: one row per province, value = province id (stable key, no
+// English/Lao name matching anywhere). Built from the districts join.
 $provinces = [];
 foreach ($districts as $drow) {
-    $p = $drow['province_name'] ?? $drow['province'] ?? '';
-    if ($p && !in_array($p, $provinces, true)) { $provinces[] = $p; }
+    $pid = (int)($drow['province_id'] ?? 0);
+    $pname = $drow['province_name'] ?? '';
+    if ($pid && $pname && !isset($provinces[$pid])) { $provinces[$pid] = $pname; }
 }
-sort($provinces);
-
-// Province filter on the fetched set (server-side province filter could be added
-// to the API later; for now the result set is capped at 200 by the API).
-if ($province !== '') {
-    $parcels = array_values(array_filter($parcels, function($p) use ($province) {
-        return ($p['province'] ?? '') === $province;
-    }));
-    $count = count($parcels);
-}
+asort($provinces);
 
 // Village filter on the fetched set.
 if ($village_id > 0) {
@@ -121,9 +115,9 @@ $roadMap = [
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
         <div class="form-group"><label><?= te('Province') ?></label>
-          <select name="province"><option value=""><?= te('-- all --') ?></option><?php foreach ($provinces as $p): ?><option value="<?= e($p) ?>" <?= $province === $p ? 'selected' : '' ?>><?= e($p) ?></option><?php endforeach; ?></select>
+          <select name="province_id" id="parcels-province"><option value=""><?= te('-- all --') ?></option><?php foreach ($provinces as $pid => $pname): ?><option value="<?= $pid ?>" <?= $province_id === $pid ? 'selected' : '' ?>><?= e($pname) ?></option><?php endforeach; ?></select>
         </div>
-        <div class="form-group"><label><?= te('District') ?></label><select name="district_id" id="parcels-district"><option value=""><?= te('-- all --') ?></option><?php foreach ($districts as $d): ?><option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?><?= !empty($d['province_name']) ? ' — ' . e($d['province_name']) : '' ?></option><?php endforeach; ?></select></div>
+        <div class="form-group"><label><?= te('District') ?></label><select name="district_id" id="parcels-district"><option value=""><?= te('-- all --') ?></option><?php foreach ($districts as $d): ?><option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option><?php endforeach; ?></select></div>
         <div class="form-group"><label><?= te('Village') ?></label><select name="village_id" id="parcels-village" disabled><option value=""><?= te('-- select district first --') ?></option></select></div>
         <div class="form-group"><label><?= te('Status') ?></label>
           <select name="status"><option value=""><?= te('-- all --') ?></option><option value="confirmed" <?= $status === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option><option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option><option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>><?= te('Draft') ?></option></select></div>
@@ -173,11 +167,41 @@ $roadMap = [
 </div>
 
 <script>
+// All districts (id, name_lo, province_id) — the province→district cascade
+// filters this client-side; no extra API round-trip or auth header needed.
+var allDistricts = <?= json_encode($districts, JSON_UNESCAPED_UNICODE) ?>;
 (function(){
+  var provinceSel = document.getElementById('parcels-province');
   var districtSel = document.getElementById('parcels-district');
   var villageSel  = document.getElementById('parcels-village');
   if (!districtSel || !villageSel) return;
 
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  // Rebuild the district dropdown to only the selected province's districts.
+  function rebuildDistricts(provinceId) {
+    var opts = '<option value="">-- all --</option>';
+    for (var i = 0; i < allDistricts.length; i++) {
+      var d = allDistricts[i];
+      if (!provinceId || Number(d.province_id) === Number(provinceId)) {
+        opts += '<option value="' + d.id + '">' + esc(d.name_lo || d.name_en || '') + '</option>';
+      }
+    }
+    districtSel.innerHTML = opts;
+  }
+
+  // Province change -> refilter the district list, reset the village cascade.
+  provinceSel.onchange = function() {
+    rebuildDistricts(this.value || '');
+    villageSel.innerHTML = '<option value="">-- select district first --</option>';
+    villageSel.disabled = true;
+  };
+
+  // Initial state: if a province filter was applied, restrict the district list
+  // before re-selecting the district and loading its villages.
+  var initialDistrict = districtSel.value;
+  if (provinceSel.value) { rebuildDistricts(provinceSel.value); }
+  if (initialDistrict)   { districtSel.value = initialDistrict; }
   if (districtSel.value) { loadVillages(districtSel.value); }
 
   districtSel.onchange = function() {
