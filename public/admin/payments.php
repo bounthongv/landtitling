@@ -144,7 +144,7 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
     <div class="form-box" style="border-left:4px solid #b8860b;">
       <h2><?= te('Record counter payment') ?></h2>
       <p class="sub"><?= te('Cash or cheque received at the district office — settles the obligation immediately and prints the receipt.') ?></p>
-      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;">
+      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="settle">
         <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" required></div>
         <div class="form-group"><label><?= te('Tax year') ?></label>
