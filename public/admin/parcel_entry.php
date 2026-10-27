@@ -124,12 +124,12 @@ $parsedLabels = [
     .cert-head {
       text-align: center;
       padding: 14px 12px;
-      border-bottom: 2px solid #4a7c59;
-      background: #f4f9f4;
+      border-bottom: 2px solid #3a6a4a;
+      background: #4a7c59;
     }
-    .cert-head .l1 { font-size: 16px; color: #333; }
-    .cert-head .l2 { font-size: 14px; color: #555; }
-    .cert-head .l3 { font-size: 14px; color: #555; }
+    .cert-head .l1 { font-size: 16px; color: #fff; }
+    .cert-head .l2 { font-size: 14px; color: #eef5ef; }
+    .cert-head .l3 { font-size: 14px; color: #eef5ef; }
     /* Tax footer block — like the header frame, distinct colour, sits below
        the certificate fields (these two are system fields, not on the paper form). */
     .cert-foot {
@@ -190,11 +190,11 @@ $parsedLabels = [
   .cert-row.req-row > label { color: #1b5e20; }
   .req-legend {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 8px 0 10px; font-size: 14px; font-weight: 600; color: #1b5e20;
+    padding: 8px 0 10px; font-size: 14px; font-weight: 600; color: #fff;
   }
   .req-legend .swatch {
     display: inline-block; width: 24px; height: 16px; border-radius: 3px;
-    border: 1px solid #4a7c59; background: #e8f0ea;
+    border: 1px solid #fff; background: #e8f0ea;
   }
   /* Certificate fields that Phase 1 does not require stay available, but folded
      away so the working form is short. Order inside keeps the paper's numbering. */
