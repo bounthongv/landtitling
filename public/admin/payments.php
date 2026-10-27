@@ -50,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
             $d = api_call('POST', 'payments.php?settle=1', $body, $token);
             if (!empty($d['ok'])) {
                 $msg = t('Payment received and settled — receipt ready.');
+                $lastId = (int)($d['data']['id'] ?? 0);
                 $lastReceipt = $d['data']['receipt'] ?? '';
             } else {
                 $msg = $d['error']['message'] ?? t('Settle failed.');
@@ -108,7 +109,7 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
 
     <?php if ($msg): ?>
       <p class="flash <?= $msgType === 'err' ? 'err' : 'ok' ?>"><?= e($msg) ?>
-        <?php if ($lastReceipt): ?> <a href="<?= e($api_base) ?>/<?= e($lastReceipt) ?>" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a><?php endif; ?>
+        <?php if ($lastReceipt): ?> <a href="<?= $base ?>/slip_print.php?id=<?= (int)($lastId ?? 0) ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a><?php endif; ?>
       </p>
     <?php endif; ?>
 
@@ -197,9 +198,9 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
               <p><b><?= te('Slip photo') ?>:</b><br><img src="<?= e($p['slip_path']) ?>" class="slip-zoom" style="max-width:220px; border-radius:4px; background:#fff; cursor:zoom-in;" alt="<?= te('Slip photo') ?>"></p>
             <?php endif; ?>
             <p><?php if ($p['status'] === 'PAID'): ?>
-              <a href="<?= $api_base ?>/payments.php?id=<?= (int)$p['id'] ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a>
+              <a href="<?= $base ?>/slip_print.php?id=<?= (int)$p['id'] ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a>
             <?php else: ?>
-              <a href="<?= $api_base ?>/payments.php?id=<?= (int)$p['id'] ?>&slip=1" target="_blank" class="btn btn-blue btn-sm"><?= te('Print slip') ?></a>
+              <a href="<?= $base ?>/slip_print.php?id=<?= (int)$p['id'] ?>&slip=1" target="_blank" class="btn btn-blue btn-sm"><?= te('Print slip') ?></a>
             <?php endif; ?></p>
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
