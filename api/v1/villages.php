@@ -23,7 +23,12 @@ if ($method === 'GET') {
         $where[] = 'd.province_id = :pid';
         $params[':pid'] = $province_id;
     }
-    // District staff see only their own district's villages.
+    // District staff see only their own district's villages. The token is
+    // OPTIONAL on this endpoint (the write path below is what requires one), so
+    // the scope is only known when a token is sent — and it has to be resolved
+    // here, before the query, not further down after this branch has returned.
+    $me = auth_current();
+    $scope = $me ? staff_scope($me) : ['district_id' => null, 'can_write' => false];
     if ($scope['district_id'] !== null) {
         $where[] = 'v.district_id = :scope_did';
         $params[':scope_did'] = $scope['district_id'];

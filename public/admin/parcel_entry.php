@@ -174,6 +174,46 @@ $parsedLabels = [
     .cert-row.wide { }
     @media (max-width: 768px) { .cert-row .val { min-width: 100%; } }
 
+  /* Phase 1: only the fields an officer must fill carry the green treatment —
+     the same frame as the tax footer. No asterisks and no "(optional)" wording;
+     the colour says it. */
+  .req-field input, .req-field select {
+    border: 1px solid #4a7c59;
+    background: #e8f0ea;
+  }
+  .req-field input:focus, .req-field select:focus { background: #fff; }
+  .cert-row .inline .ci.req-field label { color: #1b5e20; font-weight: 600; }
+  .cert-row.req-row > label { color: #1b5e20; }
+  .req-legend {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px 0 10px; font-size: 12px; font-weight: 600; color: #1b5e20;
+  }
+  .req-legend .swatch {
+    display: inline-block; width: 24px; height: 14px; border-radius: 3px;
+    border: 1px solid #4a7c59; background: #e8f0ea;
+  }
+  /* Certificate fields that Phase 1 does not require stay available, but folded
+     away so the working form is short. Order inside keeps the paper's numbering. */
+  .opt-block {
+    margin: 10px 12px; border: 1px dashed #c9c0aa; border-radius: 4px;
+    background: #fffdf8; padding: 0;
+  }
+  .opt-block > summary {
+    cursor: pointer; padding: 9px 12px; font-size: 13px;
+    font-weight: 600; color: #6b5b3e;
+  }
+  .opt-block[open] > summary { border-bottom: 1px dashed #c9c0aa; }
+  .opt-block .cert-row { padding-left: 12px; padding-right: 12px; }
+  /* Tax estimate under the footer fields. */
+  .tax-preview {
+    display: none; margin-top: 10px; padding: 8px 10px; border-radius: 4px;
+    background: #fff; border: 1px solid #4a7c59; font-size: 13px; color: #1b5e20;
+  }
+  .tax-preview.show { display: block; }
+  .tax-preview strong { font-size: 15px; }
+  .zone-warn { display: none; margin-top: 6px; font-size: 12px; font-weight: 600; color: #b71c1c; }
+  .zone-warn.show { display: block; }
+
   .form-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
   .preview-box { padding: 10px 12px; margin-top: 14px; font-size: 13px; border-radius: 4px; background: #fafafa; border: 1px solid #ddd; }
   .preview-box.ok { background: #eaf4ea; border-color: #2e7d32; }
@@ -224,124 +264,156 @@ $parsedLabels = [
               <div class="l1"><?= te('Ministry of Natural Resources and Environment') ?></div>
               <div class="l2"><?= te('Province/District Land &amp; Environment Office') ?></div>
               <div class="l3"><?= te('LAND TITLE') ?> — <?= te('ໃບຕາດິນ') ?></div>
+              <div class="req-legend"><span class="swatch"></span><?= te('Required fields') ?></div>
             </div>
             <!-- #1 -->
-            <div class="cert-row">
+            <div class="cert-row req-row">
               <label><?= te('Ref No') ?></label>
-              <div class="val"><input type="text" name="ref_no" required></div>
+              <div class="val req-field"><input type="text" name="ref_no" required></div>
             </div>
-            <!-- #2 -->
-            <div class="cert-row">
-              <label><?= te('Issue Batch') ?></label>
-              <div class="val"><input type="text" name="issue_batch"></div>
-            </div>
-            <!-- #3 -->
-            <div class="cert-row">
-              <label><?= te('Parcel Location') ?></label>
-              <div class="val"><input type="text" name="location" placeholder="10.002.0027"></div>
-            </div>
-            <!-- #4-7: Province / District / Village / Unit -->
+            <!-- #4-6: land location. #7 Unit moved into Optional details. -->
             <div class="cert-row">
               <label><?= te('Parcel address') ?></label>
               <div class="inline">
-                <span class="ci"><label><?= te('Province') ?></label><select name="province" id="prov-select"><option value=""></option></select></span>
-                <span class="ci"><label><?= te('District') ?></label><select name="district_id" id="dist-select"><option value=""></option></select></span>
-                <span class="ci"><label><?= te('Village') ?></label><select name="village_id" id="vill-select"><option value=""></option></select></span>
-                <span class="ci"><label><?= te('Unit') ?></label><input type="text" name="unit"></span>
+                <span class="ci req-field"><label><?= te('Province') ?></label><select name="province" id="prov-select" required><option value=""></option></select></span>
+                <span class="ci req-field"><label><?= te('District') ?></label><select name="district_id" id="dist-select" required><option value=""></option></select></span>
+                <span class="ci req-field"><label><?= te('Village') ?></label><select name="village_id" id="vill-select" required><option value=""></option></select></span>
               </div>
             </div>
             <!-- #8 -->
-            <div class="cert-row">
+            <div class="cert-row req-row">
               <label><?= te('Issued To') ?></label>
-              <div class="val"><input type="text" name="owner_name" required></div>
+              <div class="val req-field"><input type="text" name="owner_name" required></div>
             </div>
-            <!-- #9-11: DOB / Nationality / Occupation -->
+            <!-- Owner phone: optional, but it is the bridge to the citizen app
+                 (citizen sign-in is by phone number), so it stays visible. -->
             <div class="cert-row">
-              <label><?= te('Owner identity') ?></label>
-              <div class="inline">
-                <span class="ci"><label><?= te('Date of Birth') ?></label><input type="date" name="dob"></span>
-                <span class="ci"><label><?= te('Nationality') ?></label><input type="text" name="nationality"></span>
-                <span class="ci"><label><?= te('Occupation') ?></label><input type="text" name="occupation"></span>
+              <label><?= te('Phone') ?></label>
+              <div class="val"><input type="text" name="owner_phone" placeholder="020 555 1234"></div>
+            </div>
+            <!-- #27 -->
+            <div class="cert-row req-row">
+              <label><?= te('Parcel No') ?></label>
+              <div class="val req-field"><input type="text" name="parcel_no" required></div>
+            </div>
+            <!-- #28 -->
+            <div class="cert-row req-row">
+              <label><?= te('Land Area') ?></label>
+              <div class="val req-field"><input type="number" step="0.01" min="0" name="area" required></div>
+            </div>
+
+            <!-- Certificate fields Phase 1 does not require. Kept in certificate
+                 order, so an officer can still follow the paper top-to-bottom. -->
+            <details class="opt-block" id="opt-block">
+              <summary><?= te('Optional details') ?></summary>
+              <!-- #2 -->
+              <div class="cert-row">
+                <label><?= te('Issue Batch') ?></label>
+                <div class="val"><input type="text" name="issue_batch"></div>
               </div>
-            </div>
-            <!-- #12-15: current address village/unit/district/province (cascade order: prov, dist, vill, unit) -->
-            <div class="cert-row">
-              <label><?= te('Current address') ?></label>
-              <div class="inline">
-                <span class="ci"><label><?= te('Province') ?></label><select name="addr_province" id="addr-prov-select"><option value=""></option></select></span>
-                <span class="ci"><label><?= te('District') ?></label><select name="addr_district" id="addr-dist-select"><option value=""></option></select></span>
-                <span class="ci"><label><?= te('Village') ?></label><select name="addr_village" id="addr-vill-select"><option value=""></option></select></span>
-                <span class="ci"><label><?= te('Unit') ?></label><input type="text" name="addr_unit"></span>
+              <!-- #3 -->
+              <div class="cert-row">
+                <label><?= te('Parcel Location') ?></label>
+                <div class="val"><input type="text" name="location" placeholder="10.002.0027"></div>
               </div>
-            </div>
-            <!-- #16-19: spouse block -->
-            <div class="cert-row">
-              <label><?= te('Spouse') ?></label>
-              <div class="inline">
-                <span class="ci" style="flex:1; min-width:220px;"><label><?= te('Spouse Name') ?></label><input type="text" name="spouse_name"></span>
-                <span class="ci"><label><?= te('Date of Birth') ?></label><input type="date" name="spouse_dob"></span>
-                <span class="ci"><label><?= te('Nationality') ?></label><input type="text" name="spouse_nat"></span>
-                <span class="ci"><label><?= te('Occupation') ?></label><input type="text" name="spouse_occ"></span>
+              <!-- #7 -->
+              <div class="cert-row">
+                <label><?= te('Unit') ?></label>
+                <div class="val"><input type="text" name="unit"></div>
               </div>
-            </div>
-            <!-- #20 -->
-            <div class="cert-row">
-              <label><?= te('Land Right Acquired') ?></label>
-              <div class="val"><input type="text" name="acquired"></div>
-            </div>
-            <!-- #21 -->
-            <div class="cert-row">
-              <label><?= te('Land Right Owner Status') ?></label>
-              <div class="val"><input type="text" name="status"></div>
-            </div>
-            <!-- #22-23: land type + descriptive zone -->
-            <div class="cert-row">
-              <label><?= te('Land type / Zone') ?></label>
-              <div class="inline">
-                <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Land Type') ?></label><input type="text" name="land_type"></span>
-                <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Zone') ?></label><input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ"></span>
+              <!-- #9-11: DOB / Nationality / Occupation -->
+              <div class="cert-row">
+                <label><?= te('Owner identity') ?></label>
+                <div class="inline">
+                  <span class="ci"><label><?= te('Date of Birth') ?></label><input type="date" name="dob"></span>
+                  <span class="ci"><label><?= te('Nationality') ?></label><input type="text" name="nationality"></span>
+                  <span class="ci"><label><?= te('Occupation') ?></label><input type="text" name="occupation"></span>
+                </div>
               </div>
-            </div>
-            <!-- #24-27: book/leaf/map/parcel -->
-                        <div class="cert-row">
-              <label><?= te('Registration') ?></label>
-              <div class="inline">
-                <span class="ci"><label><?= te('Registration Book') ?></label><input type="text" name="book"></span>
-                <span class="ci"><label><?= te('Leaf No') ?></label><input type="text" name="leaf"></span>
-                <span class="ci"><label><?= te('Map No') ?></label><input type="text" name="map_no" placeholder="e.g. A250-038"></span>
-                <span class="ci"><label><?= te('Parcel No') ?></label><input type="text" name="parcel_no" required></span>
+              <!-- #12-15: current address (cascade order: prov, dist, vill, unit) -->
+              <div class="cert-row">
+                <label><?= te('Current address') ?></label>
+                <div class="inline">
+                  <span class="ci"><label><?= te('Province') ?></label><select name="addr_province" id="addr-prov-select"><option value=""></option></select></span>
+                  <span class="ci"><label><?= te('District') ?></label><select name="addr_district" id="addr-dist-select"><option value=""></option></select></span>
+                  <span class="ci"><label><?= te('Village') ?></label><select name="addr_village" id="addr-vill-select"><option value=""></option></select></span>
+                  <span class="ci"><label><?= te('Unit') ?></label><input type="text" name="addr_unit"></span>
+                </div>
               </div>
-            </div>
-            <!-- #28-29: area + scale -->
-            <div class="cert-row">
-              <label><?= te('Land measure') ?></label>
-              <div class="inline">
-                <span class="ci"><label><?= te('Land Area') ?></label><input type="number" step="0.01" min="0" name="area" required></span>
-                <span class="ci"><label><?= te('Scale') ?></label><input type="text" name="scale" placeholder="e.g. 1/8000"></span>
+              <!-- #16-19: spouse block -->
+              <div class="cert-row">
+                <label><?= te('Spouse') ?></label>
+                <div class="inline">
+                  <span class="ci" style="flex:1; min-width:220px;"><label><?= te('Spouse Name') ?></label><input type="text" name="spouse_name"></span>
+                  <span class="ci"><label><?= te('Date of Birth') ?></label><input type="date" name="spouse_dob"></span>
+                  <span class="ci"><label><?= te('Nationality') ?></label><input type="text" name="spouse_nat"></span>
+                  <span class="ci"><label><?= te('Occupation') ?></label><input type="text" name="spouse_occ"></span>
+                </div>
               </div>
-            </div>
-            <!-- #30-33: issued at + date -->
-                        <div class="cert-row">
-                          <label><?= te('Issue location') ?></label>
-                          <div class="inline">
-                            <span class="ci"><label><?= te('Issued At') ?></label><select name="issued_at" id="issued-prov-select"><option value=""></option></select></span>
-                <span class="ci"><label><?= te('Day') ?></label><input type="number" min="1" max="31" name="issue_day"></span>
-                <span class="ci"><label><?= te('Month') ?></label><input type="number" min="1" max="12" name="issue_month"></span>
-                <span class="ci"><label><?= te('Year') ?></label><input type="number" min="1900" max="2100" name="issue_year"></span>
+              <!-- #20 -->
+              <div class="cert-row">
+                <label><?= te('Land Right Acquired') ?></label>
+                <div class="val"><input type="text" name="acquired"></div>
               </div>
-            </div>
+              <!-- #21 -->
+              <div class="cert-row">
+                <label><?= te('Land Right Owner Status') ?></label>
+                <div class="val"><input type="text" name="status"></div>
+              </div>
+              <!-- #22/#23. Land Type is a lookup code (FK: land_use_classes), not
+                   free text — options are loaded from the API. #23 zone_text is
+                   descriptive only; the real tax zone is in the footer. -->
+              <div class="cert-row">
+                <label><?= te('Land type / Zone') ?></label>
+                <div class="inline">
+                  <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Land Type') ?></label><select name="land_type" id="land-type-select"><option value=""><?= te('-- select --') ?></option></select></span>
+                  <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Zone') ?></label><input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ"></span>
+                </div>
+              </div>
+              <!-- #24-26: registration book / leaf / map. (#27 Parcel No is
+                   required and now sits at the top of the form.) -->
+              <div class="cert-row">
+                <label><?= te('Registration') ?></label>
+                <div class="inline">
+                  <span class="ci"><label><?= te('Registration Book') ?></label><input type="text" name="book"></span>
+                  <span class="ci"><label><?= te('Leaf No') ?></label><input type="text" name="leaf"></span>
+                  <span class="ci"><label><?= te('Map No') ?></label><input type="text" name="map_no" placeholder="e.g. A250-038"></span>
+                </div>
+              </div>
+              <!-- #29 -->
+              <div class="cert-row">
+                <label><?= te('Scale') ?></label>
+                <div class="val"><input type="text" name="scale" placeholder="e.g. 1/8000"></div>
+              </div>
+              <!-- #30-33: issued at + date -->
+              <div class="cert-row">
+                <label><?= te('Issue location') ?></label>
+                <div class="inline">
+                  <span class="ci"><label><?= te('Issued At') ?></label><select name="issued_at" id="issued-prov-select"><option value=""></option></select></span>
+                  <span class="ci"><label><?= te('Day') ?></label><input type="number" min="1" max="31" name="issue_day"></span>
+                  <span class="ci"><label><?= te('Month') ?></label><input type="number" min="1" max="12" name="issue_month"></span>
+                  <span class="ci"><label><?= te('Year') ?></label><input type="number" min="1900" max="2100" name="issue_year"></span>
+                </div>
+              </div>
+            </details>
             <!-- System fields (not on the paper certificate): valuation zone + road access -->
             <div class="cert-foot">
-              <div class="ft-title"><?= te('Tax') ?></div>
-              <div class="inline">
-                <span class="ci"><label><?= te('Valuation zone (tax)') ?></label><select name="zone_code" id="zone-code-select" required><option value=""><?= te('-- select --') ?></option></select></span>
-                <span class="ci"><label><?= te('Road access') ?></label><select name="road_category" required>
-                  <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
-                  <option value="<?= $rc ?>" <?= $rc === 'none' ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
-                  <?php endforeach; ?>
-                </select></span>
-              </div>
-            </div>
+                          <div class="ft-title"><?= te('Tax') ?></div>
+                          <div class="inline">
+                            <span class="ci"><label><?= te('Valuation zone (tax)') ?></label><select name="zone_code" id="zone-code-select" required><option value=""><?= te('-- select --') ?></option></select></span>
+                            <!-- No default: Road access decides which of the zone's four rates
+                                 applies, so it must be a deliberate choice. Defaulting it to
+                                 "none" silently billed every parcel at the lowest rate. -->
+                            <span class="ci"><label><?= te('Road access') ?></label><select name="road_category" id="road-category-select" required>
+                              <option value=""><?= te('-- select --') ?></option>
+                              <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
+                              <option value="<?= $rc ?>"><?= te($rcLabel) ?></option>
+                              <?php endforeach; ?>
+                            </select></span>
+                          </div>
+                          <div class="zone-warn" id="zone-warn"><?= te('This village is not mapped to a valuation zone — ask the administrator to map it before this parcel can be billed.') ?></div>
+                          <div class="tax-preview" id="tax-preview"></div>
+                        </div>
           </div>
 
           <div class="form-actions">
@@ -428,7 +500,9 @@ const I18N = <?= json_encode([
   'conf'          => t('Conf.'),
   'noFields'      => t('No fields parsed — fill them in below.'),
   'applied'       => t('OCR applied to the form. Review, correct, then Save.'),
-  ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    'taxEstimate'   => t('Estimated tax'),
+    'kip'           => t('kip'),
+    ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
 // Edit parcel data passed from PHP
 const EDIT_PARCEL = <?php echo json_encode($editParcel ?? null, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -504,8 +578,9 @@ async function loadGeoData() {
     if (p) provSet.add(p);
   });
   provinces = [...provSet].sort();
-  populateProvSelects();
-}
+    populateProvSelects();
+    await loadLandUseOptions();
+  }
 
 function populateProvSelects() {
   const opts = '<option value="">' + esc(I18N.select) + '</option>' +
@@ -551,28 +626,86 @@ document.getElementById('dist-select').addEventListener('change', async function
 
 /* Auto-fill the valuation zone from the chosen parcel village (#6).
    A village maps to exactly one zone (villages.zone_id); picking the village
-   selects that zone in the Tax footer. The officer can still override it. */
+   selects that zone in the Tax footer. The officer can still override it.
+   When the village is not mapped we say so instead of silently billing the
+   parcel against a placeholder zone. */
 document.getElementById('vill-select').addEventListener('change', function() {
   const vid = parseInt(this.value, 10);
   const v = allVillages.find(x => x.id === vid);
   const zoneCode = v && v.zone_id ? v.zone_id : '';
   const zsel = document.getElementById('zone-code-select');
-  if (!zsel) return;
-  if (zoneCode) {
-    // Ensure the option exists (it should, since the zone is mapped to this village).
-    let found = false;
-    Array.from(zsel.options).forEach(o => { if (o.value === zoneCode) found = true; });
-    if (!found) {
-      const opt = document.createElement('option');
-      opt.value = zoneCode;
-      opt.textContent = zoneCode;
-      zsel.appendChild(opt);
+  const warn = document.getElementById('zone-warn');
+  if (warn) warn.classList.toggle('show', !!vid && !zoneCode);
+  if (zsel) {
+    if (zoneCode) {
+      // Ensure the option exists (it should, since the zone is mapped to this village).
+      let found = false;
+      Array.from(zsel.options).forEach(o => { if (o.value === zoneCode) found = true; });
+      if (!found) {
+        const opt = document.createElement('option');
+        opt.value = zoneCode;
+        opt.textContent = zoneCode;
+        zsel.appendChild(opt);
+      }
+      zsel.value = zoneCode;
+    } else {
+      zsel.value = '';
     }
-    zsel.value = zoneCode;
-  } else {
-    zsel.value = '';
   }
+  updateTaxPreview();
 });
+
+/* ---------- live tax estimate (rate × area) ----------
+   The rate is the zone's tier for the chosen road access; rates.php already
+   returns all four per zone, so this needs no extra request. Display only —
+   the fee that is stored is computed server-side when the parcel is saved. */
+function zoneRateFor(zoneCode, roadCategory) {
+  const z = allZones.find(x => x.code === zoneCode);
+  if (!z || !z.rates) return null;
+  const r = z.rates[roadCategory];
+  return (r === undefined || r === null || r === '') ? null : Number(r);
+}
+function updateTaxPreview() {
+  const box = document.getElementById('tax-preview');
+  if (!box) return;
+  const zone = v('zone_code');
+  const road = v('road_category');
+  const area = parseFloat(v('area'));
+  const rate = (zone && road) ? zoneRateFor(zone, road) : null;
+  if (!zone || !road || !(area > 0) || rate === null) {
+    box.classList.remove('show');
+    box.innerHTML = '';
+    return;
+  }
+  const amount = Math.round(rate * area * 100) / 100;
+  box.innerHTML = esc(I18N.taxEstimate) + ': <strong>' + amount.toLocaleString('en-US') + '</strong> '
+    + esc(I18N.kip) + ' <span style="font-weight:500">('
+    + rate.toLocaleString('en-US') + ' × ' + area + ' m²)</span>';
+  box.classList.add('show');
+}
+// onchange/oninput properties rather than addEventListener: in mod_php an
+// addEventListener('change') binding on a select can silently never fire.
+document.getElementById('zone-code-select').onchange  = updateTaxPreview;
+document.getElementById('road-category-select').onchange = updateTaxPreview;
+const areaInput = document.querySelector('[name="area"]');
+if (areaInput) areaInput.oninput = updateTaxPreview;
+
+/* Land Type is a lookup code (FK → land_use_classes); load the options from the
+   API so the form always matches the lookup table. Optional field: if it fails,
+   the empty select simply stays empty. */
+async function loadLandUseOptions() {
+  const sel = document.getElementById('land-type-select');
+  if (!sel) return;
+  try {
+    const r = await fetch('/api/v1/refdata.php?table=land_use_classes',
+      { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    const j = await r.json();
+    const rows = Array.isArray(j.data) ? j.data : [];
+    if (!rows.length) return;
+    sel.innerHTML = '<option value="">' + esc(I18N.select) + '</option>' +
+      rows.map(t => '<option value="' + esc(t.code) + '">' + esc(t.name_lo || t.name_en || t.code) + '</option>').join('');
+  } catch (e) { /* optional field — leave it empty */ }
+}
 
 /* ---------- address cascade: #15 province → #14 district (name) → #12 village (name) ---------- */
 document.getElementById('addr-prov-select').addEventListener('change', function() {
@@ -642,8 +775,9 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   const owners = [];
   if (v('owner_name')) {
     owners.push({
-      full_name:           v('owner_name'),
-      date_of_birth:       v('dob') || undefined,
+          full_name:           v('owner_name'),
+          phone:               v('owner_phone') || undefined,
+          date_of_birth:       v('dob') || undefined,
       nationality:         v('nationality') || undefined,
       occupation:          v('occupation') || undefined,
       address_province:    v('addr_province') || undefined,
@@ -900,47 +1034,86 @@ function prefillEditParcel() {
     if (p[apiKey]) setVal(formName, p[apiKey]);
   });
 
-  // Select dropdowns - these need to be set after loadGeoData populates them
-  // We'll set them after a short delay to let the cascades populate
-  setTimeout(() => {
-    if (p.district_id) setVal('district_id', p.district_id);
-    if (p.village_id) setVal('village_id', p.village_id);
-    if (p.zone_code) setVal('zone_code', p.zone_code);
-    if (p.road_category) setVal('road_category', p.road_category);
+  // The cascades are walked in order and awaited, instead of poking values into
+    // selects that do not hold their options yet (which silently did nothing).
+    (async () => {
+      // Land location: province → district → village → zone auto-fill
+      if (p.district_id) {
+        const d = allDistricts.find(x => Number(x.id) === Number(p.district_id));
+        const provName = d ? (d.province_name || d.province || '') : '';
+        if (provName) {
+          document.getElementById('prov-select').value = provName;
+          document.getElementById('prov-select').dispatchEvent(new Event('change'));
+        }
+        document.getElementById('dist-select').value = String(p.district_id);
+        document.getElementById('dist-select').dispatchEvent(new Event('change'));
+        const vils = await ensureVillages(parseInt(p.district_id, 10));
+        allVillages = vils;
+        document.getElementById('vill-select').innerHTML =
+          '<option value="">' + esc(I18N.select) + '</option>' +
+          vils.map(v => '<option value="' + v.id + '">' + esc(v.name_lo) + '</option>').join('');
+        if (p.village_id) {
+          setVal('village_id', p.village_id);
+          document.getElementById('vill-select').dispatchEvent(new Event('change'));
+        }
+      }
+      if (p.zone_code) setVal('zone_code', p.zone_code);
+      if (p.road_category) setVal('road_category', p.road_category);
 
-    // Issued date
-    if (p.issued_date && /^\d{4}-\d{2}-\d{2}$/.test(p.issued_date)) {
-      const [py, pm, pd] = p.issued_date.split('-');
-      setVal('issue_year', py);
-      setVal('issue_month', pm);
-      setVal('issue_day', pd);
-    }
+      // Issued date
+      if (p.issued_date && /^\d{4}-\d{2}-\d{2}$/.test(p.issued_date)) {
+        const [py, pm, pd] = p.issued_date.split('-');
+        setVal('issue_year', py);
+        setVal('issue_month', pm);
+        setVal('issue_day', pd);
+      }
 
-    // Owners
-    if (EDIT_OWNERS && EDIT_OWNERS.length) {
-      const o = EDIT_OWNERS[0];
-      if (o.full_name) setVal('owner_name', o.full_name);
-      if (o.date_of_birth) setVal('dob', o.date_of_birth);
-      if (o.nationality) setVal('nationality', o.nationality);
-      if (o.occupation) setVal('occupation', o.occupation);
-      if (o.address_province) setVal('addr_province', o.address_province);
-      if (o.address_district) setVal('addr_district', o.address_district);
-      if (o.address_village) setVal('addr_village', o.address_village);
-      if (o.address_unit) setVal('addr_unit', o.address_unit);
-    }
-    if (EDIT_OWNERS && EDIT_OWNERS.length > 1) {
-      const s = EDIT_OWNERS[1];
-      if (s.full_name) setVal('spouse_name', s.full_name);
-      if (s.date_of_birth) setVal('spouse_dob', s.date_of_birth);
-      if (s.nationality) setVal('spouse_nat', s.nationality);
-      if (s.occupation) setVal('spouse_occ', s.occupation);
-    }
-  }, 300);
-}
+      // Owners
+      if (EDIT_OWNERS && EDIT_OWNERS.length) {
+        const o = EDIT_OWNERS[0];
+        if (o.full_name) setVal('owner_name', o.full_name);
+        if (o.phone) setVal('owner_phone', o.phone);
+        if (o.date_of_birth) setVal('dob', o.date_of_birth);
+        if (o.nationality) setVal('nationality', o.nationality);
+        if (o.occupation) setVal('occupation', o.occupation);
+        if (o.address_unit) setVal('addr_unit', o.address_unit);
+        // #12-15 address cascade stores NAMES, so it is walked the same way.
+        if (o.address_province) {
+          document.getElementById('addr-prov-select').value = o.address_province;
+          document.getElementById('addr-prov-select').dispatchEvent(new Event('change'));
+        }
+        if (o.address_district) {
+          document.getElementById('addr-dist-select').value = o.address_district;
+          document.getElementById('addr-dist-select').dispatchEvent(new Event('change'));
+          const ad = allDistricts.find(x => x.name_lo === o.address_district);
+          if (ad) {
+            const avils = await ensureVillages(ad.id);
+            document.getElementById('addr-vill-select').innerHTML =
+              '<option value="">' + esc(I18N.select) + '</option>' +
+              avils.map(v => '<option value="' + esc(v.name_lo) + '">' + esc(v.name_lo) + '</option>').join('');
+            if (o.address_village) setVal('addr_village', o.address_village);
+          }
+        }
+      }
+      if (EDIT_OWNERS && EDIT_OWNERS.length > 1) {
+        const s = EDIT_OWNERS[1];
+        if (s.full_name) setVal('spouse_name', s.full_name);
+        if (s.date_of_birth) setVal('spouse_dob', s.date_of_birth);
+        if (s.nationality) setVal('spouse_nat', s.nationality);
+        if (s.occupation) setVal('spouse_occ', s.occupation);
+      }
 
-prefillEditParcel();
+      // Editing an existing parcel: unfold the optional fields so nothing is
+      // hidden, and refresh the tax estimate.
+      const opt = document.getElementById('opt-block');
+      if (opt) opt.open = true;
+      updateTaxPreview();
+    })();
+  }
 
-loadGeoData();
+  // Geo data first, then the edit prefill: the prefill walks the province →
+  // district → village cascade, which only exists once the lists are loaded.
+  loadGeoData().then(() => prefillEditParcel());
 </script>
 </body>
 </html>
