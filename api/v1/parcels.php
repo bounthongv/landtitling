@@ -15,6 +15,7 @@ $scope = staff_scope($me);
 if ($method === 'GET') {
     $district = $_GET['district_id'] ?? null;
     $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
+    $owner_name = trim((string)($_GET['owner_name'] ?? ''));
     $parcel_no = $_GET['parcel_no'] ?? '';
     $status = $_GET['status'] ?? null;
     $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -69,6 +70,14 @@ if ($method === 'GET') {
     $params = [];
     if ($district) { $where[] = 'p.district_id = :district'; $params[':district'] = (int)$district; }
     if ($province_id) { $where[] = 'd.province_id = :province_id'; $params[':province_id'] = $province_id; }
+    if ($owner_name !== '') {
+        // Contains-match (wildcard) on any owner's full name — same name the
+        // certificate calls "Issued To" (owners.full_name via parcel_owners).
+        $where[] = "EXISTS (SELECT 1 FROM parcel_owners po
+                    JOIN owners o ON o.id = po.owner_id
+                    WHERE po.parcel_id = p.id AND o.full_name ILIKE :owner)";
+        $params[':owner'] = '%' . $owner_name . '%';
+    }
     if ($parcel_no !== '') { $where[] = 'p.parcel_no ILIKE :parcel'; $params[':parcel'] = '%' . $parcel_no . '%'; }
     if ($status) { $where[] = 'p.status = :status'; $params[':status'] = $status; }
     if ($staff && $scope['district_id'] !== null) {
@@ -81,7 +90,10 @@ if ($method === 'GET') {
     // authoritative province name (same source as the filter dropdown), so the UI
     // never mixes English/Lao spellings of the same province.
     $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name,
-            pr.name_lo AS province
+            pr.name_lo AS province,
+            (SELECT string_agg(o.full_name, ', ' ORDER BY CASE WHEN po.role = 'owner' THEN 0 ELSE 1 END, o.full_name)
+             FROM parcel_owners po JOIN owners o ON o.id = po.owner_id
+             WHERE po.parcel_id = p.id) AS owners_names
         FROM parcels p
         JOIN districts d ON d.id = p.district_id
         JOIN villages v ON v.id = p.village_id

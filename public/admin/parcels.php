@@ -7,14 +7,17 @@ $role = $user['role'];
 $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
 $village_id   = isset($_GET['village_id']) ? (int)$_GET['village_id'] : 0;
 $province_id  = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
+$owner_name   = trim((string)($_GET['owner_name'] ?? ''));
 $parcel_no   = $_GET['parcel_no'] ?? '';
 $status      = $_GET['status'] ?? '';
 
-$url = 'parcels.php';
-if ($district_id) { $url .= '?district_id=' . $district_id; }
-if ($province_id) { $url .= ($district_id ? '&' : '?') . 'province_id=' . $province_id; }
-if ($parcel_no)   { $url .= ($district_id || $province_id ? '&' : '?') . 'parcel_no=' . urlencode($parcel_no); }
-if ($status)      { $url .= ($district_id || $province_id || $parcel_no ? '&' : '?') . 'status=' . urlencode($status); }
+$q = [];
+if ($district_id)  { $q['district_id'] = $district_id; }
+if ($province_id)  { $q['province_id'] = $province_id; }
+if ($owner_name !== '') { $q['owner_name'] = $owner_name; }
+if ($parcel_no !== '')  { $q['parcel_no'] = $parcel_no; }
+if ($status !== '')     { $q['status'] = $status; }
+$url = 'parcels.php' . ($q ? '?' . http_build_query($q) : '');
 
 $parcels = [];
 $count = 0;
@@ -122,6 +125,7 @@ $roadMap = [
         <div class="form-group"><label><?= te('Status') ?></label>
           <select name="status"><option value=""><?= te('-- all --') ?></option><option value="confirmed" <?= $status === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option><option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option><option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>><?= te('Draft') ?></option></select></div>
         <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" value="<?= e($parcel_no) ?>"></div>
+        <div class="form-group"><label><?= te('Land Parcel Owner') ?></label><input name="owner_name" value="<?= e($owner_name) ?>"></div>
         <div class="form-group"><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
       </form>
     </div>
@@ -131,6 +135,7 @@ $roadMap = [
       <thead>
         <tr>
           <th><?= te('Parcel No') ?></th>
+          <th><?= te('Land Parcel Owner') ?></th>
           <th><?= te('Province') ?></th>
           <th><?= te('District') ?></th>
           <th><?= te('Village') ?></th>
@@ -147,6 +152,7 @@ $roadMap = [
         <?php foreach ($parcels as $p): ?>
         <tr>
           <td><a href="<?= $base ?>/parcel.php?id=<?= (int)$p['id'] ?>"><?= e($p['parcel_no']) ?></a></td>
+          <td><?= e($p['owners_names'] ?? '') ?: '—' ?></td>
           <td><?= e($p['province'] ?? '') ?></td>
           <td><?= e($p['district_name']) ?></td>
           <td><?= e($p['village_name']) ?></td>
