@@ -13,6 +13,7 @@ $scope = staff_scope($me);
 // ---- GET: list obligations (filters: fee_year, district_id, parcel_id, status, overdue) ----
 if ($method === 'GET') {
     $fee_year    = isset($_GET['fee_year'])    ? (int)$_GET['fee_year']    : 0;
+    $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
     $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
     $parcel_id   = isset($_GET['parcel_id'])   ? (int)$_GET['parcel_id']   : 0;
     $status      = $_GET['status'] ?? '';
@@ -21,6 +22,10 @@ if ($method === 'GET') {
     $where = [];
     $params = [];
     if ($fee_year)    { $where[] = 'o.fee_year = :fy';       $params[':fy'] = $fee_year; }
+    if ($province_id) {
+        $where[] = 'o.district_id IN (SELECT id FROM districts WHERE province_id = :pid)';
+        $params[':pid'] = $province_id;
+    }
     if ($district_id) { $where[] = 'o.district_id = :did';   $params[':did'] = $district_id; }
     if ($parcel_id)   { $where[] = 'o.parcel_id = :pid';     $params[':pid'] = $parcel_id; }
     if ($status !== '') {
