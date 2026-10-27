@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
             $msgType = 'err';
         } else {
             $body = ['parcel_id' => $pid, 'fee_year' => $year, 'method' => $method, 'note' => $_POST['note'] ?? null];
+            if (!empty($_POST['payer_owner_id'])) { $body['payer_owner_id'] = (int)$_POST['payer_owner_id']; }
             if ($amount !== null) { $body['amount'] = $amount; }
             if ($chequeNo !== '')  { $body['cheque_no'] = $chequeNo; }
             $d = api_call('POST', 'payments.php?settle=1', $body, $token);
@@ -147,6 +148,11 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;">
         <input type="hidden" name="do_action" value="settle">
         <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" required></div>
+        <div class="form-group"><label><?= te('Owner') ?></label>
+          <select name="payer_owner_id" id="counter-owner">
+            <option value=""><?= te('-- select parcel first --') ?></option>
+          </select>
+        </div>
         <div class="form-group"><label><?= te('Tax year') ?></label>
           <select name="fee_year">
             <?php foreach ($years as $y): ?>
@@ -242,6 +248,9 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
   <img src="" alt="" style="max-width:92vw; max-height:92vh; background:#fff; border-radius:6px;">
 </div>
 <script>
+// API endpoint + session token for the owner lookup (the API reads the header only).
+var API_BASE = <?= json_encode($api_base) ?>;
+var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
 (function(){
   // Slip photo click-to-zoom.
   var lb = document.getElementById('slip-lightbox');
@@ -258,6 +267,46 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
     var sync = function() { cg.style.display = cm.value === 'cheque' ? '' : 'none'; };
     cm.onchange = sync;
     sync();
+  }
+  // Counter form: when the parcel no is entered, load its owners into the
+  // Owner (payer) dropdown — parcel lookup, then owners of that parcel.
+  var parcelInput = document.querySelector('input[name=parcel_no]');
+  var ownerSel = document.getElementById('counter-owner');
+  if (parcelInput && ownerSel) {
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    parcelInput.onchange = function() {
+      var no = this.value.trim();
+      ownerSel.innerHTML = '<option value=""><?= te('-- select parcel first --') ?></option>';
+      if (!no) return;
+      ownerSel.innerHTML = '<option value=""><?= te('-- loading --') ?></option>';
+      fetch(API_BASE + '/parcels.php?parcel_no=' + encodeURIComponent(no) + '&limit=10',
+            { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var rows = (d && d.data && d.data.parcels) ? d.data.parcels : [];
+          var pid = 0;
+          for (var i = 0; i < rows.length; i++) {
+            if (rows[i].parcel_no === no) { pid = rows[i].id; break; }
+          }
+          if (!pid) {
+            ownerSel.innerHTML = '<option value=""><?= te('Parcel not found.') ?></option>';
+            return null;
+          }
+          return fetch(API_BASE + '/owners.php?parcel_id=' + pid,
+                       { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } });
+        })
+        .then(function(r2) { return r2 ? r2.json() : null; })
+        .then(function(d2) {
+          if (!d2) return;
+          var owners = (d2.data && d2.data.owners) ? d2.data.owners : [];
+          var opts = '<option value=""><?= te('-- unspecified --') ?></option>';
+          for (var i = 0; i < owners.length; i++) {
+            opts += '<option value="' + owners[i].id + '">' + esc(owners[i].full_name) + '</option>';
+          }
+          ownerSel.innerHTML = opts;
+        })
+        .catch(function() { ownerSel.innerHTML = '<option value=""><?= te('-- error --') ?></option>'; });
+    };
   }
 })();
 </script>
