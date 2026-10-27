@@ -107,7 +107,7 @@ $parsedLabels = [
 <style>
   .entry-page { max-width: 1100px; margin: 0 auto; }
   .entry-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-  .entry-tabs button { padding: 9px 18px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; font-size: 14px; }
+  .entry-tabs button { padding: 9px 18px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; font-size: 16px; }
   .entry-tabs button.active { background: #4a7c59; color: #fff; border-color: #4a7c59; }
 
   /* Flat certificate form — mirrors the Lao Land Title Certificate layout:
@@ -127,9 +127,9 @@ $parsedLabels = [
       border-bottom: 2px solid #4a7c59;
       background: #f4f9f4;
     }
-    .cert-head .l1 { font-size: 13px; color: #333; }
-    .cert-head .l2 { font-size: 12px; color: #555; }
-    .cert-head .l3 { font-size: 12px; color: #555; }
+    .cert-head .l1 { font-size: 16px; color: #333; }
+    .cert-head .l2 { font-size: 14px; color: #555; }
+    .cert-head .l3 { font-size: 14px; color: #555; }
     /* Tax footer block — like the header frame, distinct colour, sits below
        the certificate fields (these two are system fields, not on the paper form). */
     .cert-foot {
@@ -138,11 +138,11 @@ $parsedLabels = [
       padding: 12px;
       text-align: left;
     }
-    .cert-foot .ft-title { font-size: 13px; font-weight: 700; color: #1b5e20; margin-bottom: 8px; }
+    .cert-foot .ft-title { font-size: 16px; font-weight: 700; color: #1b5e20; margin-bottom: 8px; }
     .cert-foot .inline { display: flex; flex-wrap: wrap; gap: 10px 20px; }
     .cert-foot .inline .ci { display: flex; align-items: center; gap: 6px; }
-    .cert-foot .inline .ci label { min-width: 0; font-weight: 600; font-size: 12px; color: #1b5e20; }
-    .cert-foot .inline .ci select { width: 200px; padding: 7px 9px; border: 1px solid #4a7c59; border-radius: 3px; font-size: 14px; }
+    .cert-foot .inline .ci label { min-width: 0; font-weight: 600; font-size: 16px; color: #1b5e20; }
+    .cert-foot .inline .ci select { width: 200px; padding: 7px 9px; border: 1px solid #4a7c59; border-radius: 3px; font-size: 16px; }
     .cert-row {
       display: flex;
       flex-wrap: wrap;
@@ -153,7 +153,7 @@ $parsedLabels = [
     }
     .cert-row:last-child { border-bottom: none; }
     .cert-row label {
-      font-size: 13px; font-weight: 600; color: #222;
+      font-size: 16px; font-weight: 600; color: #222;
       min-width: 150px;
     }
     .cert-row .val {
@@ -162,15 +162,15 @@ $parsedLabels = [
     }
     .cert-row input, .cert-row select {
       padding: 7px 9px; border: 1px solid #ccc; border-radius: 3px;
-      font-size: 14px; width: 100%; box-sizing: border-box;
+      font-size: 16px; width: 100%; box-sizing: border-box;
     }
     .cert-row input:focus, .cert-row select:focus {
       border-color: #4a7c59; outline: none;
     }
     .cert-row .inline { display: flex; flex-wrap: wrap; gap: 6px 16px; }
     .cert-row .inline .ci { display: flex; align-items: center; gap: 6px; }
-    .cert-row .inline .ci label { min-width: 0; font-weight: 500; font-size: 12px; color: #444; }
-    .cert-row .inline .ci input, .cert-row .inline .ci select { width: 110px; }
+    .cert-row .inline .ci label { min-width: 0; font-weight: 500; font-size: 14px; color: #444; }
+    .cert-row .inline .ci input, .cert-row .inline .ci select { width: 130px; }
     .cert-row.wide { }
     @media (max-width: 768px) { .cert-row .val { min-width: 100%; } }
 
@@ -190,10 +190,10 @@ $parsedLabels = [
   .cert-row.req-row > label { color: #1b5e20; }
   .req-legend {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 8px 0 10px; font-size: 12px; font-weight: 600; color: #1b5e20;
+    padding: 8px 0 10px; font-size: 14px; font-weight: 600; color: #1b5e20;
   }
   .req-legend .swatch {
-    display: inline-block; width: 24px; height: 14px; border-radius: 3px;
+    display: inline-block; width: 24px; height: 16px; border-radius: 3px;
     border: 1px solid #4a7c59; background: #e8f0ea;
   }
   /* Certificate fields that Phase 1 does not require stay available, but folded
@@ -203,7 +203,7 @@ $parsedLabels = [
     background: #fffdf8; padding: 0;
   }
   .opt-block > summary {
-    cursor: pointer; padding: 9px 12px; font-size: 13px;
+    cursor: pointer; padding: 9px 12px; font-size: 16px;
     font-weight: 600; color: #6b5b3e;
   }
   .opt-block[open] > summary { border-bottom: 1px dashed #c9c0aa; }
@@ -211,15 +211,15 @@ $parsedLabels = [
   /* Tax estimate under the footer fields. */
   .tax-preview {
     display: none; margin-top: 10px; padding: 8px 10px; border-radius: 4px;
-    background: #fff; border: 1px solid #4a7c59; font-size: 13px; color: #1b5e20;
+    background: #fff; border: 1px solid #4a7c59; font-size: 16px; color: #1b5e20;
   }
   .tax-preview.show { display: block; }
-  .tax-preview strong { font-size: 15px; }
-  .zone-warn { display: none; margin-top: 6px; font-size: 12px; font-weight: 600; color: #b71c1c; }
+  .tax-preview strong { font-size: 18px; }
+  .zone-warn { display: none; margin-top: 6px; font-size: 14px; font-weight: 600; color: #b71c1c; }
   .zone-warn.show { display: block; }
 
   .form-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-  .preview-box { padding: 10px 12px; margin-top: 14px; font-size: 13px; border-radius: 4px; background: #fafafa; border: 1px solid #ddd; }
+  .preview-box { padding: 10px 12px; margin-top: 14px; font-size: 16px; border-radius: 4px; background: #fafafa; border: 1px solid #ddd; }
   .preview-box.ok { background: #eaf4ea; border-color: #2e7d32; }
   .preview-box.err { background: #fdecea; border-color: #c62828; }
 
@@ -227,11 +227,11 @@ $parsedLabels = [
   .entry-tools { background: #f5f5f5; padding: 14px; margin-bottom: 14px; border-radius: 4px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .entry-tools .grow { flex: 1; }
   .ocr-method { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; }
-  .ocr-method label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
+  .ocr-method label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 16px; }
   .scan-results { display: none; margin-top: 16px; }
   .scan-results.show { display: block; }
   .scan-img { max-width: 340px; max-height: 320px; object-fit: contain; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
-  .parsed-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .parsed-table { width: 100%; border-collapse: collapse; font-size: 16px; }
   .parsed-table td { padding: 5px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
   .parsed-table td:first-child { width: 130px; color: #555; }
   .ocr-raw { background: #f7f7f7; border: 1px solid #ddd; border-radius: 4px; padding: 10px; font-size: 12px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; }
@@ -265,7 +265,7 @@ $parsedLabels = [
           <div class="cert-grid">
             <!-- Certificate header -->
             <div class="cert-head">
-              <div class="l1"><?= te('Ministry of Natural Resources and Environment') ?></div>
+              <div class="l1"><?= te('Ministry of Agriculture and Environment') ?></div>
               <div class="l2"><?= te('Province/District Land &amp; Environment Office') ?></div>
               <div class="l3"><?= te('LAND TITLE') ?> — <?= te('ໃບຕາດິນ') ?></div>
               <div class="req-legend"><span class="swatch"></span><?= te('Required fields') ?></div>
@@ -433,7 +433,7 @@ $parsedLabels = [
       <div data-content="scan" style="display:none;">
         <div class="entry-tools">
           <input type="file" id="scan-file" accept="image/*" class="grow">
-          <label style="font-size:13px; color:#555;"><?= te('Land title image (JPG/PNG)') ?></label>
+          <label style="font-size:16px; color:#555;"><?= te('Land title image (JPG/PNG)') ?></label>
           <button type="button" class="btn btn-green" id="process-ocr"><?= te('Upload &amp; Process') ?></button>
         </div>
         <div class="form-group">
@@ -481,7 +481,7 @@ $parsedLabels = [
           <input type="file" id="import-file" accept=".csv,text/csv" class="grow">
           <button type="button" class="btn btn-green" id="do-import"><?= te('Import &amp; Match') ?></button>
         </div>
-        <p class="sub" style="font-size:12px;"><?= te('Import a CSV of parcels. Download the template, fill it in, then upload.') ?></p>
+        <p class="sub" style="font-size:14px;"><?= te('Import a CSV of parcels. Download the template, fill it in, then upload.') ?></p>
         <div id="import-result" class="preview-box" style="display:none;"></div>
       </div>
     </div>

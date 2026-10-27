@@ -55,7 +55,7 @@ class GovHeader extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ\nກະຊວງຊັບພະຍາກອນທຳມະຊາດ ແລະ ສິ່ງແວດລ້ອມ',
+                  'ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ\nກະຊວງກະສິກຳ ແລະ ສິ່ງແວດລ້ອມ',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 10.5,
