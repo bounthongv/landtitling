@@ -211,36 +211,36 @@ if ($linkingUser > 0) {
 </div>
 
   <template id="staff-form">
-    <form method="post">
+    <form method="post" autocomplete="off">
     <div class="form-grid">
-      <div class="form-group"><label><?= te("Username") ?></label><input name="username" data-do-readonly="username"></div>
-      <div class="form-group"><label><?= te("Password") ?></label><input name="password" type="password"></div>
-      <div class="form-group"><label><?= te("Role") ?></label><select name="role">
+      <div class="form-group"><label><?= te("Username") ?></label><input name="username" data-do-readonly="username" autocomplete="off"></div>
+      <div class="form-group"><label><?= te("Password") ?></label><input name="password" type="password" autocomplete="new-password"></div>
+      <div class="form-group"><label><?= te("Role") ?></label><select name="role" autocomplete="off">
         <option value="officer"><?= te('Officer') ?></option>
         <option value="manager"><?= te('Manager') ?></option>
         <option value="admin"><?= te('Admin') ?></option>
       </select></div>
-      <div class="form-group"><label><?= te("Level") ?></label><select name="level">
+      <div class="form-group"><label><?= te("Level") ?></label><select name="level" autocomplete="off">
         <option value="province"><?= te('Province') ?></option>
         <option value="district"><?= te('District') ?></option>
       </select></div>
-      <div class="form-group"><label><?= te("District") ?></label><select name="district_id" id="modal-district">
+      <div class="form-group"><label><?= te("District") ?></label><select name="district_id" id="modal-district" autocomplete="off">
         <option value="0"><?= te("---") ?></option>
         <?php foreach ($districts as $d): ?>
           <option value="
             <?= (int)$d['id'] ?>"><?= e($d['name']) ?></option>
         <?php endforeach; ?>
       </select></div>
-      <div class="form-group"><label><?= te("Province") ?></label><select name="province_id" id="modal-province">
+      <div class="form-group"><label><?= te("Province") ?></label><select name="province_id" id="modal-province" autocomplete="off">
         <?php foreach ($provinces as $p): ?>
           <option value="
             <?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option>
         <?php endforeach; ?>
       </select></div>
-      <div class="form-group"><label><?= te("Email") ?></label><input name="email" type="email"></div>
-      <div class="form-group"><label><?= te("Phone") ?></label><input name="phone"></div>
+      <div class="form-group"><label><?= te("Email") ?></label><input name="email" type="email" autocomplete="off"></div>
+      <div class="form-group"><label><?= te("Phone") ?></label><input name="phone" autocomplete="off"></div>
       <div class="form-group"><label><?= te("Active") ?></label>
-        <input type="checkbox" name="is_active" value="1"></div>
+        <input type="checkbox" name="is_active" value="1" autocomplete="off"></div>
     </div>
     <input type="hidden" name="do_action" value="user_create">
     <input type="hidden" name="id" value="0">
