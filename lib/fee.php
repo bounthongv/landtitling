@@ -92,6 +92,43 @@ function parcel_zone_for(PDO $pdo, $villageId, $suppliedZone = null)
     return $zone !== '' ? $zone : null;
 }
 
+/**
+ * Parcel statuses an annual fee may be assessed on.
+ *
+ * 'draft' is not yet a real registry entry, 'scanned' is mid-OCR, and 'archived'
+ * is retired land — none of them owe an annual fee. 'confirmed' and 'active' both
+ * describe live land, so both are billable. This is the single source of truth:
+ * the obligation cron, the bulk generate, and the scan-confirm path all read it,
+ * so a parcel can never be billed by one path and skipped by another.
+ */
+function fee_billable_statuses(): array
+{
+    return ['confirmed', 'active'];
+}
+
+/**
+ * Build a "this parcel is billable" SQL predicate plus its bound parameters.
+ *
+ * Returns [$sql, $params] using NAMED placeholders, so the fragment merges into
+ * the existing named-parameter queries — PDO refuses to mix named and positional
+ * placeholders in one statement. Use it once per statement (the placeholder names
+ * are fixed).
+ *
+ *   [$where, $params] = fee_billable_sql('p');
+ *   // "p.status IN (:billable0,:billable1)", [':billable0' => 'confirmed', ...]
+ */
+function fee_billable_sql(string $alias = 'p'): array
+{
+    $params = [];
+    $placeholders = [];
+    foreach (fee_billable_statuses() as $i => $status) {
+        $name = ':billable' . $i;
+        $placeholders[] = $name;
+        $params[$name] = $status;
+    }
+    return [$alias . '.status IN (' . implode(',', $placeholders) . ')', $params];
+}
+
 /** Ensure a fee_years row for $year (open, due_date = Dec 31). Returns the row. */
 function fee_ensure_year($pdo, $year)
 {

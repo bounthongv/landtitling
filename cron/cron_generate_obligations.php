@@ -59,8 +59,8 @@ function getTargetFeeYears(PDO $pdo, ?int $year = null): array {
  * Returns [assessed, skipped, total_due].
  */
 function generateForYear(PDO $pdo, int $year, int $districtId = 0, bool $dryRun = false): array {
-    $sql    = "SELECT id, district_id FROM parcels WHERE status = 'confirmed'";
-    $params = [];
+    [$billableWhere, $params] = fee_billable_sql('parcels');
+    $sql = 'SELECT id, district_id FROM parcels WHERE ' . $billableWhere;
     if ($districtId) { $sql .= ' AND district_id = :did'; $params[':did'] = $districtId; }
 
     $stmt = $pdo->prepare($sql);

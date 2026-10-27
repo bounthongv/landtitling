@@ -75,8 +75,8 @@ if ($method === 'POST') {
             $districtId = $scope['district_id'];
         }
 
-        $sql    = "SELECT id FROM parcels WHERE status = 'confirmed'";
-        $params = [];
+        [$billableWhere, $params] = fee_billable_sql('parcels');
+        $sql    = 'SELECT id FROM parcels WHERE ' . $billableWhere;
         if ($districtId) { $sql .= ' AND district_id = :did'; $params[':did'] = $districtId; }
         if ($parcelId)   { $sql .= ' AND id = :pid';         $params[':pid'] = $parcelId; }
         $stmt = $pdo->prepare($sql);

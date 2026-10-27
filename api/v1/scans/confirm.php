@@ -185,7 +185,7 @@ $pdo->prepare("UPDATE title_scans SET parcel_id=:pid, status='confirmed', distri
 
 // ---- Assess the current-year obligation so the fee is visible immediately ----
 $obligationId = null;
-if ($status === 'confirmed' || $status === 'active') {
+if (in_array($status, fee_billable_statuses(), true)) {
     try {
         $ob = fee_upsert_obligation($pdo, $parcelId, (int)date('Y'));
         if ($ob) {
