@@ -95,9 +95,8 @@ CREATE TABLE villages (
     CONSTRAINT fk_villages_district
       FOREIGN KEY (district_id)
       REFERENCES districts(id)
-      ON DELETE CASCADE,
-    CONSTRAINT fk_villages_zone
-      FOREIGN KEY (zone_id) REFERENCES zones(code) ON DELETE SET NULL
+      ON DELETE CASCADE
+    -- fk_villages_zone is added below, once `zones` exists (forward reference).
   );
 
 -- Trigram indexes speed up fuzzy name resolution (no-op if pg_trgm is absent).
@@ -166,6 +165,12 @@ CREATE TABLE zones (
     FOREIGN KEY (plan_zone) REFERENCES zone_plans(code) ON DELETE RESTRICT
 );
 CREATE INDEX idx_zones_district ON zones (district_id);
+
+-- Deferred from the villages table above: a village maps to exactly one zone,
+-- and a zone covers many villages (so no unique constraint on zone_id).
+ALTER TABLE villages ADD CONSTRAINT fk_villages_zone
+  FOREIGN KEY (zone_id) REFERENCES zones(code) ON DELETE SET NULL;
+CREATE INDEX idx_villages_zone ON villages (zone_id);
 
 -- One row per zone × road category; a rate change adds a new valid_from row.
 CREATE TABLE zone_rate_tiers (

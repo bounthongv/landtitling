@@ -64,6 +64,34 @@ function fee_compute_amount($pdo, $zoneCode, $areaSqm, $roadCategory = null)
     ];
 }
 
+/**
+ * Resolve the valuation zone for a parcel write.
+ *
+ * An explicit zone supplied by the caller wins. When it is blank the parcel's
+ * village decides it: villages.zone_id holds the zone CODE (migration 008), the
+ * same default the parcel-entry UI shows. This keeps API clients (CSV import,
+ * citizen app) from having to know the zone — and keeps them from silently
+ * storing an empty zone, which fee_upsert_obligation() would price against its
+ * 'A7' placeholder fallback.
+ *
+ * Returns the zone code (uppercased) or null when neither source has one.
+ */
+function parcel_zone_for(PDO $pdo, $villageId, $suppliedZone = null)
+{
+    $zone = strtoupper(trim((string)$suppliedZone));
+    if ($zone !== '') {
+        return $zone;
+    }
+    $vid = (int)$villageId;
+    if ($vid <= 0) {
+        return null;
+    }
+    $st = $pdo->prepare("SELECT zone_id FROM villages WHERE id = :id");
+    $st->execute([':id' => $vid]);
+    $zone = strtoupper(trim((string)($st->fetchColumn() ?: '')));
+    return $zone !== '' ? $zone : null;
+}
+
 /** Ensure a fee_years row for $year (open, due_date = Dec 31). Returns the row. */
 function fee_ensure_year($pdo, $year)
 {

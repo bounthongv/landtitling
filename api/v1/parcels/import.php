@@ -1,8 +1,9 @@
 <?php
 // api/v1/parcels/import.php — CSV import and template download
-require_once __DIR__ . '/../../lib/db.php';
-require_once __DIR__ . '/../../lib/auth.php';
-require_once __DIR__ . '/../../lib/validate.php';
+require_once __DIR__ . '/../../../lib/db.php';
+require_once __DIR__ . '/../../../lib/auth.php';
+require_once __DIR__ . '/../../../lib/validate.php';
+require_once __DIR__ . '/../../../lib/fee.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -55,7 +56,7 @@ if ($method === 'POST') {
         $lineNum++;
         
         // Parse CSV line (simple implementation - no quoted fields with commas)
-        $fields = str_getcsv($line);
+        $fields = str_getcsv($line, ',', '"', '\\');
         
         if ($hasHeader && $header === null) {
             $header = array_map('trim', $fields);
@@ -149,6 +150,39 @@ if ($method === 'POST') {
         }
         
         // Build parcel data (similar to main parcels API)
+        // Valuation zone: an explicit zone wins, otherwise the parcel's village decides
+        // it (villages.zone_id). Required — a blank zone would be priced against the
+        // fee layer's placeholder fallback zone instead of the real one.
+        $zoneCode = parcel_zone_for($pdo, (int)$village, $row['zone_code'] ?? '');
+        if ($zoneCode === null) {
+            $errorCount++;
+            $results[] = [
+                'line' => $lineNum,
+                'status' => 'error',
+                'message' => 'No valuation zone: none given and village ' . (int)$village
+                    . ' is not mapped to a zone (map the village in Basic Data → Zones)'
+            ];
+            continue;
+        }
+        $st = $pdo->prepare("SELECT district_id FROM zones WHERE code = :zc AND is_active = TRUE");
+        $st->execute([':zc' => $zoneCode]);
+        $zoneRow = $st->fetch();
+        if (!$zoneRow) {
+            $errorCount++;
+            $results[] = ['line' => $lineNum, 'status' => 'error',
+                'message' => 'Valuation zone not found or inactive: ' . $zoneCode];
+            continue;
+        }
+        if ($zoneRow['district_id'] !== null && (int)$zoneRow['district_id'] !== (int)$district) {
+            $errorCount++;
+            $results[] = ['line' => $lineNum, 'status' => 'error',
+                'message' => 'Valuation zone ' . $zoneCode . ' does not belong to district ' . (int)$district];
+            continue;
+        }
+        // Road access must be one of the four codes (FK); anything else falls back to 'none'.
+        $roadCategory = strtolower(trim((string)($row['road_category'] ?? '')));
+        if (!in_array($roadCategory, ['main', 'branch', 'alley', 'none'], true)) { $roadCategory = null; }
+
         $parcelData = [
             'parcel_no' => $parcelNo,
             'sub_parcel_no' => $row['sub_parcel_no'] ?? '',
@@ -156,8 +190,8 @@ if ($method === 'POST') {
             'district_id' => (int)$district,
             'village_id' => (int)$village,
             'area_sqm' => (float)$area,
-            'zone_code' => $row['zone_code'] ?? '',
-            'road_category' => $row['road_category'] ?? '',
+            'zone_code' => $zoneCode,
+            'road_category' => $roadCategory,
             'title_no' => $row['title_no'] ?? '',
             'title_type' => $row['title_type'] ?? '',
             'book_no' => $row['book_no'] ?? '',

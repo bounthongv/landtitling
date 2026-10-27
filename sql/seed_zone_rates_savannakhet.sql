@@ -63,8 +63,8 @@ SELECT
   n::text,
   n
 FROM districts d
-JOIN zone_plans zpl ON zpl.code = n::text
 JOIN LATERAL generate_series(1, CASE WHEN d.code = '1301' THEN 6 ELSE 4 END) AS n ON TRUE
+JOIN zone_plans zpl ON zpl.code = n::text
 WHERE d.code IN ('1301','1302','1303','1304','1305','1306','1307','1308',
                  '1309','1310','1311','1312','1313','1314','1315')
   AND d.zone_letter IS NOT NULL

@@ -236,7 +236,7 @@ if ($method === 'PUT') {
         $sets[] = 'rate_per_sqm = :fallback';
         $params[':fallback'] = $rates['none'] ?? reset($rates);
     }
-    if (!$sets && !$rates) {
+    if (!$sets && !$rates && !array_key_exists('village_ids', $body)) {
         json_error('Nothing to update', 400, 'nothing_to_update');
     }
 

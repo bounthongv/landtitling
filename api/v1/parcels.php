@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/validate.php';
+require_once __DIR__ . '/../../lib/fee.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -130,6 +131,14 @@ if ($method === 'POST') {
     if (!in_array($status, ['draft', 'confirmed'], true)) { $status = 'confirmed'; }
     
     // Validation
+    $districtId = (int)$district;
+    $villageId = (int)$village;
+
+    // Valuation zone: an explicit zone wins, otherwise the parcel's village decides
+    // it (villages.zone_id). Never left empty — an empty zone would be billed
+    // against the fee layer's placeholder fallback zone.
+    $zone = parcel_zone_for($pdo, $villageId, $zone);
+
     $errors = collect_errors([
         'parcel_no' => validate_required($parcelNo, 'parcel no'),
         'area_sqm' => validate_required($area, 'area') ?: validate_positive($area, 'area'),
@@ -140,9 +149,6 @@ if ($method === 'POST') {
             ?: validate_enum($road, ['main', 'branch', 'alley', 'none'], 'road access'),
     ]);
     reject_on_errors($errors);
-    
-    $districtId = (int)$district;
-    $villageId = (int)$village;
     
     // Check district staff scope
     if ($scope['district_id'] !== null && $districtId !== $scope['district_id']) {
