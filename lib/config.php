@@ -52,4 +52,13 @@ return [
     // Outbound email (OTP channel). Requires a system MTA on the host (e.g. Postfix).
     'mail_from'      => getenv('MAIL_FROM') ?: '',
     'mail_from_name' => getenv('MAIL_FROM_NAME') ?: 'Land Fee Savannakhet',
+    // Bank QR on the payment slip. `text` (default) is a plain reference line the
+    // citizen retypes into their banking app; `emvco` builds a scannable payload;
+    // `url` a deep link. The province has not yet supplied the receiving account,
+    // so emvco/url stay unvalidated until BANK_QR_MERCHANT_ID is set.
+    'bank_qr_format'      => getenv('BANK_QR_FORMAT') ?: 'text',
+    'bank_qr_merchant_id' => getenv('BANK_QR_MERCHANT_ID') ?: '',
+    'bank_qr_account'     => getenv('BANK_QR_ACCOUNT') ?: '',
+    'bank_qr_bank'        => getenv('BANK_QR_BANK') ?: '',
+    'bank_qr_url_template' => getenv('BANK_QR_URL_TEMPLATE') ?: '',
 ];

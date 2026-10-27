@@ -155,12 +155,26 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
     if (!isset($_FILES['slip']) || $_FILES['slip']['error'] !== UPLOAD_ERR_OK) {
         json_error('No slip file uploaded', 400, 'no_file');
     }
-    $st = $pdo->prepare("SELECT id FROM payments WHERE id = :id");
+    $st = $pdo->prepare("SELECT id, parcel_id, citizen_user_id FROM payments WHERE id = :id");
     $st->execute([':id' => $id]);
     $pRow = $st->fetch();
     if (!$pRow) { json_error('Payment not found', 404, 'not_found'); }
-    if ($me['role'] !== 'citizen' && !payment_in_scope($me, payment_district($pdo, $pRow))) {
-        json_error('Payment outside your district', 403, 'out_of_scope');
+    if ($me['role'] !== 'citizen') {
+        if (!payment_in_scope($me, payment_district($pdo, $pRow))) {
+            json_error('Payment outside your district', 403, 'out_of_scope');
+        }
+    } else {
+        // A citizen may only attach a receipt to a payment they made, or to one
+        // on land they own. Without this, any citizen could file a receipt
+        // against any payment simply by guessing its id.
+        $owns = $pdo->prepare("SELECT 1 FROM parcel_owners po
+            JOIN owners o ON o.id = po.owner_id
+            WHERE po.parcel_id = :pid AND o.citizen_user_id = :uid");
+        $owns->execute([':pid' => (int)$pRow['parcel_id'], ':uid' => (int)$me['sub']]);
+        $made = (int)($pRow['citizen_user_id'] ?? 0) === (int)$me['sub'];
+        if (!$made && !$owns->fetch()) {
+            json_error('Forbidden', 403, 'forbidden');
+        }
     }
 
     $cfg = require __DIR__ . '/../../lib/config.php';

@@ -40,10 +40,12 @@ Future<void> main(List<String> args) async {
   stdout.writeln('API: $base\n');
 
   // ---- 0. Is the citizen API deployed? ------------------------------------
+  // Probe with a dedicated number: this call creates the account it names, so
+  // it must not be the account the sign-in assertions below are about.
   try {
     await app.postData('citizen_auth.php', {
       'action': 'phone/signin',
-      'phone': '020 555 1234',
+      'phone': '020 999 0000',
     });
   } on ApiException catch (e) {
     stdout.writeln(
@@ -59,9 +61,14 @@ Future<void> main(List<String> args) async {
   }
 
   // ---- 1. Sign in with a phone number ------------------------------------
+  // A number that is new on every run, so "created on first use" is testable
+  // and the test can be re-run without re-seeding.
+  final stamp = DateTime.now().millisecondsSinceEpoch % 10000000;
+  final testPhone = '020 ${stamp.toString().padLeft(7, '0')}';
+
   final signedIn = await app.postData('citizen_auth.php', {
     'action': 'phone/signin',
-    'phone': '020 555 1234',
+    'phone': testPhone,
   });
   final token = signedIn['token'];
   check('phone/signin returns a JWT', token != null);
@@ -75,7 +82,7 @@ Future<void> main(List<String> args) async {
   // The same number, written differently, signs in to the same account.
   final again = await app.postData('citizen_auth.php', {
     'action': 'phone/signin',
-    'phone': '0205551234',
+    'phone': '+856 ${testPhone.substring(1)}',
   });
   check('the same number signs in again', again['token'] != null);
   check('the account is not created twice', again['created'] == false);
