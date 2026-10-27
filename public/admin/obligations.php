@@ -151,7 +151,7 @@ $msg = $_GET['msg'] ?? '';
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="form-group"><button class="btn btn-blue" type="submit"><?= te('Generate') ?></button></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-blue" type="submit"><?= te('Generate') ?></button></div>
       </form>
       <p class="sub"><?= te('Safe to re-run: existing unpaid obligations are updated to the current rate; paid ones are left alone.') ?></p>
     </div>
