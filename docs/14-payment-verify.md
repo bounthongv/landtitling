@@ -28,14 +28,21 @@ transfer), ແອັບມືຖື (mobile app), ຈ່າຍຢູ່ຫ້ອ
 
 For a citizen paying at the counter, use the gold **Record counter
 payment (ບັນທຶກການຊໍາລະຢູ່ຫ້ອງການ)** box. It is two steps so the
-officer always knows how much the parcel owes *before* collecting money:
+officer always knows how much the parcel owes *before* collecting money.
+
+This is also the channel for **walk-in bank / mobile payments**: a citizen
+pays at a bank counter (or mobile money) and brings the paper slip to the
+office. No system record exists yet, so the officer records it here with
+method = bank/mobile — the payment is created ISSUED, the slip is
+attached, and it is verified so the obligation settles. Only pre-issued
+records (mobile app / bank statement matching) go to the Bank tab.
 
 **Step 1 — Verify obligation (ກວດສອບພັນທະ).**
 
 1. **Parcel no** — the parcel number from the land title
    (e.g. `PILOT-AST-0002`).
 2. **Tax year** — defaults to the current year.
-3. **Method** — ເງິນສົດ (cash) or ເຊັກ (cheque).
+3. **Method** — cash, cheque, bank transfer, or mobile money.
 4. Click **Verify obligation**. The result panel below the form shows the
    parcel's obligation for that year:
 
@@ -58,8 +65,22 @@ step 1 found something to collect:
    assessment); leave blank for the full balance, or type a partial
    amount (the API caps it at the outstanding balance).
 7. **Cheque no** — shown only when method = cheque.
-8. **Note** (optional).
-9. Click **Record & settle**.
+8. **Bank ref** — shown only for bank/mobile (the reference printed on the
+   slip; used later by bank statement matching).
+9. **Evidence photo** (optional) — a file pick whose label follows the
+   method: receipt photo (cash), photo of cheque, photo of bank slip, or
+   photo of the mobile money confirmation message. The officer photographs
+   the paper evidence with a phone or scans it; jpg/png/webp/pdf.
+10. **Note** (optional).
+11. Click **Record & settle**.
+
+   - **cash / cheque** — created and settled in one API call
+     (verify method = counter); the evidence photo, if any, is attached
+     to the payment afterwards.
+   - **bank / mobile** — created as ISSUED, evidence attached, then
+     verified (verify method = manual) so the obligation settles. If the
+     verify step fails for any reason, the payment stays ISSUED and
+     shows up in the Bank tab's review queue instead.
 
 Changing the parcel number or tax year after a verify hides step 2 and
 clears the result — re-verify before recording.
@@ -78,6 +99,13 @@ per row — with a running total ("N payment(s), X kip today") for
 end-of-day reconciliation.
 
 ## 3. Tab: Bank & mobile proofs
+
+This tab reviews **pre-issued** bank/mobile payments only — records
+created by the mobile app or matched from bank statements. A citizen who
+pays at a bank counter / mobile money and walks into the office with the
+paper slip is recorded in the **Counter** tab instead (method =
+bank/mobile, slip attached, verified there); it never lands in this
+queue unless its verify step failed.
 
 Summary cards at the top: **To review**, **Awaiting proof**,
 **Matched automatically today**. A **Tax year** filter narrows the queue,

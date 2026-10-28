@@ -37,12 +37,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
     }
     if ($action === 'waive')  { $body['reason'] = $_POST['reason'] ?? t('Waived by officer'); }
     if ($action === 'settle') {
-        // Counter fast path: money in hand (cash/cheque) — create + settle in one step.
+        // Counter flow: money already collected at the office.
+        // cash/cheque: create + settle in one step (verify_method='counter').
+        // bank_transfer/mobile: the citizen paid at the bank / mobile money and
+        // brought the proof in — create as ISSUED, attach the evidence photo
+        // if provided, then verify so the obligation settles. If the verify
+        // step fails, the payment stays ISSUED in the Bank tab's review queue.
         $parcelNo = trim((string)($_POST['parcel_no'] ?? ''));
         $year = (int)($_POST['fee_year'] ?? date('Y'));
         $method = $_POST['method'] ?? 'cash';
         $chequeNo = trim((string)($_POST['cheque_no'] ?? ''));
+        $bankRef = trim((string)($_POST['bank_ref'] ?? ''));
         $amount = (isset($_POST['amount']) && $_POST['amount'] !== '') ? (float)$_POST['amount'] : null;
+        $slipUpload = (!empty($_FILES['slip']) && ($_FILES['slip']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK)
+            ? $_FILES['slip'] : null;
         $pid = 0;
         if ($parcelNo !== '') {
             $res = api_call('GET', 'parcels.php?parcel_no=' . urlencode($parcelNo), null, $token);
@@ -57,15 +65,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
             $body = ['parcel_id' => $pid, 'fee_year' => $year, 'method' => $method, 'note' => $_POST['note'] ?? null];
             if (!empty($_POST['payer_owner_id'])) { $body['payer_owner_id'] = (int)$_POST['payer_owner_id']; }
             if ($amount !== null) { $body['amount'] = $amount; }
-            if ($chequeNo !== '')  { $body['cheque_no'] = $chequeNo; }
-            $d = api_call('POST', 'payments.php?settle=1', $body, $token);
-            if (!empty($d['ok'])) {
-                $msg = t('Payment received and settled — receipt ready.');
-                $lastId = (int)($d['data']['id'] ?? 0);
-                $lastReceipt = $d['data']['receipt'] ?? '';
+            if (in_array($method, ['bank_transfer', 'mobile'], true)) {
+                // Walk-in bank/mobile payment: ISSUED → attach evidence → verify.
+                if ($bankRef !== '') { $body['bank_ref'] = $bankRef; }
+                $d = api_call('POST', 'payments.php', $body, $token);
+                if (empty($d['ok'])) {
+                    $msg = $d['error']['message'] ?? t('Settle failed.');
+                    $msgType = 'err';
+                } else {
+                    $lastId = (int)$d['data']['id'];
+                    $slipWarn = attach_counter_evidence($lastId, $slipUpload, $token);
+                    $v = api_call('POST', 'payments.php?id=' . $lastId . '&verify=1', ['note' => $_POST['note'] ?? null], $token);
+                    if (!empty($v['ok'])) {
+                        $msg = t('Payment received and settled — receipt ready.') . $slipWarn;
+                        $lastReceipt = 'payments.php?id=' . $lastId . '&receipt=1';
+                    } else {
+                        $msg = ($v['error']['message'] ?? t('Settle failed.'))
+                            . ' — ' . t('Payment is recorded as awaiting proof — review it in the Bank tab.') . $slipWarn;
+                        $msgType = 'err';
+                    }
+                }
             } else {
-                $msg = $d['error']['message'] ?? t('Settle failed.');
-                $msgType = 'err';
+                if ($chequeNo !== '') { $body['cheque_no'] = $chequeNo; }
+                $d = api_call('POST', 'payments.php?settle=1', $body, $token);
+                if (!empty($d['ok'])) {
+                    $lastId = (int)($d['data']['id'] ?? 0);
+                    $msg = t('Payment received and settled — receipt ready.') . attach_counter_evidence($lastId, $slipUpload, $token);
+                    $lastReceipt = $d['data']['receipt'] ?? '';
+                } else {
+                    $msg = $d['error']['message'] ?? t('Settle failed.');
+                    $msgType = 'err';
+                }
             }
         }
     } elseif ($id) {
@@ -79,6 +109,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
             $msgType = 'err';
         }
     }
+}
+
+/** Attach the officer's evidence photo (receipt / cheque / bank slip /
+ *  mobile money message) to a just-created counter payment.
+ *  Returns '' on success or no file, or a short warning sentence to append
+ *  to the result message — an upload failure must not undo the settlement. */
+function attach_counter_evidence(int $paymentId, ?array $file, string $token): string
+{
+    if ($paymentId <= 0 || empty($file)) { return ''; }
+    $u = api_upload('payments.php?id=' . $paymentId . '&receipt=1',
+        $file['tmp_name'], $file['name'], $file['type'] ?? 'application/octet-stream',
+        $token, 'slip');
+    if (!empty($u['ok'])) { return ''; }
+    return ' ' . t('Evidence photo upload failed (payment was settled anyway).');
 }
 
 $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
@@ -102,10 +146,10 @@ if ($tab === 'all' || $tab === 'counter') {
 }
 
 if ($tab === 'counter') {
-    // Today's counter receipts (cash + cheque, paid today) — the officer's
-    // answer to "what did we collect at the counter today?". paid_after keeps
-    // the query to today's rows instead of scanning the full history.
-    foreach (['cash', 'cheque'] as $m) {
+    // Today's counter receipts (all methods recorded at the office, paid
+    // today) — the officer's answer to "what did we collect at the counter
+    // today?". paid_after keeps the query to today's rows.
+    foreach (['cash', 'cheque', 'bank_transfer', 'mobile'] as $m) {
         $d = api_call('GET', 'payments.php?status=PAID&method=' . $m . '&paid_after=' . date('Y-m-d'), null, $token);
         foreach (($d['data']['payments'] ?? []) as $row) {
             $counterToday[] = $row;
@@ -259,7 +303,7 @@ function render_payment_card(array $p, string $base): void
       <!-- ================= OFFICE COUNTER ================= -->
       <div class="form-box" style="border-left:4px solid #b8860b;">
         <h2><?= te('Record counter payment') ?></h2>
-        <p class="sub"><?= te('Cash or cheque received at the district office — settles the obligation immediately and prints the receipt.') ?></p>
+        <p class="sub"><?= te('Cash, cheque, bank or mobile payment collected at the district office — settles the obligation immediately and prints the receipt.') ?></p>
         <h3 style="margin:14px 0 4px;"><?= te('Step 1 — verify the obligation') ?></h3>
         <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
           <div class="form-group"><label><?= te('Parcel no') ?></label><input id="counter-parcel" required></div>
@@ -274,6 +318,8 @@ function render_payment_card(array $p, string $base): void
             <select id="counter-method">
               <option value="cash"><?= e(payment_method_label('cash')) ?></option>
               <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
+              <option value="bank_transfer"><?= e(payment_method_label('bank_transfer')) ?></option>
+              <option value="mobile"><?= e(payment_method_label('mobile')) ?></option>
             </select>
           </div>
           <div class="form-group"><label>&nbsp;</label><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Verify obligation') ?></button></div>
@@ -283,7 +329,7 @@ function render_payment_card(array $p, string $base): void
         <div id="counter-record-box" style="display:none; margin-top:14px; padding-top:12px; border-top:1px dashed #c9b458;">
           <h3 style="margin:0 0 2px;"><?= te('Step 2 — record & settle') ?></h3>
           <p class="sub" id="counter-record-note"></p>
-          <form method="post" class="form-grid" id="counter-settle-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
+          <form method="post" enctype="multipart/form-data" class="form-grid" id="counter-settle-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
             <input type="hidden" name="do_action" value="settle">
             <input type="hidden" name="parcel_no">
             <input type="hidden" name="fee_year">
@@ -295,6 +341,10 @@ function render_payment_card(array $p, string $base): void
             </div>
             <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
             <div class="form-group" id="counter-cheque-group" style="display:none;"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
+            <div class="form-group" id="counter-bankref-group" style="display:none;"><label><?= te('Bank ref') ?></label><input name="bank_ref" placeholder="<?= te('from the slip') ?>"></div>
+            <div class="form-group"><label><span id="counter-evidence-label"><?= te('Receipt photo') ?></span> <span class="sub"><?= te('optional') ?></span></label>
+              <input type="file" name="slip" accept="image/jpeg,image/png,image/webp,application/pdf">
+            </div>
             <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
             <div class="form-group"><label>&nbsp;</label><button class="btn btn-gold" type="submit"><?= te('Record & settle') ?></button></div>
           </form>
@@ -541,6 +591,17 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
   var ownerSel = document.getElementById('counter-owner');
   var amountInput = settleForm ? settleForm.querySelector('input[name=amount]') : null;
   var chequeGroup = document.getElementById('counter-cheque-group');
+  var bankRefGroup = document.getElementById('counter-bankref-group');
+  var evidenceLabel = document.getElementById('counter-evidence-label');
+  var slipInput = settleForm ? settleForm.querySelector('input[name=slip]') : null;
+  var bankRefInput = settleForm ? settleForm.querySelector('input[name=bank_ref]') : null;
+  // What the officer photographs depends on the method.
+  var EVIDENCE_LABEL = {
+    cash: <?= json_encode(t('Receipt photo')) ?>,
+    cheque: <?= json_encode(t('Photo of cheque')) ?>,
+    bank_transfer: <?= json_encode(t('Photo of bank slip')) ?>,
+    mobile: <?= json_encode(t('Photo of mobile money message')) ?>
+  };
 
   function fillText(tpl, vars) {
     return tpl.replace(/\{(\w+)\}/g, function (_, k) {
@@ -559,17 +620,24 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     recordNote.textContent = '';
     ownerSel.innerHTML = '<option value="">' + esc(MSG.ownerPh) + '</option>';
     if (amountInput) { amountInput.value = ''; }
+    if (slipInput) { slipInput.value = ''; }
+    if (bankRefInput) { bankRefInput.value = ''; }
   }
-  function syncCheque() { if (chequeGroup) { chequeGroup.style.display = methodSel.value === 'cheque' ? '' : 'none'; } }
+  function syncEvidence() {
+    var m = methodSel ? methodSel.value : 'cash';
+    if (chequeGroup) { chequeGroup.style.display = m === 'cheque' ? '' : 'none'; }
+    if (bankRefGroup) { bankRefGroup.style.display = (m === 'bank_transfer' || m === 'mobile') ? '' : 'none'; }
+    if (evidenceLabel) { evidenceLabel.textContent = EVIDENCE_LABEL[m] || EVIDENCE_LABEL.cash; }
+  }
 
   if (methodSel) {
     methodSel.onchange = function() {
-      syncCheque();
+      syncEvidence();
       if (settleForm && settleForm.style.display !== 'none') {
         settleForm.querySelector('input[name=method]').value = methodSel.value;
       }
     };
-    syncCheque();
+    syncEvidence();
   }
   // Changing parcel/year after a verify invalidates the result — re-verify.
   if (parcelInput) {
@@ -633,7 +701,7 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
           }
           if (amountInput && payable > 0) { amountInput.value = payable; }
           recordNote.textContent = payable > 0 ? fillText(MSG.expect, { amt: fmtKip(payable) }) : '';
-          syncCheque();
+          syncEvidence();
           recordBox.style.display = 'block';
         })
         .catch(function() { showVerify(esc(MSG.notfound), 'err'); });

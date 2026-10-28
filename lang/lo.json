@@ -594,5 +594,14 @@
   "Confirm": "ຢືນຢັນ",
   "Action failed.": "ການດໍາເນີນການລົ້ມເຫຼວ.",
   "Upload slip": "ຂຶ້ນຮູບສະລິບ",
-  "Slip photo uploaded.": "ຂຶ້ນຮູບສະລິບແລ້ວ."
+  "Slip photo uploaded.": "ຂຶ້ນຮູບສະລິບແລ້ວ.",
+  "Receipt photo": "ຮູບໃບຮັບເງິນ",
+  "Photo of cheque": "ຮູບທີເຊັກ",
+  "Photo of bank slip": "ຮູບສະລິບທະນາຄານ",
+  "Photo of mobile money message": "ຮູບຂໍ້ຄວາມຢືນຢັນທຸລະກຳ",
+  "from the slip": "ຈາກສະລິບ",
+  "Settle failed.": "ການປິດບັ້ງເກິດລົ້ມເຫຼວ.",
+  "Payment is recorded as awaiting proof — review it in the Bank tab.": "ທະບຽນການຊຳລະໄວ້ແລ້ວ ໃນສະຖານະລໍຖ້າຫຼັກຖານ — ກວດສອບໄດ້ໃນໜ້າທະນາຄານ.",
+  "Evidence photo upload failed (payment was settled anyway).": "ຂຶ້ນຮູບຫຼັກຖານລົ້ມເຫຼວ (ການຊຳລະແມ່ນຖືກຈັດການແລ້ວ).",
+  "Cash, cheque, bank or mobile payment collected at the district office — settles the obligation immediately and prints the receipt.": "ການຊຳລະເງິນເປັນເງິນສົດ, ທີເຊັກ, ທະນາຄານ ຫຼື ມືຖື ທີ່ຮັບຢູ່ບ້ານກົດ — ຈະປິດພັນທະທັນທີ ແລະ ພິມໃບຮັບເງິນ."
 }
