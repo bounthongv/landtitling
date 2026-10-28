@@ -14,13 +14,16 @@
 SET search_path = landfee;
 
 -- Safe to re-run: replace the demo rows only.
+-- Rates: decree 385/2009 reference band (district-seat class III town row,
+-- road tiers mapped onto the decree's value columns — see docs/15-landtax-reg.md).
+-- Fee logic does NOT read this table; it exists only for reference.
 DELETE FROM zones_rates;
 
 INSERT INTO zones_rates (district_id, road_category, rate_per_sqm, valid_from)
 SELECT d.id, rc.rc, rc.rate, CURRENT_DATE
 FROM districts d CROSS JOIN (
-  SELECT 'main' AS rc, 180000.00 AS rate UNION ALL
-  SELECT 'branch', 140000.00 UNION ALL
-  SELECT 'alley', 110000.00 UNION ALL
-  SELECT 'none', 85000.00) rc
+  SELECT 'main' AS rc, 120.00 AS rate UNION ALL
+  SELECT 'branch', 120.00 UNION ALL
+  SELECT 'alley', 60.00 UNION ALL
+  SELECT 'none', 25.00) rc
 WHERE left(d.code, 2) = '13';   -- Savannakhet districts only (60 rows, as before)

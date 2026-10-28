@@ -142,11 +142,11 @@ the Waive action. Legal grounds as read from the scan:
 
 **Tax year: 1 October – 30 September** (state budget year).
 
-## 6. Reconciliation with our seed rates — the seed is off by ~3 orders of magnitude
+## 6. Reconciliation with our seed rates — off by ~3 orders of magnitude
 
-Our placeholder seed (`sql/seed_zone_rates_savannakhet.sql`) ships 248 tier
-rates in the band **85,000 – 180,000 kip/m²/year** (main 180k / branch 140k /
-alley 110k / no-road 85k). The decree's construction-land rates are
+The original placeholder seed shipped 248 tier rates in the band
+**85,000 – 180,000 kip/m²/year** (main 180k / branch 140k / alley 110k /
+no-road 85k). The decree's construction-land rates are
 **5 – 300 kip/m²/year**:
 
 | | Ours (seed) | Decree 385/2009 | Factor |
@@ -157,44 +157,67 @@ alley 110k / no-road 85k). The decree's construction-land rates are
 
 Worked example: a 100 m² plot in a provincial town centre (class II,
 centre row) — decree: 60–250 kip/m²/yr → **6,000–25,000 kip/year**
-(≈ US$0.25–1.10/yr). Our app today: **8.5–18 million kip/year**
-(≈ US$360–800/yr).
+(≈ US$0.25–1.10/yr). The app quoted **8.5–18 million kip/year**
+(≈ US$360–800/yr) before this fix.
 
-**Conclusion:** the numbers we picked for the seed band are not annual land
-tax — their magnitude matches **one-off land-transaction / land-use fees**
-(paid per m² at transfer/registration), which is what we were looking at
-the other day. The annual land tax is a few hundred kip per m² at most.
+**Conclusion:** the numbers we picked for the original seed band were not
+annual land tax — their magnitude matched **one-off land-transaction /
+land-use fees** (paid per m² at transfer/registration). The annual land tax
+is a few hundred kip per m² at most.
 
-Caveats before re-seeding:
-- The decree is from **2009** and Art. 8 delegates rate adjustment to the
-  Cabinet "to match the economic situation" — a newer table may be in force.
-  **Confirm the currently valid rates with Savannakhet province** before
-  replacing the seed band.
-- The `[verify]` cells above need checking against the printed original.
-- **Unit mismatch:** agricultural land is priced per **hectare**
-  (1 ha = 10,000 m²). Our app prices `rate_per_sqm × area_sqm`; for
-  agricultural parcels a decree figure of 40,000 kip/ha must be stored as
-  **4 kip/m²** (or the engine must learn a per-hectare unit).
+### Applied mapping (decision made — decree band is now live in the seed)
+
+The decree is from **2009** and Art. 8 delegates rate adjustment to the
+Cabinet "to match the economic situation" — a newer table may be in force.
+Decision: **re-base the system on the decree now**; the province can always
+override it later, either by re-running an updated seed or (the supported
+path) editing values in **Basic Data > Zone rates**. No app or code change
+is needed for that — the fee engine only reads the `zone_rate_tiers` /
+`zones` tables.
+
+Implementation:
+- `sql/seed_zone_rates_savannakhet.sql` — fresh installs now create the 62
+  zones with decree-band tier rates (248 rows, 3.5–250 kip/m²/yr)
+- `sql/migrations/011_decree385_zone_rates.sql` — UPDATE-only, idempotent:
+  re-bases existing seed-zone tiers + `zones.rate_per_sqm` fallbacks and the
+  legacy unassigned zones (flat 60 kip/m²/yr). Apply by hand on the server;
+  it overwrites any province figures already entered in Basic Data, so
+  re-enter those afterwards if they differ
+- `sql/seed_savannakhet.sql` — the reference-only `zones_rates` rows follow
+  the same band
+
+Rate table actually seeded (kip/m²/year):
+
+| Plan (our zone) | District type | main | branch | alley | none |
+|---|---|---|---|---|---|
+| 1 ເຂດຕົວເມືອງ (urban core) | 1301 capital | 250 | 250 | 160 | 60 |
+| 1 | district seats | 120 | 120 | 60 | 25 |
+| 2 ເຂດຊານເມືອງ (peri-urban) | 1301 | 180 | 180 | 60 | 30 |
+| 2 | district seats | 60 | 60 | 30 | 20 |
+| 3 ເຂດກະສິກຳ (agricultural) | all | 3.5 | 3.5 | 3.5 | 3.5 |
+| 4 ເຂດຊົນນະບົດ (rural) | 1301 | 45 | 30 | 20 | 15 |
+| 4 | district seats | 45 | 30 | 20 | 15 |
+| 5 commercial (capital only) | 1301 | 180 | 180 | 180 | 180 |
+| 6 industrial (capital only) | 1301 | 80 | 80 | 80 | 80 |
+| legacy unassigned (G17/A7/C7/C8…) | — | 60 flat | | | |
+
+Mapping assumptions (flagged here, not in the app):
+- 1301 (provincial capital) prices its town rows from decree class **II**
+  (towns within a province); districts 1302–1315 (district seats) from
+  class **III**; rural rows from class **IV plains**.
+- The decree's 4 rate columns are not fully legible on the scan; they are
+  assumed to rise with land value and mapped to road tiers
+  main→col4, branch→col3, alley→col2, none→col1.
+- Agricultural plan: paddy (plain) **35,000 kip/ha = 3.5 kip/m²** (unit
+  converted, no road differentiation — the decree has none for farmland).
+- `[verify]` cells above still need checking against the printed original;
+  agricultural figures were OCR'd with lower confidence.
+
+Still open (deliberately not changed by this work):
 - **Tax year:** the decree's year is 1 Oct – 30 Sep; our seed due date is
-  30 June — if the province collects on the decree's year, `fee_years`
-  due dates should follow it.
-- The decree's surcharges (§5) map directly onto our `fee_obligations.penalty`
-  field; its exemption list (§4) is the legal basis for our Waive (ຍົກເວັ້ນ)
-  action.
-
-### Suggested mapping onto our zone model (once the province confirms)
-
-| Our zone plan | Decree class |
-|---|---|
-| 1 ເຂດຕົວເມືອງ (urban core) | I–III, centre rows |
-| 2 ເຂດຊານເມືອງ (peri-urban) | I–III, suburban/extension rows |
-| 4 ເຂດຊົນນະບົດ (rural) | IV (plain / upland / highland) |
-| 3 ເຂດກະສິກຳ (agricultural) | §3.2 table (kip/ha ÷ 10,000 → kip/m²) |
-| road tiers (main/branch/alley/none) | the decree's 4 columns — mapping unconfirmed (`[verify]`) |
-
-Decision pending: re-seed `zone_rate_tiers` with the decree band, or wait for
-the province's current official table. (Re-seeding truncates district/
-village names — see AGENTS.md.)
+  30 June — decide whether `fee_years` due dates follow the decree's year.
+- **Surcharges (§5)** map onto `fee_obligations.penalty`; the **exemption
+  list (§4)** is the legal basis for our Waive (ຍົກເວັ້ນ) action.
 
 ## 7. How this document was produced
 
