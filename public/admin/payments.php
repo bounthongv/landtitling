@@ -1,10 +1,16 @@
 <?php
-// public/admin/payments.php — payment verification queue (v2 settlements)
+// public/admin/payments.php — payments by channel: counter (cash/cheque),
+// bank & mobile proofs (review), and the full ledger.
 require __DIR__ . '/common.php';
 require_once __DIR__ . '/../../lib/fee.php';   // payment_method_label()
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
+
+// Active tab comes from the URL (POST forms post back to the same URL, so the
+// tab survives every action). Counter is the default — that is the daily action.
+$tab = $_GET['tab'] ?? 'counter';
+if (!in_array($tab, ['counter', 'bank', 'all'], true)) { $tab = 'counter'; }
 
 $status = $_GET['status'] ?? 'ISSUED';
 $methodF = $_GET['method'] ?? '';
@@ -71,112 +77,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
     }
 }
 
-// Queue + counts
-$qs = 'status=' . urlencode($status);
-if ($methodF !== '') { $qs .= '&method=' . urlencode($methodF); }
-if ($fee_year) { $qs .= '&fee_year=' . $fee_year; }
-$d = api_call('GET', 'payments.php?' . $qs, null, $token);
-$payments = $d['data']['payments'] ?? [];
-
-$countIssued = api_call('GET', 'payments.php?status=ISSUED', null, $token)['data']['count'] ?? 0;
-$countPaid   = api_call('GET', 'payments.php?status=PAID', null, $token)['data']['count'] ?? 0;
-$countRej    = api_call('GET', 'payments.php?status=REJECTED', null, $token)['data']['count'] ?? 0;
-
 $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
-?>
-<!DOCTYPE html>
-<html lang="<?= i18n_current() ?>">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= te('Verify Payments') ?> — Land Fee MVP</title>
-<?php require __DIR__ . '/style.php'; ?>
-</head>
-<body>
-<div class="app">
-  <aside class="side">
-    <?= admin_side_top() ?>
-    <?= admin_nav($role) ?>
-    <?= admin_side_foot() ?>
-  </aside>
-  <main class="main">
-    <h1><?= te('Payment Verify Queue') ?></h1>
-    <p class="sub"><?= te('Each payment settles an annual obligation. Bank-statement matches arrive already marked PAID — this queue is for slip review and overrides.') ?></p>
 
-    <div class="cards">
-      <div class="card"><h3><?= te('Issued (to verify)') ?></h3><p class="num"><?= (int)$countIssued ?></p></div>
-      <div class="card"><h3><?= te('Paid') ?></h3><p class="num"><?= (int)$countPaid ?></p></div>
-      <div class="card"><h3><?= te('Rejected') ?></h3><p class="num"><?= (int)$countRej ?></p></div>
-    </div>
+// ---- Per-tab data ----------------------------------------------------------
+$payments = []; $count = 0;
+$countIssued = $countPaid = $countRej = 0;
+$counterToday = []; $counterTodayTotal = 0.0;
+$bankIssued = []; $awaitingProof = []; $matchedToday = [];
 
-    <?php if ($msg): ?>
-      <p class="flash <?= $msgType === 'err' ? 'err' : 'ok' ?>"><?= e($msg) ?>
-        <?php if ($lastReceipt): ?> <a href="<?= $base ?>/slip_print.php?id=<?= (int)($lastId ?? 0) ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a><?php endif; ?>
-      </p>
-    <?php endif; ?>
+if ($tab === 'all' || $tab === 'counter') {
+    $qs = 'status=' . urlencode($status);
+    if ($methodF !== '') { $qs .= '&method=' . urlencode($methodF); }
+    if ($fee_year) { $qs .= '&fee_year=' . $fee_year; }
+    $d = api_call('GET', 'payments.php?' . $qs, null, $token);
+    $payments = $d['data']['payments'] ?? [];
+    $count = $d['data']['count'] ?? 0;
+    $countIssued = api_call('GET', 'payments.php?status=ISSUED', null, $token)['data']['count'] ?? 0;
+    $countPaid   = api_call('GET', 'payments.php?status=PAID', null, $token)['data']['count'] ?? 0;
+    $countRej    = api_call('GET', 'payments.php?status=REJECTED', null, $token)['data']['count'] ?? 0;
+}
 
-    <div class="form-box">
-      <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
-        <div class="form-group"><label><?= te('Status') ?></label>
-          <select name="status">
-            <?php foreach (['ISSUED','PAID','REJECTED','REFUNDED'] as $s): ?>
-            <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= e(t($s)) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-group"><label><?= te('Method') ?></label>
-          <select name="method">
-            <option value=""><?= te('-- all --') ?></option>
-            <?php foreach (['cash','bank_transfer','mobile','cheque','counter'] as $m): ?>
-            <option value="<?= $m ?>" <?= $methodF === $m ? 'selected' : '' ?>><?= e(payment_method_label($m)) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-group"><label><?= te('Tax year') ?></label>
-          <select name="fee_year"><option value=""><?= te('-- all --') ?></option>
-            <?php foreach ($years as $y): ?>
-            <option value="<?= e($y['year']) ?>" <?= $fee_year == $y['year'] ? 'selected' : '' ?>><?= e($y['year']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
-      </form>
-    </div>
+if ($tab === 'counter') {
+    // Today's counter receipts (cash + cheque, paid today) — the officer's
+    // answer to "what did we collect at the counter today?".
+    foreach (['cash', 'cheque'] as $m) {
+        $d = api_call('GET', 'payments.php?status=PAID&method=' . $m, null, $token);
+        foreach (($d['data']['payments'] ?? []) as $row) {
+            if (str_starts_with((string)($row['paid_at'] ?? ''), date('Y-m-d'))) {
+                $counterToday[] = $row;
+                $counterTodayTotal += (float)$row['amount'];
+            }
+        }
+    }
+    usort($counterToday, fn($a, $b) => strcmp((string)($b['paid_at'] ?? ''), (string)($a['paid_at'] ?? '')));
+}
 
-    <div class="form-box" style="border-left:4px solid #b8860b;">
-      <h2><?= te('Record counter payment') ?></h2>
-      <p class="sub"><?= te('Cash or cheque received at the district office — settles the obligation immediately and prints the receipt.') ?></p>
-      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;">
-        <input type="hidden" name="do_action" value="settle">
-        <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" required></div>
-        <div class="form-group"><label><?= te('Owner') ?></label>
-          <select name="payer_owner_id" id="counter-owner">
-            <option value=""><?= te('-- select parcel first --') ?></option>
-          </select>
-        </div>
-        <div class="form-group"><label><?= te('Tax year') ?></label>
-          <select name="fee_year">
-            <?php foreach ($years as $y): ?>
-            <option value="<?= e($y['year']) ?>" <?= (int)$y['year'] === (int)date('Y') ? 'selected' : '' ?>><?= e($y['year']) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-group"><label><?= te('Method') ?></label>
-          <select name="method" id="counter-method">
-            <option value="cash"><?= e(payment_method_label('cash')) ?></option>
-            <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
-          </select>
-        </div>
-        <div class="form-group" id="counter-cheque-group"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
-        <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
-        <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
-        <div class="form-group" style="align-self:end;"><button class="btn btn-gold" type="submit"><?= te('Receive & settle') ?></button></div>
-      </form>
-    </div>
+if ($tab === 'bank') {
+    // Review queue: issued bank/mobile payments (oldest first), split into
+    // "has evidence" vs "awaiting proof"; plus today's auto-matched ones.
+    foreach (['bank_transfer', 'mobile'] as $m) {
+        $d = api_call('GET', 'payments.php?status=ISSUED&method=' . $m, null, $token);
+        foreach (($d['data']['payments'] ?? []) as $row) { $bankIssued[] = $row; }
+        $d2 = api_call('GET', 'payments.php?status=PAID&method=' . $m, null, $token);
+        foreach (($d2['data']['payments'] ?? []) as $row) {
+            if (($row['verify_method'] ?? '') === 'auto_statement'
+                && str_starts_with((string)($row['paid_at'] ?? ''), date('Y-m-d'))) {
+                $matchedToday[] = $row;
+            }
+        }
+    }
+    usort($bankIssued, fn($a, $b) => strcmp((string)($a['created_at'] ?? ''), (string)($b['created_at'] ?? '')));
+    $awaitingProof = array_values(array_filter($bankIssued, function ($p) {
+        return empty($p['slip_path']) && empty($p['bank_ref']);
+    }));
+}
 
-    <?php if (!$payments): ?>
-      <p class="empty"><?= te('No payments in status {status}.', ['status' => t($status)]) ?></p>
-    <?php else: ?>
-      <?php foreach ($payments as $p): ?>
+/** One payment card, shared by the bank review tab and the All ledger. */
+function render_payment_card(array $p, string $base): void
+{
+    ?>
       <div class="form-box" style="padding:14px; border-left:4px solid #1b5e20;">
         <div style="display:grid; grid-template-columns: 1fr auto; gap:8px 16px; align-items:start;">
           <div>
@@ -185,7 +144,7 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
             <p class="sub">
               <?= te('Year') ?> <?= e($p['fee_year']) ?> &nbsp;|&nbsp;
               <?= e($p['district_name']) ?> / <?= e($p['village_name']) ?> &nbsp;|&nbsp;
-              <?= te('Area') ?> <?= number_format((float)$p['area_sqm'], 2) ?> m²
+              <?= te('Area') ?> <?= number_format((float)$p['area_sqm'], 2) ?> m2
             </p>
             <p><b><?= te('Amount') ?>:</b> <?= number_format((float)$p['amount'], 0) ?> <?= te('kip') ?>
                &nbsp;<b><?= te('Method') ?>:</b> <?= e(payment_method_label((string)$p['method'])) ?>
@@ -240,7 +199,191 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
           </div>
         </div>
       </div>
-      <?php endforeach; ?>
+    <?php
+}
+?>
+<!DOCTYPE html>
+<html lang="<?= i18n_current() ?>">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?= te('Verify Payments') ?> — Land Fee MVP</title>
+<?php require __DIR__ . '/style.php'; ?>
+<style>
+  .pay-tabs { display:flex; gap:8px; margin:14px 0 18px; flex-wrap:wrap; }
+  .pay-tabs a { padding:9px 18px; border:1px solid #ccc; border-radius:4px; background:#fff; color:#333; text-decoration:none; font-weight:600; }
+  .pay-tabs a.active { background:#4a7c59; color:#fff; border-color:#4a7c59; }
+  .bank-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <?= admin_side_top() ?>
+    <?= admin_nav($role) ?>
+    <?= admin_side_foot() ?>
+  </aside>
+  <main class="main">
+    <h1><?= te('Payments') ?></h1>
+    <p class="sub"><?= te('Counter cash/cheque, bank transfer and mobile payments — one tab per channel.') ?></p>
+
+    <div class="pay-tabs">
+      <a href="?tab=counter" class="<?= $tab === 'counter' ? 'active' : '' ?>"><?= te('Office counter') ?></a>
+      <a href="?tab=bank" class="<?= $tab === 'bank' ? 'active' : '' ?>"><?= te('Bank & mobile proofs') ?></a>
+      <a href="?tab=all" class="<?= $tab === 'all' ? 'active' : '' ?>"><?= te('All payments') ?></a>
+    </div>
+
+    <?php if ($msg): ?>
+      <p class="flash <?= $msgType === 'err' ? 'err' : 'ok' ?>"><?= e($msg) ?>
+        <?php if ($lastReceipt): ?> <a href="<?= $base ?>/slip_print.php?id=<?= (int)($lastId ?? 0) ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a><?php endif; ?>
+      </p>
+    <?php endif; ?>
+
+    <?php if ($tab === 'counter'): ?>
+      <!-- ================= OFFICE COUNTER ================= -->
+      <div class="form-box" style="border-left:4px solid #b8860b;">
+        <h2><?= te('Record counter payment') ?></h2>
+        <p class="sub"><?= te('Cash or cheque received at the district office — settles the obligation immediately and prints the receipt.') ?></p>
+        <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;">
+          <input type="hidden" name="do_action" value="settle">
+          <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" required></div>
+          <div class="form-group"><label><?= te('Owner') ?></label>
+            <select name="payer_owner_id" id="counter-owner">
+              <option value=""><?= te('-- select parcel first --') ?></option>
+            </select>
+          </div>
+          <div class="form-group"><label><?= te('Tax year') ?></label>
+            <select name="fee_year">
+              <?php foreach ($years as $y): ?>
+              <option value="<?= e($y['year']) ?>" <?= (int)$y['year'] === (int)date('Y') ? 'selected' : '' ?>><?= e($y['year']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group"><label><?= te('Method') ?></label>
+            <select name="method" id="counter-method">
+              <option value="cash"><?= e(payment_method_label('cash')) ?></option>
+              <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
+            </select>
+          </div>
+          <div class="form-group" id="counter-cheque-group"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
+          <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
+          <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
+          <div class="form-group" style="align-self:end;"><button class="btn btn-gold" type="submit"><?= te('Receive & settle') ?></button></div>
+        </form>
+      </div>
+
+      <div class="form-box">
+        <h2><?= te('Received today') ?></h2>
+        <p class="sub"><?= te('{n} payment(s), {amount} kip today.', ['n' => count($counterToday), 'amount' => number_format($counterTodayTotal, 0)]) ?></p>
+        <?php if (!$counterToday): ?>
+          <p class="empty"><?= te('No counter payments recorded today yet.') ?></p>
+        <?php else: ?>
+        <table>
+          <thead><tr><th><?= te('Reference') ?></th><th><?= te('Parcel') ?></th><th><?= te('Owner') ?></th><th><?= te('Method') ?></th><th><?= te('Amount') ?></th><th><?= te('Time') ?></th><th></th></tr></thead>
+          <tbody>
+            <?php foreach ($counterToday as $p): ?>
+            <tr>
+              <td><?= e($p['reference_no']) ?></td>
+              <td><a href="<?= $base ?>/parcel.php?id=<?= (int)$p['parcel_id'] ?>"><?= e($p['parcel_no']) ?></a></td>
+              <td><?= e($p['payer_name'] ?: '—') ?></td>
+              <td><?= e(payment_method_label((string)$p['method'])) ?><?= $p['bank_ref'] ? ' (' . e($p['bank_ref']) . ')' : '' ?></td>
+              <td><?= number_format((float)$p['amount'], 0) ?></td>
+              <td><?= e(substr((string)$p['paid_at'], 11, 5)) ?></td>
+              <td><a href="<?= $base ?>/slip_print.php?id=<?= (int)$p['id'] ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Receipt') ?></a></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+        <?php endif; ?>
+      </div>
+
+    <?php elseif ($tab === 'bank'): ?>
+      <!-- ================= BANK & MOBILE PROOFS ================= -->
+      <div class="bank-strip">
+        <div class="card"><h3><?= te('To review') ?></h3><p class="num"><?= count($bankIssued) ?></p></div>
+        <div class="card"><h3><?= te('Awaiting proof') ?></h3><p class="num"><?= count($awaitingProof) ?></p></div>
+        <div class="card"><h3><?= te('Matched automatically today') ?></h3><p class="num"><?= count($matchedToday) ?></p></div>
+      </div>
+
+      <?php if ($awaitingProof): ?>
+        <div class="form-box" style="border-left:4px solid #c62828; background:#fdf3f2;">
+          <h2><?= te('Awaiting proof — contact these citizens') ?></h2>
+          <ul style="margin:6px 0 0 18px;">
+            <?php foreach ($awaitingProof as $p): ?>
+            <li><b><?= e($p['reference_no']) ?></b> — <?= e($p['parcel_no']) ?> (<?= e($p['payer_name'] ?: t('no owner recorded')) ?>), <?= te('issued') ?> <?= e(substr((string)$p['created_at'], 0, 10)) ?></li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!$bankIssued): ?>
+        <p class="empty"><?= te('No bank or mobile payments waiting for review.') ?></p>
+      <?php else: ?>
+        <?php foreach ($bankIssued as $p): render_payment_card($p, $base); endforeach; ?>
+      <?php endif; ?>
+
+      <?php if ($matchedToday): ?>
+        <div class="form-box">
+          <h2><?= te('Matched automatically today') ?></h2>
+          <p class="sub"><?= te('Paid by bank statement match — nothing to do.') ?></p>
+          <table>
+            <thead><tr><th><?= te('Reference') ?></th><th><?= te('Parcel') ?></th><th><?= te('Amount') ?></th><th><?= te('Time') ?></th><th></th></tr></thead>
+            <tbody>
+              <?php foreach ($matchedToday as $p): ?>
+              <tr>
+                <td><?= e($p['reference_no']) ?></td>
+                <td><?= e($p['parcel_no']) ?></td>
+                <td><?= number_format((float)$p['amount'], 0) ?></td>
+                <td><?= e(substr((string)$p['paid_at'], 11, 5)) ?></td>
+                <td><a href="<?= $base ?>/slip_print.php?id=<?= (int)$p['id'] ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Receipt') ?></a></td>
+              </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      <?php endif; ?>
+
+    <?php else: ?>
+      <!-- ================= ALL PAYMENTS ================= -->
+      <div class="cards">
+        <div class="card"><h3><?= te('Issued (to verify)') ?></h3><p class="num"><?= (int)$countIssued ?></p></div>
+        <div class="card"><h3><?= te('Paid') ?></h3><p class="num"><?= (int)$countPaid ?></p></div>
+        <div class="card"><h3><?= te('Rejected') ?></h3><p class="num"><?= (int)$countRej ?></p></div>
+      </div>
+
+      <div class="form-box">
+        <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
+          <input type="hidden" name="tab" value="all">
+          <div class="form-group"><label><?= te('Status') ?></label>
+            <select name="status">
+              <?php foreach (['ISSUED','PAID','REJECTED','REFUNDED'] as $s): ?>
+              <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= e(t($s)) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group"><label><?= te('Method') ?></label>
+            <select name="method">
+              <option value=""><?= te('-- all --') ?></option>
+              <?php foreach (['cash','bank_transfer','mobile','cheque','counter'] as $m): ?>
+              <option value="<?= $m ?>" <?= $methodF === $m ? 'selected' : '' ?>><?= e(payment_method_label($m)) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group"><label><?= te('Tax year') ?></label>
+            <select name="fee_year"><option value=""><?= te('-- all --') ?></option>
+              <?php foreach ($years as $y): ?>
+              <option value="<?= e($y['year']) ?>" <?= $fee_year == $y['year'] ? 'selected' : '' ?>><?= e($y['year']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
+        </form>
+      </div>
+
+      <?php if (!$payments): ?>
+        <p class="empty"><?= te('No payments in status {status}.', ['status' => t($status)]) ?></p>
+      <?php else: ?>
+        <?php foreach ($payments as $p): render_payment_card($p, $base); endforeach; ?>
+      <?php endif; ?>
     <?php endif; ?>
   </main>
 </div>
