@@ -89,23 +89,28 @@ payments that have **no slip photo and no bank reference**. The citizen paid
 (or claims to) but no proof arrived: contact them. Each line shows the
 reference no, parcel, owner (or "no owner recorded"), and the issue date.
 
-**Review queue** — every Issued bank/mobile payment, oldest first. For each:
+**Review queue** — each payment is a standalone card (orange left border),
+oldest first. The card shows:
 
-1. **Look at the slip photo** (click it to zoom). It should show the bank's
-   reference, date, and amount.
-2. **Check the amount received** — the box next to Verify is pre-filled
-   with the slip amount. If the citizen actually paid less or more,
-   correct it to the real figure; the obligation then shows as
-   ບາງສ່ວນ (PARTIAL) or ຈ່າຍເກີນ (OVERPAID) automatically.
-3. **Add a note** if useful (optional).
-4. Click **Verify (ກວດສອບ)** → the payment becomes Paid (ຈ່າຍແລ້ວ), the
-   obligation is settled, and a **receipt** becomes printable.
-5. If the proof is wrong or missing, optionally enter the **Reason**
-   (ເຫດຜົນ) — e.g. "slip amount does not match" — then click
-   **Reject (ປະຕິເສດ)** — the payment becomes Rejected (ປະຕິເສດແລ້ວ)
-   and nothing is settled. The reason is recorded on the payment, so the
-   citizen can see why; leaving it blank records the default
-   "Rejected by officer".
+- Reference no + status badge (ISSUED / PAID / REJECTED)
+- "Awaiting proof" red badge when slip and bank ref are both empty
+- Parcel link, tax year, district/village, area
+- Amount + method + payer + bank ref
+- Slip photo thumbnail (click to zoom)
+- Verified info (method + date) if already settled
+
+Each ISSUED card has two prominent action buttons on the right:
+- **Verify (ກວດສອບ)** — opens a modal dialog; confirm the amount
+  (pre-filled from the slip, editable for partial/overpaid) and add an
+  optional note. Submit → payment becomes PAID, obligation settles, card
+  fades out and a green flash appears.
+- **Reject (ປະຕິເສດ)** — opens a modal dialog; optionally enter a reason
+  (ເຫດຜົນ), e.g. "slip amount does not match". Submit → payment becomes
+  REJECTED, nothing is settled, card fades out and a red flash appears.
+  Leaving the reason blank records the default "Rejected by officer".
+
+Both modals can be closed with the Cancel button or Escape key. The page
+never reloads during verify/reject — smooth batch processing.
 
 **Matched automatically today** — payments settled directly from bank
 statement matching (Paid, verify method = auto_statement), shown in a
