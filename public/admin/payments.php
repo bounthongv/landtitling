@@ -260,7 +260,7 @@ function render_payment_card(array $p, string $base): void
       <div class="form-box" style="border-left:4px solid #b8860b;">
         <h2><?= te('Record counter payment') ?></h2>
         <p class="sub"><?= te('Cash or cheque received at the district office — settles the obligation immediately and prints the receipt.') ?></p>
-        <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;">
+        <form method="post" class="form-grid" id="counter-settle-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;">
           <input type="hidden" name="do_action" value="settle">
           <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" required></div>
           <div class="form-group"><label><?= te('Owner') ?></label>
@@ -269,7 +269,7 @@ function render_payment_card(array $p, string $base): void
             </select>
           </div>
           <div class="form-group"><label><?= te('Tax year') ?></label>
-            <select name="fee_year">
+            <select name="fee_year" id="counter-year">
               <?php foreach ($years as $y): ?>
               <option value="<?= e($y['year']) ?>" <?= (int)$y['year'] === (int)date('Y') ? 'selected' : '' ?>><?= e($y['year']) ?></option>
               <?php endforeach; ?>
@@ -286,6 +286,7 @@ function render_payment_card(array $p, string $base): void
           <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
           <div class="form-group" style="align-self:end;"><button class="btn btn-gold" type="submit"><?= te('Receive & settle') ?></button></div>
         </form>
+        <div id="counter-ob-hint" class="sub" style="margin-top:8px; min-height:16px; font-size:13px;"></div>
       </div>
 
       <div class="form-box">
@@ -447,45 +448,91 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     cm.onchange = sync;
     sync();
   }
-  // Counter form: when the parcel no is entered, load its owners into the
-  // Owner (payer) dropdown — parcel lookup, then owners of that parcel.
+  // Counter form: when the parcel no is entered, load the parcel's fee
+  // picture for the selected year — the owners (payer dropdown) and the
+  // assessed obligation (due / paid / balance, or the zone-rate amount it
+  // will be assessed at) — and prefill the expected amount.
   var parcelInput = document.querySelector('input[name=parcel_no]');
   var ownerSel = document.getElementById('counter-owner');
+  var obHint = document.getElementById('counter-ob-hint');
+  var amountInput = document.querySelector('#counter-settle-form input[name=amount]');
+  var yearSel = document.getElementById('counter-year');
+  var HINT = {
+    assessed: <?= json_encode(te('Obligation for {year} ({status}) — due {due} kip, paid {paid} kip, balance {out} kip')) ?>,
+    settled:  <?= json_encode(te('Obligation already settled — nothing to collect')) ?>,
+    fresh:    <?= json_encode(te('No obligation for {year} yet — settles at {amt} kip (zone {zone}, {rate} kip/m²)')) ?>,
+    norate:   <?= json_encode(te('No zone rate set for this parcel — assign a valuation zone first')) ?>,
+    status: { <?php foreach (['UNPAID', 'PARTIAL', 'PAID', 'OVERPAID', 'WAIVED'] as $s) { echo json_encode($s) . ' => ' . json_encode(t($s)) . ', '; } ?> }
+  };
+  function fillText(tpl, vars) {
+    return tpl.replace(/\{(\w+)\}/g, function (_, k) {
+      return (vars[k] === undefined || vars[k] === null) ? '' : vars[k];
+    });
+  }
+  function fmtKip(n) { return Number(n || 0).toLocaleString('en-US'); }
   if (parcelInput && ownerSel) {
     function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-    parcelInput.onchange = function() {
-      var no = this.value.trim();
+    function loadParcel() {
+      var no = parcelInput.value.trim();
+      var yr = yearSel ? yearSel.value : '';
       ownerSel.innerHTML = '<option value=""><?= te('-- select parcel first --') ?></option>';
-      if (!no) return;
+      if (obHint) obHint.textContent = '';
+      if (!no) { return; }
       ownerSel.innerHTML = '<option value=""><?= te('-- loading --') ?></option>';
-      fetch(API_BASE + '/parcels.php?parcel_no=' + encodeURIComponent(no) + '&limit=10',
+      if (obHint) obHint.textContent = te('-- loading --');
+      fetch(API_BASE + '/parcel_fee.php?parcel_no=' + encodeURIComponent(no) + '&fee_year=' + yr,
             { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
         .then(function(r) { return r.json(); })
         .then(function(d) {
-          var rows = (d && d.data && d.data.parcels) ? d.data.parcels : [];
-          var pid = 0;
-          for (var i = 0; i < rows.length; i++) {
-            if (rows[i].parcel_no === no) { pid = rows[i].id; break; }
-          }
-          if (!pid) {
+          if (!d || !d.ok) {
             ownerSel.innerHTML = '<option value=""><?= te('Parcel not found.') ?></option>';
-            return null;
+            if (obHint) obHint.textContent = te('Parcel not found.');
+            if (amountInput) amountInput.value = '';
+            return;
           }
-          return fetch(API_BASE + '/owners.php?parcel_id=' + pid,
-                       { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } });
-        })
-        .then(function(r2) { return r2 ? r2.json() : null; })
-        .then(function(d2) {
-          if (!d2) return;
-          var owners = (d2.data && d2.data.owners) ? d2.data.owners : [];
+          var data = d.data;
+          var owners = data.owners || [];
           var opts = '<option value=""><?= te('-- unspecified --') ?></option>';
           for (var i = 0; i < owners.length; i++) {
             opts += '<option value="' + owners[i].id + '">' + esc(owners[i].full_name) + '</option>';
           }
           ownerSel.innerHTML = opts;
+          var ob = data.obligation;
+          if (ob) {
+            var out = Number(ob.outstanding) || 0;
+            if (out > 0) {
+              if (obHint) obHint.textContent = fillText(HINT.assessed, {
+                year: yr,
+                status: HINT.status[ob.status] || ob.status,
+                due: fmtKip(ob.amount_due),
+                paid: fmtKip(ob.amount_paid),
+                out: fmtKip(out)
+              });
+              if (amountInput) amountInput.value = out;
+            } else {
+              if (obHint) obHint.textContent = HINT.settled;
+              if (amountInput) amountInput.value = '';
+            }
+          } else if (data.rate_found) {
+            if (obHint) obHint.textContent = fillText(HINT.fresh, {
+              year: yr,
+              amt: fmtKip(data.amount_due),
+              zone: (data.parcel && data.parcel.zone_code) || '?',
+              rate: fmtKip(data.rate_per_sqm)
+            });
+            if (amountInput) amountInput.value = Number(data.amount_due) > 0 ? data.amount_due : '';
+          } else {
+            if (obHint) obHint.textContent = HINT.norate;
+            if (amountInput) amountInput.value = '';
+          }
         })
-        .catch(function() { ownerSel.innerHTML = '<option value=""><?= te('-- error --') ?></option>'; });
-    };
+        .catch(function() {
+          ownerSel.innerHTML = '<option value=""><?= te('-- error --') ?></option>';
+          if (obHint) obHint.textContent = '';
+        });
+    }
+    parcelInput.onchange = loadParcel;
+    if (yearSel) { yearSel.onchange = function() { if (parcelInput.value.trim()) { loadParcel(); } }; }
   }
 })();
 </script>

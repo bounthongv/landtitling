@@ -31,7 +31,12 @@ Use the gold **Record counter payment (ບັນທຶກການຊໍາລ�
 
 1. **Parcel no** — the parcel number from the land title
    (e.g. `PILOT-AST-0002`). When the parcel is recognised, the **Owner**
-   (payer) dropdown fills in automatically — pick who actually paid.
+   (payer) dropdown fills in automatically — pick who actually paid. The
+   form also loads the parcel's obligation for the selected year and shows
+   it under the form: **due / paid / balance** with the status — or, if the
+   year has not been assessed yet, the zone-rate amount it will be assessed
+   at. The expected figure is pre-filled into **Amount received** (leave it
+   blank to take the full balance).
 2. **Tax year** — defaults to the current year.
 3. **Method** — ເງິນສົດ (cash) or ເຊັກ (cheque). Choosing cheque reveals a
    **Cheque no** field — record the cheque number.
