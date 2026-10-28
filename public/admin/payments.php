@@ -130,7 +130,7 @@ $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
 // ---- Per-tab data ----------------------------------------------------------
 $payments = []; $count = 0;
 $countIssued = $countPaid = $countRej = 0;
-$counterToday = []; $counterTodayTotal = 0.0;
+$counterReceived = []; $counterReceivedTotal = 0.0;
 $bankIssued = []; $awaitingProof = []; $matchedToday = [];
 
 if ($tab === 'all' || $tab === 'counter') {
@@ -146,17 +146,18 @@ if ($tab === 'all' || $tab === 'counter') {
 }
 
 if ($tab === 'counter') {
-    // Today's counter receipts (all methods recorded at the office, paid
-    // today) — the officer's answer to "what did we collect at the counter
-    // today?". paid_after keeps the query to today's rows.
+    // Counter receipt log: every PAID in-office receipt (all four methods),
+    // newest first. The API caps each query at the 300 newest rows, so this
+    // is the working history for re-printing receipts — the All payments tab
+    // and Reports cover deeper history.
     foreach (['cash', 'cheque', 'bank_transfer', 'mobile'] as $m) {
-        $d = api_call('GET', 'payments.php?status=PAID&method=' . $m . '&paid_after=' . date('Y-m-d'), null, $token);
+        $d = api_call('GET', 'payments.php?status=PAID&method=' . $m, null, $token);
         foreach (($d['data']['payments'] ?? []) as $row) {
-            $counterToday[] = $row;
-            $counterTodayTotal += (float)$row['amount'];
+            $counterReceived[] = $row;
+            $counterReceivedTotal += (float)$row['amount'];
         }
     }
-    usort($counterToday, fn($a, $b) => strcmp((string)($b['paid_at'] ?? ''), (string)($a['paid_at'] ?? '')));
+    usort($counterReceived, fn($a, $b) => strcmp((string)($b['paid_at'] ?? ''), (string)($a['paid_at'] ?? '')));
 }
 
 if ($tab === 'bank') {
@@ -352,22 +353,22 @@ function render_payment_card(array $p, string $base): void
       </div>
 
       <div class="form-box">
-        <h2><?= te('Received today') ?></h2>
-        <p class="sub"><?= te('{n} payment(s), {amount} kip today.', ['n' => count($counterToday), 'amount' => number_format($counterTodayTotal, 0)]) ?></p>
-        <?php if (!$counterToday): ?>
-          <p class="empty"><?= te('No counter payments recorded today yet.') ?></p>
+        <h2><?= te('Received') ?></h2>
+        <p class="sub"><?= te('{n} payment(s), {amount} kip.', ['n' => count($counterReceived), 'amount' => number_format($counterReceivedTotal, 0)]) ?></p>
+        <?php if (!$counterReceived): ?>
+          <p class="empty"><?= te('No counter payments recorded yet.') ?></p>
         <?php else: ?>
         <table>
-          <thead><tr><th><?= te('Reference') ?></th><th><?= te('Parcel') ?></th><th><?= te('Owner') ?></th><th><?= te('Method') ?></th><th><?= te('Amount') ?></th><th><?= te('Time') ?></th><th></th></tr></thead>
+          <thead><tr><th><?= te('Reference') ?></th><th><?= te('Parcel') ?></th><th><?= te('Owner') ?></th><th><?= te('Method') ?></th><th><?= te('Amount') ?></th><th><?= te('Date & time') ?></th><th></th></tr></thead>
           <tbody>
-            <?php foreach ($counterToday as $p): ?>
+            <?php foreach ($counterReceived as $p): ?>
             <tr>
               <td><?= e($p['reference_no']) ?></td>
               <td><a href="<?= $base ?>/parcel.php?id=<?= (int)$p['parcel_id'] ?>"><?= e($p['parcel_no']) ?></a></td>
               <td><?= e($p['payer_name'] ?: '—') ?></td>
               <td><?= e(payment_method_label((string)$p['method'])) ?><?= $p['bank_ref'] ? ' (' . e($p['bank_ref']) . ')' : '' ?></td>
               <td><?= number_format((float)$p['amount'], 0) ?></td>
-              <td><?= e(substr((string)$p['paid_at'], 11, 5)) ?></td>
+              <td><?= $p['paid_at'] ? e(date('d M Y H:i', strtotime((string)$p['paid_at']))) : '—' ?></td>
               <td><a href="<?= $base ?>/slip_print.php?id=<?= (int)$p['id'] ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Receipt') ?></a></td>
             </tr>
             <?php endforeach; ?>

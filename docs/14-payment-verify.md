@@ -98,12 +98,14 @@ immediately, and a **Print receipt** button appears in the confirmation
 message. Hand the printed receipt to the citizen — that is their proof of
 payment.
 
-### 2.2 Received today
+### 2.2 Received
 
-Below the form: today's counter receipts (cash + cheque) as a table —
-reference, parcel, owner, method, amount, time, and a **Receipt** button
-per row — with a running total ("N payment(s), X kip today") for
-end-of-day reconciliation.
+Below the form: the counter receipt log — every PAID in-office receipt
+(all four methods), newest first by the receipt date & time (Date & time
+column). Each row shows reference, parcel, owner, method, amount, and a
+**Receipt** button; a running total ("N payment(s), X kip") covers the
+rows shown. This is the working history for re-printing receipts; the
+All payments tab and Reports cover deeper history.
 
 ## 3. Tab: Mobile app
 
