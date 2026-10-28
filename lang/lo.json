@@ -547,6 +547,7 @@
   "Receive & settle": "ຮັບເງິນ ແລະ ປິດພັນທະ",
   "Cheque no": "ເລກທີເຊັກ",
   "Amount received": "ຈໍານວນເງິນທີ່ຮັບ",
+  "Reason": "ເຫດຜົນ",
   "Awaiting proof": "ລໍຖ້າຫຼັກຖານ",
   "Print receipt": "ພິມໃບຮັບເງິນ",
   "Payment received and settled — receipt ready.": "ຮັບເງິນ ແລະ ປິດພັນທະແລ້ວ — ພ້ອມພິມໃບຮັບເງິນ.",

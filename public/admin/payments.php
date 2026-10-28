@@ -23,7 +23,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
     $id = (int)($_POST['payment_id'] ?? 0);
     $action = $_POST['do_action'];                 // verify | reject | waive | settle
     $body = [];
-    if ($action === 'reject') { $body['reason'] = $_POST['reason'] ?? t('Rejected by officer'); }
+    if ($action === 'reject') {
+        $reason = trim((string)($_POST['reason'] ?? ''));
+        // Officer's own reason; the blank box falls back to the default.
+        $body['reason'] = $reason !== '' ? $reason : t('Rejected by officer');
+    }
     if ($action === 'verify') {
         $body['note'] = $_POST['note'] ?? null;
         // Amount actually received (optional) — partial/overpaid recorded here.
@@ -174,17 +178,26 @@ function render_payment_card(array $p, string $base): void
               <span class="pill pill-warn" style="background:#fdecea; border:1px solid #c62828; color:#b71c1c;"><?= te('Awaiting proof') ?></span>
             <?php endif; ?>
             <?php if ($p['status'] === 'ISSUED'): ?>
-              <form method="post" style="display:inline">
+              <form method="post" style="display:inline-flex; flex-wrap:wrap; gap:6px; align-items:flex-end;">
                 <input type="hidden" name="do_action" value="verify">
                 <input type="hidden" name="payment_id" value="<?= (int)$p['id'] ?>">
-                <input name="amount" type="number" step="any" min="0" value="<?= number_format((float)$p['amount'], 2, '.', '') ?>" title="<?= te('Amount received') ?>" style="width:110px;">
-                <input name="note" placeholder="<?= te('Note') ?>" title="<?= te('Note') ?>" style="width:110px;">
+                <label style="display:flex; flex-direction:column; gap:2px; font-size:11px; color:#666;">
+                  <?= te('Amount received') ?>
+                  <input name="amount" type="number" step="any" min="0" value="<?= number_format((float)$p['amount'], 2, '.', '') ?>" style="width:120px;">
+                </label>
+                <label style="display:flex; flex-direction:column; gap:2px; font-size:11px; color:#666;">
+                  <?= te('Note') ?>
+                  <input name="note" style="width:120px;">
+                </label>
                 <button class="btn btn-green btn-sm" type="submit"><?= te('Verify') ?></button>
               </form>
-              <form method="post" style="display:inline">
+              <form method="post" style="display:inline-flex; flex-wrap:wrap; gap:6px; align-items:flex-end;">
                 <input type="hidden" name="do_action" value="reject">
                 <input type="hidden" name="payment_id" value="<?= (int)$p['id'] ?>">
-                <input type="hidden" name="reason" value="<?= te('Rejected by officer') ?>">
+                <label style="display:flex; flex-direction:column; gap:2px; font-size:11px; color:#666;">
+                  <?= te('Reason') ?>
+                  <input name="reason" placeholder="<?= te('optional') ?>" style="width:140px;">
+                </label>
                 <button class="btn btn-red btn-sm" type="submit"><?= te('Reject') ?></button>
               </form>
             <?php endif; ?>
