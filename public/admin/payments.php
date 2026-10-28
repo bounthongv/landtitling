@@ -276,7 +276,7 @@ function render_payment_card(array $p, string $base): void
               <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
             </select>
           </div>
-          <div class="form-group" style="margin:0;"><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Verify obligation') ?></button></div>
+          <div class="form-group" style="margin:0;"><label>&nbsp;</label><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Verify obligation') ?></button></div>
         </div>
         <div id="counter-verify-result" style="display:none; margin-top:10px; padding:10px 12px; border-radius:6px; font-size:14px;"></div>
 
@@ -296,7 +296,7 @@ function render_payment_card(array $p, string $base): void
             <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
             <div class="form-group" id="counter-cheque-group" style="display:none;"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
             <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
-            <div class="form-group" style="margin:0;"><button class="btn btn-gold" type="submit"><?= te('Record & settle') ?></button></div>
+            <div class="form-group" style="margin:0;"><label>&nbsp;</label><button class="btn btn-gold" type="submit"><?= te('Record & settle') ?></button></div>
           </form>
         </div>
       </div>
