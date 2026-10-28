@@ -168,7 +168,7 @@ function render_payment_card(array $p, string $base): void
               <p class="sub"><?= te('Bank ref') ?>: <?= e($p['bank_ref']) ?></p>
             <?php endif; ?>
             <?php if (!empty($p['slip_path'])): ?>
-              <p><b><?= te('Slip photo') ?>:</b><br><img src="<?= e($p['slip_path']) ?>" class="slip-zoom" style="max-width:220px; border-radius:4px; background:#fff; cursor:zoom-in;" alt="<?= te('Slip photo') ?>"></p>
+              <p><b><?= te('Slip photo') ?>:</b><br><img src="<?= e($p['slip_path']) ?>" class="slip-zoom" style="max-width:220px; border-radius:4px; background:#fff; cursor:zoom-in;" alt="<?= te('Slip photo') ?>" onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<span style=color:#c62828;font-size:13px;>Photo file not found</span>');"></p>
             <?php endif; ?>
             <p><?php if ($p['status'] === 'PAID'): ?>
               <a href="<?= $base ?>/slip_print.php?id=<?= (int)$p['id'] ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Print receipt') ?></a>
@@ -391,7 +391,7 @@ function render_payment_card(array $p, string $base): void
               </p>
               <?php if (!empty($p['slip_path'])): ?>
                 <p style="margin:4px 0;"><b><?= te('Slip photo') ?>:</b><br>
-                  <img src="<?= e($p['slip_path']) ?>" class="slip-zoom" style="max-width:200px; border-radius:4px; background:#fff; cursor:zoom-in;" alt="<?= te('Slip photo') ?>">
+                  <img src="<?= e($p['slip_path']) ?>" class="slip-zoom" style="max-width:200px; border-radius:4px; background:#fff; cursor:zoom-in;" alt="<?= te('Slip photo') ?>" onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<span style=color:#c62828;font-size:13px;>Photo file not found</span>');">
                 </p>
               <?php endif; ?>
               <?php if (!empty($p['verify_method'])): ?>
@@ -486,7 +486,8 @@ function render_payment_card(array $p, string $base): void
   </main>
 </div>
 <div id="slip-lightbox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:999; align-items:center; justify-content:center; cursor:zoom-out;" onclick="this.style.display='none'">
-  <img src="" alt="" style="max-width:92vw; max-height:92vh; background:#fff; border-radius:6px;">
+  <div id="slip-lightbox-msg" style="display:none; color:#fff; font-size:18px; text-align:center; padding:20px;"></div>
+  <img src="" alt="" style="max-width:92vw; max-height:92vh; background:#fff; border-radius:6px;" onerror="this.style.display='none'; var m=document.getElementById('slip-lightbox-msg'); m.style.display='block'; m.textContent='Image not found: ' + this.src;">
 </div>
 <script>
 // API endpoint + session token for the owner lookup (the API reads the header only).
@@ -498,7 +499,11 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
   document.addEventListener('click', function(e) {
     if (e.target && e.target.classList && e.target.classList.contains('slip-zoom')) {
       lb.style.display = 'flex';
-      lb.querySelector('img').src = e.target.src;
+      var lbImg = lb.querySelector('img');
+      var lbMsg = document.getElementById('slip-lightbox-msg');
+      lbImg.style.display = 'block';
+      lbMsg.style.display = 'none';
+      lbImg.src = e.target.src;
     }
   });
   // Two-step counter flow:
