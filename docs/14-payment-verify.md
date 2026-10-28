@@ -99,7 +99,15 @@ oldest first. The card shows:
 - Slip photo thumbnail (click to zoom)
 - Verified info (method + date) if already settled
 
-Each ISSUED card has two prominent action buttons on the right:
+Each ISSUED card has action buttons on the right:
+
+- **Upload slip (ຂຶ້ນຮູບສະລິບ)** — shown only when no slip photo has been
+  filed yet. The citizen paid at a bank counter and brings the paper slip
+  to the office: the officer takes/scan a photo of it and clicks the
+  button. The photo is picked from the device and uploaded (jpg, png,
+  webp, pdf), then the card immediately shows the photo, the "Awaiting
+  proof" badge disappears, and the button is removed. (The mobile app will
+  do this same upload automatically once it is live — same API endpoint.)
 - **Verify (ກວດສອບ)** — opens a modal dialog; confirm the amount
   (pre-filled from the slip, editable for partial/overpaid) and add an
   optional note. Submit → payment becomes PAID, obligation settles, card

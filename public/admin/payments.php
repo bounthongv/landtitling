@@ -374,7 +374,7 @@ function render_payment_card(array $p, string $base): void
               <b style="font-size:16px;"><?= e($p['reference_no']) ?></b>
               <span class="pill pill-<?= e(strtolower($p['status'])) ?>" style="margin-left:8px;"><?= e(t($p['status'])) ?></span>
               <?php if ($p['status'] === 'ISSUED' && empty($p['slip_path']) && empty($p['bank_ref'])): ?>
-                <span class="pill pill-warn" style="background:#fdecea; border:1px solid #c62828; color:#b71c1c; margin-left:4px;"><?= te('Awaiting proof') ?></span>
+                <span class="pill pill-warn awaiting-badge" style="background:#fdecea; border:1px solid #c62828; color:#b71c1c; margin-left:4px;"><?= te('Awaiting proof') ?></span>
               <?php endif; ?>
               <p class="sub" style="margin:4px 0 0;">
                 <?= te('Parcel') ?>
@@ -399,6 +399,12 @@ function render_payment_card(array $p, string $base): void
               <?php endif; ?>
             </div>
             <div style="display:flex; flex-direction:column; gap:8px; align-self:start;">
+              <?php if ($p['status'] === 'ISSUED' && empty($p['slip_path'])): ?>
+                <button class="js-upload-slip btn" type="button" data-payment-id="<?= (int)$p['id'] ?>"
+                  style="border-color:#1565c0; color:#0d47a1; min-width:150px;">
+                  <?= te('Upload slip') ?>
+                </button>
+              <?php endif; ?>
               <?php if ($p['status'] === 'ISSUED'): ?>
                 <button class="js-modal btn btn-green" type="button" data-form="verify-modal"
                   data-title="<?= te('Verify payment') ?>" data-submit="<?= te('Confirm & verify') ?>"
@@ -771,5 +777,64 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     if (main) { main.insertBefore(flash, main.firstChild); }
     setTimeout(function() { flash.style.opacity = '0'; setTimeout(function() { flash.remove(); }, 300); }, 4000);
   }
+
+  // Slip photo upload: the officer takes/scan a photo of the paper slip the
+  // citizen brought from the bank counter, and files it against the payment.
+  document.querySelectorAll('.js-upload-slip').forEach(function(btn) {
+    var label = <?= json_encode(t('Upload slip')) ?>;
+    btn.addEventListener('click', function() {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/jpeg,image/png,image/webp,application/pdf';
+      input.onchange = function() {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        var pid = btn.dataset.paymentId;
+        btn.disabled = true;
+        btn.textContent = '…';
+        var fd = new FormData();
+        fd.append('slip', file);
+        fetch(API_BASE + '/payments.php?id=' + pid + '&receipt=1', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN },
+          body: fd
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d && d.ok) {
+            // Show the photo on the card, clear the "Awaiting proof" badge,
+            // and hide the now-unneeded upload button.
+            var card = document.getElementById('card-' + pid);
+            if (card) {
+              var left = card.firstElementChild.firstElementChild;
+              var p = document.createElement('p');
+              p.style.margin = '4px 0';
+              p.innerHTML = '<b><?= json_encode(t('Slip photo')) ?>:</b><br>';
+              var img = document.createElement('img');
+              img.src = d.data.slip_path;
+              img.className = 'slip-zoom';
+              img.style.cssText = 'max-width:200px; border-radius:4px; background:#fff; cursor:zoom-in;';
+              p.appendChild(img);
+              left.appendChild(p);
+              var badge = card.querySelector('.awaiting-badge');
+              if (badge) badge.remove();
+            }
+            btn.remove();
+            showFlash('ok', <?= json_encode(t('Slip photo uploaded.')) ?>);
+          } else {
+            showFlash('err', (d && d.error && d.error.message) || MSG.error);
+            btn.disabled = false;
+            btn.textContent = label;
+          }
+        })
+        .catch(function() {
+          showFlash('err', MSG.error);
+          btn.disabled = false;
+          btn.textContent = label;
+        });
+      };
+      input.click();
+    });
+  });
 })();
 </script>

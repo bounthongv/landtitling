@@ -592,5 +592,7 @@
   "Reject payment": "ປະຕິເສດການຊຳລະ",
   "Cancel": "ຍົກເລີກ",
   "Confirm": "ຢືນຢັນ",
-  "Action failed.": "ການດໍາເນີນການລົ້ມເຫຼວ."
+  "Action failed.": "ການດໍາເນີນການລົ້ມເຫຼວ.",
+  "Upload slip": "ຂຶ້ນຮູບສະລິບ",
+  "Slip photo uploaded.": "ຂຶ້ນຮູບສະລິບແລ້ວ."
 }
