@@ -11,8 +11,8 @@ obligation. It is organised by **payment channel — one tab per channel** —
 because the officer's work differs per channel:
 
 1. **Office counter (ຮັບເງິນຢູ່ຫ້ອງການ)** — the citizen pays cash or
-   cheque at the district office. Money is in hand: record it in one step,
-   print the receipt. This is the **default tab**.
+   cheque at the district office. Money is in hand: verify the obligation,
+   then record it and print the receipt. This is the **default tab**.
 2. **Bank & mobile proofs (ກວດສະລິບທະນາຄານ)** — the citizen pays at the
    bank (or via the app) and sends the slip as proof, or the bank statement
    is matched automatically. The officer reviews the evidence.
@@ -24,26 +24,45 @@ transfer), ແອັບມືຖື (mobile app), ຈ່າຍຢູ່ຫ້ອ
 
 ## 2. Tab: Office counter (default)
 
-### 2.1 Record counter payment — the one-step form
+### 2.1 Record counter payment — two steps
 
-For a citizen paying at the counter, do NOT create + verify in two steps.
-Use the gold **Record counter payment (ບັນທຶກການຊໍາລະຢູ່ຫ້ອງການ)** box:
+For a citizen paying at the counter, use the gold **Record counter
+payment (ບັນທຶກການຊໍາລະຢູ່ຫ້ອງການ)** box. It is two steps so the
+officer always knows how much the parcel owes *before* collecting money:
+
+**Step 1 — Verify obligation (ກວດສອບພັນທະ).**
 
 1. **Parcel no** — the parcel number from the land title
-   (e.g. `PILOT-AST-0002`). When the parcel is recognised, the **Owner**
-   (payer) dropdown fills in automatically — pick who actually paid. The
-   form also loads the parcel's obligation for the selected year and shows
-   it under the form: **due / paid / balance** with the status — or, if the
-   year has not been assessed yet, the zone-rate amount it will be assessed
-   at. The expected figure is pre-filled into **Amount received** (leave it
-   blank to take the full balance).
+   (e.g. `PILOT-AST-0002`).
 2. **Tax year** — defaults to the current year.
-3. **Method** — ເງິນສົດ (cash) or ເຊັກ (cheque). Choosing cheque reveals a
-   **Cheque no** field — record the cheque number.
-4. **Amount received** — leave blank for the full balance, or type a
-   partial amount.
-5. **Note** (optional).
-6. Click **Receive & settle (ຮັບເງິນ ແລະ ປິດພັນທະ)**.
+3. **Method** — ເງິນສົດ (cash) or ເຊັກ (cheque).
+4. Click **Verify obligation**. The result panel below the form shows the
+   parcel's obligation for that year:
+
+   - **Assessed** — "Obligation for {year} ({status}) — due / paid /
+     balance" (Lao: ພັນທະປີ …).
+   - **Not yet issued** — "No obligation for {year} yet — settles at X kip
+     (zone Z, rate kip/m²)": the obligation will be created at the zone
+     rate when recorded.
+   - **Already settled** — green "nothing to collect": step 2 stays
+     hidden, there is nothing to record.
+   - **No zone rate** — red pointer: assign a valuation zone in Basic
+     Data first.
+
+**Step 2 — Record & settle (ບັນທຶກ ແລະ ປິດພັນທະ).** Appears only when
+step 1 found something to collect:
+
+5. **Owner (payer)** — the parcel's owner(s) are pre-listed; pick who
+   actually paid (a third party may pay).
+6. **Amount received** — pre-filled with the balance (or the fresh
+   assessment); leave blank for the full balance, or type a partial
+   amount (the API caps it at the outstanding balance).
+7. **Cheque no** — shown only when method = cheque.
+8. **Note** (optional).
+9. Click **Record & settle**.
+
+Changing the parcel number or tax year after a verify hides step 2 and
+clears the result — re-verify before recording.
 
 The payment is created **already PAID** (verify method = counter, the
 logged-in officer recorded as the receiver), the obligation is settled

@@ -579,4 +579,11 @@
   "no owner recorded": "ບໍ່ມີເຈົ້າຂອງ",
   "No bank or mobile payments waiting for review.": "ບໍ່ມີການໂອນທະນາຄານ ຫຼື ແອັບມືຖື ລໍຖ້າກວດສອບ.",
   "Paid by bank statement match — nothing to do.": "ຈ່າຍແລ້ວ ຈາກການຈັບຄູ່ລາຍການທະນາຄານ — ບໍ່ຕ້ອງດໍາເນີນການ."
+,
+  "-- select owner (payer) --": "— ເລືອກເຈົ້າຂອງ (ຜູ້ຊໍາລະ) —",
+  "Obligation verified — expected {amt} kip.": "ກວດພັນທະແລ້ວ — ຄາດວ່າຈະຮັບ {amt} ກີບ",
+  "Record & settle": "ບັນທຶກ ແລະ ປິດພັນທະ",
+  "Step 1 — verify the obligation": "ຂັ້ນຕອນ 1 — ກວດສອບພັນທະ",
+  "Step 2 — record & settle": "ຂັ້ນຕອນ 2 — ບັນທຶກ ແລະ ປິດພັນທະ",
+  "Verify obligation": "ກວດສອບພັນທະ"
 }

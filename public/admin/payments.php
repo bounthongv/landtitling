@@ -260,33 +260,45 @@ function render_payment_card(array $p, string $base): void
       <div class="form-box" style="border-left:4px solid #b8860b;">
         <h2><?= te('Record counter payment') ?></h2>
         <p class="sub"><?= te('Cash or cheque received at the district office — settles the obligation immediately and prints the receipt.') ?></p>
-        <form method="post" class="form-grid" id="counter-settle-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px;">
-          <input type="hidden" name="do_action" value="settle">
-          <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" required></div>
-          <div class="form-group"><label><?= te('Owner') ?></label>
-            <select name="payer_owner_id" id="counter-owner">
-              <option value=""><?= te('-- select parcel first --') ?></option>
-            </select>
-          </div>
+        <h3 style="margin:14px 0 4px;"><?= te('Step 1 — verify the obligation') ?></h3>
+        <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; align-items:end;">
+          <div class="form-group"><label><?= te('Parcel no') ?></label><input id="counter-parcel" required></div>
           <div class="form-group"><label><?= te('Tax year') ?></label>
-            <select name="fee_year" id="counter-year">
+            <select id="counter-year">
               <?php foreach ($years as $y): ?>
               <option value="<?= e($y['year']) ?>" <?= (int)$y['year'] === (int)date('Y') ? 'selected' : '' ?>><?= e($y['year']) ?></option>
               <?php endforeach; ?>
             </select>
           </div>
           <div class="form-group"><label><?= te('Method') ?></label>
-            <select name="method" id="counter-method">
+            <select id="counter-method">
               <option value="cash"><?= e(payment_method_label('cash')) ?></option>
               <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
             </select>
           </div>
-          <div class="form-group" id="counter-cheque-group"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
-          <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
-          <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
-          <div class="form-group" style="align-self:end;"><button class="btn btn-gold" type="submit"><?= te('Receive & settle') ?></button></div>
-        </form>
-        <div id="counter-ob-hint" class="sub" style="margin-top:8px; min-height:16px; font-size:13px;"></div>
+          <div class="form-group" style="margin:0;"><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Verify obligation') ?></button></div>
+        </div>
+        <div id="counter-verify-result" style="display:none; margin-top:10px; padding:10px 12px; border-radius:6px; font-size:14px;"></div>
+
+        <div id="counter-record-box" style="display:none; margin-top:14px; padding-top:12px; border-top:1px dashed #c9b458;">
+          <h3 style="margin:0 0 2px;"><?= te('Step 2 — record & settle') ?></h3>
+          <p class="sub" id="counter-record-note"></p>
+          <form method="post" class="form-grid" id="counter-settle-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; align-items:end;">
+            <input type="hidden" name="do_action" value="settle">
+            <input type="hidden" name="parcel_no">
+            <input type="hidden" name="fee_year">
+            <input type="hidden" name="method">
+            <div class="form-group"><label><?= te('Owner') ?></label>
+              <select name="payer_owner_id" id="counter-owner">
+                <option value=""><?= te('-- select owner (payer) --') ?></option>
+              </select>
+            </div>
+            <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
+            <div class="form-group" id="counter-cheque-group" style="display:none;"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
+            <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
+            <div class="form-group" style="margin:0;"><button class="btn btn-gold" type="submit"><?= te('Record & settle') ?></button></div>
+          </form>
+        </div>
       </div>
 
       <div class="form-box">
@@ -440,99 +452,132 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
       lb.querySelector('img').src = e.target.src;
     }
   });
-  // Counter form: show Cheque no only when method = cheque.
-  var cm = document.getElementById('counter-method');
-  var cg = document.getElementById('counter-cheque-group');
-  if (cm && cg) {
-    var sync = function() { cg.style.display = cm.value === 'cheque' ? '' : 'none'; };
-    cm.onchange = sync;
-    sync();
-  }
-  // Counter form: when the parcel no is entered, load the parcel's fee
-  // picture for the selected year — the owners (payer dropdown) and the
-  // assessed obligation (due / paid / balance, or the zone-rate amount it
-  // will be assessed at) — and prefill the expected amount.
-  var parcelInput = document.querySelector('input[name=parcel_no]');
-  var ownerSel = document.getElementById('counter-owner');
-  var obHint = document.getElementById('counter-ob-hint');
-  var amountInput = document.querySelector('#counter-settle-form input[name=amount]');
-  var yearSel = document.getElementById('counter-year');
-  var HINT = {
-    assessed: <?= json_encode(te('Obligation for {year} ({status}) — due {due} kip, paid {paid} kip, balance {out} kip')) ?>,
-    settled:  <?= json_encode(te('Obligation already settled — nothing to collect')) ?>,
-    fresh:    <?= json_encode(te('No obligation for {year} yet — settles at {amt} kip (zone {zone}, {rate} kip/m²)')) ?>,
-    norate:   <?= json_encode(te('No zone rate set for this parcel — assign a valuation zone first')) ?>,
-    status: { <?php foreach (['UNPAID', 'PARTIAL', 'PAID', 'OVERPAID', 'WAIVED'] as $s) { echo json_encode($s) . ' => ' . json_encode(t($s)) . ', '; } ?> }
+  // Two-step counter flow:
+  //   1. officer types the parcel no, picks tax year + method, and clicks
+  //      "Verify obligation" — the obligation for that year is shown in a
+  //      dedicated result panel (nothing is collected on a guess).
+  //   2. only when there is something to collect, the record & settle box
+  //      appears with the expected amount pre-filled; the officer then
+  //      records the payment (amount optional = full balance).
+  var MSG = {
+    loading:  <?= json_encode(t('-- loading --')) ?>,
+    notfound: <?= json_encode(t('Parcel not found.')) ?>,
+    ownerPh:  <?= json_encode(t('-- select owner (payer) --')) ?>,
+    assessed: <?= json_encode(t('Obligation for {year} ({status}) — due {due} kip, paid {paid} kip, balance {out} kip')) ?>,
+    settled:  <?= json_encode(t('Obligation already settled — nothing to collect')) ?>,
+    fresh:    <?= json_encode(t('No obligation for {year} yet — settles at {amt} kip (zone {zone}, {rate} kip/m²)')) ?>,
+    norate:   <?= json_encode(t('No zone rate set for this parcel — assign a valuation zone first')) ?>,
+    expect:   <?= json_encode(t('Obligation verified — expected {amt} kip.')) ?>,
+    status: { <?php foreach (['UNPAID', 'PARTIAL', 'PAID', 'OVERPAID', 'WAIVED'] as $s) { echo json_encode($s) . ': ' . json_encode(t($s)) . ', '; } ?> }
   };
+  var parcelInput = document.getElementById('counter-parcel');
+  var yearSel = document.getElementById('counter-year');
+  var methodSel = document.getElementById('counter-method');
+  var verifyBtn = document.getElementById('counter-verify');
+  var verifyRes = document.getElementById('counter-verify-result');
+  var recordBox = document.getElementById('counter-record-box');
+  var recordNote = document.getElementById('counter-record-note');
+  var settleForm = document.getElementById('counter-settle-form');
+  var ownerSel = document.getElementById('counter-owner');
+  var amountInput = settleForm ? settleForm.querySelector('input[name=amount]') : null;
+  var chequeGroup = document.getElementById('counter-cheque-group');
+
   function fillText(tpl, vars) {
     return tpl.replace(/\{(\w+)\}/g, function (_, k) {
       return (vars[k] === undefined || vars[k] === null) ? '' : vars[k];
     });
   }
   function fmtKip(n) { return Number(n || 0).toLocaleString('en-US'); }
-  if (parcelInput && ownerSel) {
-    function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-    function loadParcel() {
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function showVerify(html, cls) {
+    verifyRes.style.display = 'block';
+    verifyRes.style.background = cls === 'ok' ? '#e8f5e9' : (cls === 'err' ? '#fdecea' : '#f6f2e7');
+    verifyRes.innerHTML = html;
+  }
+  function resetRecord() {
+    recordBox.style.display = 'none';
+    recordNote.textContent = '';
+    ownerSel.innerHTML = '<option value="">' + esc(MSG.ownerPh) + '</option>';
+    if (amountInput) { amountInput.value = ''; }
+  }
+  function syncCheque() { if (chequeGroup) { chequeGroup.style.display = methodSel.value === 'cheque' ? '' : 'none'; } }
+
+  if (methodSel) {
+    methodSel.onchange = function() {
+      syncCheque();
+      if (settleForm && settleForm.style.display !== 'none') {
+        settleForm.querySelector('input[name=method]').value = methodSel.value;
+      }
+    };
+    syncCheque();
+  }
+  // Changing parcel/year after a verify invalidates the result — re-verify.
+  if (parcelInput) {
+    parcelInput.onchange = yearSel.onchange = function() {
+      resetRecord();
+      verifyRes.style.display = 'none';
+      verifyRes.innerHTML = '';
+    };
+  }
+  if (verifyBtn) {
+    verifyBtn.onclick = function() {
       var no = parcelInput.value.trim();
-      var yr = yearSel ? yearSel.value : '';
-      ownerSel.innerHTML = '<option value=""><?= te('-- select parcel first --') ?></option>';
-      if (obHint) obHint.textContent = '';
-      if (!no) { return; }
-      ownerSel.innerHTML = '<option value=""><?= te('-- loading --') ?></option>';
-      if (obHint) obHint.textContent = te('-- loading --');
-      fetch(API_BASE + '/parcel_fee.php?parcel_no=' + encodeURIComponent(no) + '&fee_year=' + yr,
+      if (!no) { parcelInput.focus(); return; }
+      var yr = yearSel.value;
+      resetRecord();
+      showVerify('<b>' + esc(MSG.loading) + '</b>', 'warn');
+      fetch(API_BASE + '/parcel_fee.php?parcel_no=' + encodeURIComponent(no) + '&fee_year=' + encodeURIComponent(yr),
             { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
         .then(function(r) { return r.json(); })
         .then(function(d) {
-          if (!d || !d.ok) {
-            ownerSel.innerHTML = '<option value=""><?= te('Parcel not found.') ?></option>';
-            if (obHint) obHint.textContent = te('Parcel not found.');
-            if (amountInput) amountInput.value = '';
-            return;
-          }
+          if (!d || !d.ok) { showVerify(esc(MSG.notfound), 'err'); return; }
           var data = d.data;
-          var owners = data.owners || [];
-          var opts = '<option value=""><?= te('-- unspecified --') ?></option>';
-          for (var i = 0; i < owners.length; i++) {
-            opts += '<option value="' + owners[i].id + '">' + esc(owners[i].full_name) + '</option>';
-          }
-          ownerSel.innerHTML = opts;
+          var p = data.parcel || {};
           var ob = data.obligation;
+          var payable = 0;
           if (ob) {
             var out = Number(ob.outstanding) || 0;
             if (out > 0) {
-              if (obHint) obHint.textContent = fillText(HINT.assessed, {
+              showVerify('<b>' + esc(fillText(MSG.assessed, {
                 year: yr,
-                status: HINT.status[ob.status] || ob.status,
+                status: MSG.status[ob.status] || ob.status,
                 due: fmtKip(ob.amount_due),
                 paid: fmtKip(ob.amount_paid),
                 out: fmtKip(out)
-              });
-              if (amountInput) amountInput.value = out;
+              })) + '</b>', 'warn');
+              payable = out;
             } else {
-              if (obHint) obHint.textContent = HINT.settled;
-              if (amountInput) amountInput.value = '';
+              showVerify('<b>' + esc(MSG.settled) + '</b>', 'ok');
+              return;
             }
           } else if (data.rate_found) {
-            if (obHint) obHint.textContent = fillText(HINT.fresh, {
+            showVerify('<b>' + esc(fillText(MSG.fresh, {
               year: yr,
               amt: fmtKip(data.amount_due),
-              zone: (data.parcel && data.parcel.zone_code) || '?',
+              zone: p.zone_code || '?',
               rate: fmtKip(data.rate_per_sqm)
-            });
-            if (amountInput) amountInput.value = Number(data.amount_due) > 0 ? data.amount_due : '';
+            })) + '</b>', 'warn');
+            payable = Number(data.amount_due) || 0;
           } else {
-            if (obHint) obHint.textContent = HINT.norate;
-            if (amountInput) amountInput.value = '';
+            showVerify('<b>' + esc(MSG.norate) + '</b>', 'err');
+            return;
           }
+          // Something to collect — open step 2, pre-filled with the expected amount.
+          settleForm.querySelector('input[name=parcel_no]').value = no;
+          settleForm.querySelector('input[name=fee_year]').value = yr;
+          settleForm.querySelector('input[name=method]').value = methodSel.value;
+          var owners = data.owners || [];
+          ownerSel.innerHTML = '<option value="">' + esc(MSG.ownerPh) + '</option>';
+          for (var i = 0; i < owners.length; i++) {
+            ownerSel.innerHTML += '<option value="' + owners[i].id + '">' + esc(owners[i].full_name) + '</option>';
+          }
+          if (amountInput && payable > 0) { amountInput.value = payable; }
+          recordNote.textContent = payable > 0 ? fillText(MSG.expect, { amt: fmtKip(payable) }) : '';
+          syncCheque();
+          recordBox.style.display = 'block';
         })
-        .catch(function() {
-          ownerSel.innerHTML = '<option value=""><?= te('-- error --') ?></option>';
-          if (obHint) obHint.textContent = '';
-        });
-    }
-    parcelInput.onchange = loadParcel;
-    if (yearSel) { yearSel.onchange = function() { if (parcelInput.value.trim()) { loadParcel(); } }; }
+        .catch(function() { showVerify(esc(MSG.notfound), 'err'); });
+    };
   }
 })();
 </script>
