@@ -261,7 +261,7 @@ function render_payment_card(array $p, string $base): void
         <h2><?= te('Record counter payment') ?></h2>
         <p class="sub"><?= te('Cash or cheque received at the district office — settles the obligation immediately and prints the receipt.') ?></p>
         <h3 style="margin:14px 0 4px;"><?= te('Step 1 — verify the obligation') ?></h3>
-        <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; align-items:end;">
+        <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
           <div class="form-group"><label><?= te('Parcel no') ?></label><input id="counter-parcel" required></div>
           <div class="form-group"><label><?= te('Tax year') ?></label>
             <select id="counter-year">
@@ -276,14 +276,14 @@ function render_payment_card(array $p, string $base): void
               <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
             </select>
           </div>
-          <div class="form-group" style="margin:0;"><label>&nbsp;</label><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Verify obligation') ?></button></div>
+          <div class="form-group"><label>&nbsp;</label><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Verify obligation') ?></button></div>
         </div>
         <div id="counter-verify-result" style="display:none; margin-top:10px; padding:10px 12px; border-radius:6px; font-size:14px;"></div>
 
         <div id="counter-record-box" style="display:none; margin-top:14px; padding-top:12px; border-top:1px dashed #c9b458;">
           <h3 style="margin:0 0 2px;"><?= te('Step 2 — record & settle') ?></h3>
           <p class="sub" id="counter-record-note"></p>
-          <form method="post" class="form-grid" id="counter-settle-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; align-items:end;">
+          <form method="post" class="form-grid" id="counter-settle-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
             <input type="hidden" name="do_action" value="settle">
             <input type="hidden" name="parcel_no">
             <input type="hidden" name="fee_year">
@@ -296,7 +296,7 @@ function render_payment_card(array $p, string $base): void
             <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
             <div class="form-group" id="counter-cheque-group" style="display:none;"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
             <div class="form-group"><label><?= te('Note') ?> (<?= te('optional') ?>)</label><input name="note"></div>
-            <div class="form-group" style="margin:0;"><label>&nbsp;</label><button class="btn btn-gold" type="submit"><?= te('Record & settle') ?></button></div>
+            <div class="form-group"><label>&nbsp;</label><button class="btn btn-gold" type="submit"><?= te('Record & settle') ?></button></div>
           </form>
         </div>
       </div>
