@@ -15,10 +15,14 @@ because the officer's work differs per channel:
    For cash/cheque the money is in hand; for a bank or mobile payment the
    citizen brought the paper slip in, the officer photographs it as
    evidence, and it settles there. This is the **default tab**.
-2. **App & bank proofs (ກວດສະລິບແອັບ ແລະ ທະນາຄານ)** — proofs that arrive
-   *without* the officer: slips issued by the citizen mobile app, and
-   payments the system matched automatically from imported bank
-   statements. The officer reviews the evidence (verify / reject).
+2. **Mobile app (ແອັບມືຖື)** — proof review of slips issued by **our**
+   citizen mobile app: the citizen pays the slip with their **own** bank
+   app or mobile-money app (external — the banks have no connection to
+   our system; "bank transfer" is a method label, not a channel we
+   initiate), then the proof is verified here. The "Matched automatically"
+   card lists statement lines the bank CSV import settled on its own.
+   Walk-in payments never appear here — they are recorded in the Office
+   counter tab.
 3. **All payments (ທັງໝົດ)** — the full ledger across every channel, for
    inspection and reporting.
 
@@ -101,14 +105,16 @@ reference, parcel, owner, method, amount, time, and a **Receipt** button
 per row — with a running total ("N payment(s), X kip today") for
 end-of-day reconciliation.
 
-## 3. Tab: App & bank proofs
+## 3. Tab: Mobile app
 
-This tab reviews **pre-issued** bank/mobile payments only — records
-created by the mobile app or matched from bank statements. A citizen who
-pays at a bank counter / mobile money and walks into the office with the
-paper slip is recorded in the **Counter** tab instead (method =
-bank/mobile, slip attached, verified there); it never lands in this
-queue unless its verify step failed.
+This tab reviews **slips issued by our citizen mobile app** — records
+created when the citizen issues a payment in the app and settles it
+externally with their own bank app or mobile-money app (the banks have
+no connection to our system). A citizen who pays at a bank counter /
+mobile money and walks into the office with the paper slip is recorded
+in the **Counter** tab instead (method = bank/mobile, slip attached,
+verified there); it never lands in this queue unless its verify step
+failed.
 
 Summary cards at the top: **To review**, **Awaiting proof**,
 **Matched automatically today**. A **Tax year** filter narrows the queue,
@@ -188,8 +194,10 @@ in a browser tab); the URL alone, without the session, is refused.
 - The verified amount drives the obligation status: partial payments →
   PARTIAL (ບາງສ່ວນ), overpayments → OVERPAID (ຈ່າຍເກີນ). No special
   handling; the status is computed from the sum of Paid payments.
-- The mobile-app channel (ແອັບມືຖື) is reserved — when the app ships, its
-  payments enter this same App & bank proofs queue.
+- The mobile-app channel (ແອັບມືຖື) is reserved: the citizen pays the
+  slip with their own bank app or mobile-money app (no bank integration
+  — the reference in the slip is what gets matched later), and their
+  payments enter this same Mobile app queue.
 - A rejected payment stays Rejected; the citizen resubmits. The officer
   can record a reason when rejecting (otherwise the default "Rejected by
   officer" is stored); the citizen can see the reason on the payment.
