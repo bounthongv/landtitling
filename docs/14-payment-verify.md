@@ -10,13 +10,16 @@ The Payment Verify page handles every settlement of an annual land-tax
 obligation. It is organised by **payment channel — one tab per channel** —
 because the officer's work differs per channel:
 
-1. **Office counter (ຮັບເງິນຢູ່ຫ້ອງການ)** — the citizen pays cash or
-   cheque at the district office. Money is in hand: verify the obligation,
-   then record it and print the receipt. This is the **default tab**.
-2. **Bank & mobile proofs (ກວດສະລິບທະນາຄານ)** — the citizen pays at the
-   bank (or via the app) and sends the slip as proof, or the bank statement
-   is matched automatically. The officer reviews the evidence.
-3. **All payments (ທັງຫມົດ)** — the full ledger across every channel, for
+1. **Office counter (ຮັບເງິນຢູ່ຫ້ອງການ)** — everything collected at the
+   district office: cash, cheque, **and walk-in bank / mobile payments**.
+   For cash/cheque the money is in hand; for a bank or mobile payment the
+   citizen brought the paper slip in, the officer photographs it as
+   evidence, and it settles there. This is the **default tab**.
+2. **App & bank proofs (ກວດສະລິບແອັບ ແລະ ທະນາຄານ)** — proofs that arrive
+   *without* the officer: slips issued by the citizen mobile app, and
+   payments the system matched automatically from imported bank
+   statements. The officer reviews the evidence (verify / reject).
+3. **All payments (ທັງໝົດ)** — the full ledger across every channel, for
    inspection and reporting.
 
 Method labels: ເງິນສົດ (cash), ເຊັກ (cheque), ໂອນທະນາຄານ (bank
@@ -98,7 +101,7 @@ reference, parcel, owner, method, amount, time, and a **Receipt** button
 per row — with a running total ("N payment(s), X kip today") for
 end-of-day reconciliation.
 
-## 3. Tab: Bank & mobile proofs
+## 3. Tab: App & bank proofs
 
 This tab reviews **pre-issued** bank/mobile payments only — records
 created by the mobile app or matched from bank statements. A citizen who
@@ -186,7 +189,7 @@ in a browser tab); the URL alone, without the session, is refused.
   PARTIAL (ບາງສ່ວນ), overpayments → OVERPAID (ຈ່າຍເກີນ). No special
   handling; the status is computed from the sum of Paid payments.
 - The mobile-app channel (ແອັບມືຖື) is reserved — when the app ships, its
-  payments enter this same Bank & mobile proofs queue.
+  payments enter this same App & bank proofs queue.
 - A rejected payment stays Rejected; the citizen resubmits. The officer
   can record a reason when rejecting (otherwise the default "Rejected by
   officer" is stored); the citizen can see the reason on the payment.

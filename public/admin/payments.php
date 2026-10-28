@@ -285,11 +285,11 @@ function render_payment_card(array $p, string $base): void
   </aside>
   <main class="main">
     <h1><?= te('Payments') ?></h1>
-    <p class="sub"><?= te('Counter cash/cheque, bank transfer and mobile payments — one tab per channel.') ?></p>
+    <p class="sub"><?= te('Counter records every in-office payment (cash, cheque, bank, mobile). Remote proofs from the mobile app and the bank are reviewed on the proofs tab.') ?></p>
 
     <div class="pay-tabs">
       <a href="?tab=counter" class="<?= $tab === 'counter' ? 'active' : '' ?>"><?= te('Office counter') ?></a>
-      <a href="?tab=bank" class="<?= $tab === 'bank' ? 'active' : '' ?>"><?= te('Bank & mobile proofs') ?></a>
+      <a href="?tab=bank" class="<?= $tab === 'bank' ? 'active' : '' ?>"><?= te('App & bank proofs') ?></a>
       <a href="?tab=all" class="<?= $tab === 'all' ? 'active' : '' ?>"><?= te('All payments') ?></a>
     </div>
 
@@ -377,7 +377,8 @@ function render_payment_card(array $p, string $base): void
       </div>
 
     <?php elseif ($tab === 'bank'): ?>
-      <!-- ================= BANK & MOBILE PROOFS ================= -->
+      <!-- ================= APP & BANK PROOFS ================= -->
+      <p class="sub" style="margin:0 0 10px;"><?= te('Slips issued by the citizen mobile app + payments auto-matched from bank statements. A citizen who brings a paper slip into the office is recorded in the Office counter tab — it will not appear here.') ?></p>
       <div class="bank-strip">
         <div class="card"><h3><?= te('To review') ?></h3><p class="num"><?= count($bankIssued) ?></p></div>
         <div class="card"><h3><?= te('Awaiting proof') ?></h3><p class="num"><?= count($awaitingProof) ?></p></div>
