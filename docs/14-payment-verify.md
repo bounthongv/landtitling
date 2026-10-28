@@ -74,10 +74,12 @@ reference no, parcel, owner (or "no owner recorded"), and the issue date.
 3. **Add a note** if useful (optional).
 4. Click **Verify (ກວດສອບ)** → the payment becomes Paid (ຈ່າຍແລ້ວ), the
    obligation is settled, and a **receipt** becomes printable.
-5. If the proof is wrong or missing, click **Reject (ປະຕິເສດ)** — the
-   payment becomes Rejected (ປະຕິເສດແລ້ວ) and nothing is settled. A fixed
-   default reason is recorded ("Rejected by officer"); contact the citizen
-   about what went wrong so they can resubmit.
+5. If the proof is wrong or missing, optionally enter the **Reason**
+   (ເຫດຜົນ) — e.g. "slip amount does not match" — then click
+   **Reject (ປະຕິເສດ)** — the payment becomes Rejected (ປະຕິເສດແລ້ວ)
+   and nothing is settled. The reason is recorded on the payment, so the
+   citizen can see why; leaving it blank records the default
+   "Rejected by officer".
 
 **Matched automatically today** — payments settled directly from bank
 statement matching (Paid, verify method = auto_statement), shown in a
@@ -118,6 +120,6 @@ in a browser tab); the URL alone, without the session, is refused.
   handling; the status is computed from the sum of Paid payments.
 - The mobile-app channel (ແອັບມືຖື) is reserved — when the app ships, its
   payments enter this same Bank & mobile proofs queue.
-- A rejected payment stays Rejected; the citizen resubmits. The reject
-  reason is a fixed default, so the officer contacts the citizen
-  directly about what went wrong.
+- A rejected payment stays Rejected; the citizen resubmits. The officer
+  can record a reason when rejecting (otherwise the default "Rejected by
+  officer" is stored); the citizen can see the reason on the payment.
