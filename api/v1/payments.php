@@ -327,12 +327,14 @@ if ($method === 'GET') {
     $methodF  = $_GET['method'] ?? '';
     $feeYear  = isset($_GET['fee_year']) ? (int)$_GET['fee_year'] : 0;
     $district = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
+    $paidAfter = $_GET['paid_after'] ?? '';
 
     $where = [];
     $params = [];
     if ($status !== null && $status !== '') { $where[] = 'pay.status = :s'; $params[':s'] = $status; }
     if ($methodF !== '') { $where[] = 'pay.method = :m'; $params[':m'] = $methodF; }
     if ($feeYear)  { $where[] = 'pay.fee_year = :fy'; $params[':fy'] = $feeYear; }
+    if ($paidAfter !== '') { $where[] = 'pay.paid_at >= :pa'; $params[':pa'] = $paidAfter; }
     if ($district) { $where[] = 'par.district_id = :did'; $params[':did'] = $district; }
     // District staff see only their own district's payments.
     if ($me['role'] !== 'citizen') {

@@ -56,7 +56,9 @@ end-of-day reconciliation.
 ## 3. Tab: Bank & mobile proofs
 
 Summary cards at the top: **To review**, **Awaiting proof**,
-**Matched automatically today**.
+**Matched automatically today**. A **Tax year** filter narrows the queue,
+and the review list is paginated 50 at a time (oldest first, with
+Previous/Next) so a big backlog stays workable.
 
 **Awaiting proof (ລໍຖ້າຫຼັກຖານ)** — a red box listing Issued bank/mobile
 payments that have **no slip photo and no bank reference**. The citizen paid

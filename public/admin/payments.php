@@ -103,14 +103,13 @@ if ($tab === 'all' || $tab === 'counter') {
 
 if ($tab === 'counter') {
     // Today's counter receipts (cash + cheque, paid today) — the officer's
-    // answer to "what did we collect at the counter today?".
+    // answer to "what did we collect at the counter today?". paid_after keeps
+    // the query to today's rows instead of scanning the full history.
     foreach (['cash', 'cheque'] as $m) {
-        $d = api_call('GET', 'payments.php?status=PAID&method=' . $m, null, $token);
+        $d = api_call('GET', 'payments.php?status=PAID&method=' . $m . '&paid_after=' . date('Y-m-d'), null, $token);
         foreach (($d['data']['payments'] ?? []) as $row) {
-            if (str_starts_with((string)($row['paid_at'] ?? ''), date('Y-m-d'))) {
-                $counterToday[] = $row;
-                $counterTodayTotal += (float)$row['amount'];
-            }
+            $counterToday[] = $row;
+            $counterTodayTotal += (float)$row['amount'];
         }
     }
     usort($counterToday, fn($a, $b) => strcmp((string)($b['paid_at'] ?? ''), (string)($a['paid_at'] ?? '')));
@@ -119,21 +118,26 @@ if ($tab === 'counter') {
 if ($tab === 'bank') {
     // Review queue: issued bank/mobile payments (oldest first), split into
     // "has evidence" vs "awaiting proof"; plus today's auto-matched ones.
+    // A selected tax year narrows the queue; paid_after keeps the matched
+    // scan to today's rows instead of the full history.
+    $yearQs = $fee_year ? '&fee_year=' . $fee_year : '';
     foreach (['bank_transfer', 'mobile'] as $m) {
-        $d = api_call('GET', 'payments.php?status=ISSUED&method=' . $m, null, $token);
+        $d = api_call('GET', 'payments.php?status=ISSUED&method=' . $m . $yearQs, null, $token);
         foreach (($d['data']['payments'] ?? []) as $row) { $bankIssued[] = $row; }
-        $d2 = api_call('GET', 'payments.php?status=PAID&method=' . $m, null, $token);
+        $d2 = api_call('GET', 'payments.php?status=PAID&method=' . $m . '&paid_after=' . date('Y-m-d'), null, $token);
         foreach (($d2['data']['payments'] ?? []) as $row) {
-            if (($row['verify_method'] ?? '') === 'auto_statement'
-                && str_starts_with((string)($row['paid_at'] ?? ''), date('Y-m-d'))) {
-                $matchedToday[] = $row;
-            }
+            if (($row['verify_method'] ?? '') === 'auto_statement') { $matchedToday[] = $row; }
         }
     }
     usort($bankIssued, fn($a, $b) => strcmp((string)($a['created_at'] ?? ''), (string)($b['created_at'] ?? '')));
     $awaitingProof = array_values(array_filter($bankIssued, function ($p) {
         return empty($p['slip_path']) && empty($p['bank_ref']);
     }));
+    // Paginate the queue (50/page, oldest first) so a big backlog stays workable.
+    $bankPerPage = 50;
+    $bankTotalPages = max(1, (int)ceil(count($bankIssued) / $bankPerPage));
+    $bankPage = min(max(1, (int)($_GET['page'] ?? 1)), $bankTotalPages);
+    $bankQueue = array_slice($bankIssued, ($bankPage - 1) * $bankPerPage, $bankPerPage);
 }
 
 /** One payment card, shared by the bank review tab and the All ledger. */
@@ -317,6 +321,20 @@ function render_payment_card(array $p, string $base): void
         <div class="card"><h3><?= te('Matched automatically today') ?></h3><p class="num"><?= count($matchedToday) ?></p></div>
       </div>
 
+      <div class="form-box">
+        <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
+          <input type="hidden" name="tab" value="bank">
+          <div class="form-group"><label><?= te('Tax year') ?></label>
+            <select name="fee_year"><option value=""><?= te('-- all --') ?></option>
+              <?php foreach ($years as $y): ?>
+              <option value="<?= e($y['year']) ?>" <?= $fee_year == $y['year'] ? 'selected' : '' ?>><?= e($y['year']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
+        </form>
+      </div>
+
       <?php if ($awaitingProof): ?>
         <div class="form-box" style="border-left:4px solid #c62828; background:#fdf3f2;">
           <h2><?= te('Awaiting proof — contact these citizens') ?></h2>
@@ -331,7 +349,12 @@ function render_payment_card(array $p, string $base): void
       <?php if (!$bankIssued): ?>
         <p class="empty"><?= te('No bank or mobile payments waiting for review.') ?></p>
       <?php else: ?>
-        <?php foreach ($bankIssued as $p): render_payment_card($p, $base); endforeach; ?>
+        <p class="sub" style="margin:4px 0 8px;">
+          <?= te('Page {page} of {pages} — {n} record(s)', ['page' => $bankPage, 'pages' => $bankTotalPages, 'n' => count($bankIssued)]) ?>
+          <?php if ($bankPage > 1): ?><a class="btn btn-blue btn-sm" href="?tab=bank&fee_year=<?= (int)$fee_year ?>&page=<?= $bankPage - 1 ?>"><?= te('Previous') ?></a><?php endif; ?>
+          <?php if ($bankPage < $bankTotalPages): ?><a class="btn btn-blue btn-sm" href="?tab=bank&fee_year=<?= (int)$fee_year ?>&page=<?= $bankPage + 1 ?>"><?= te('Next') ?></a><?php endif; ?>
+        </p>
+        <?php foreach ($bankQueue as $p): render_payment_card($p, $base); endforeach; ?>
       <?php endif; ?>
 
       <?php if ($matchedToday): ?>
