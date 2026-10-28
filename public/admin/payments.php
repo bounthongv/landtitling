@@ -363,11 +363,60 @@ function render_payment_card(array $p, string $base): void
         <p class="empty"><?= te('No bank or mobile payments waiting for review.') ?></p>
       <?php else: ?>
         <p class="sub" style="margin:4px 0 8px;">
-          <?= te('Page {page} of {pages} — {n} record(s)', ['page' => $bankPage, 'pages' => $bankTotalPages, 'n' => count($bankIssued)]) ?>
+          <?= te('Page {page} of {pages} — {n} record(s)', ['page' => $bankPage, 'pages' => $bankTotalPages, 'n' => count($bankQueue)]) ?>
           <?php if ($bankPage > 1): ?><a class="btn btn-blue btn-sm" href="?tab=bank&fee_year=<?= (int)$fee_year ?>&page=<?= $bankPage - 1 ?>"><?= te('Previous') ?></a><?php endif; ?>
           <?php if ($bankPage < $bankTotalPages): ?><a class="btn btn-blue btn-sm" href="?tab=bank&fee_year=<?= (int)$fee_year ?>&page=<?= $bankPage + 1 ?>"><?= te('Next') ?></a><?php endif; ?>
         </p>
-        <?php foreach ($bankQueue as $p): render_payment_card($p, $base); endforeach; ?>
+        <?php foreach ($bankQueue as $p): ?>
+        <div id="card-<?= (int)$p['id'] ?>" class="form-box" style="border-left:4px solid #e6951a; margin-bottom:12px;">
+          <div style="display:grid; grid-template-columns:1fr auto; gap:12px 20px; align-items:start;">
+            <div>
+              <b style="font-size:16px;"><?= e($p['reference_no']) ?></b>
+              <span class="pill pill-<?= e(strtolower($p['status'])) ?>" style="margin-left:8px;"><?= e(t($p['status'])) ?></span>
+              <?php if ($p['status'] === 'ISSUED' && empty($p['slip_path']) && empty($p['bank_ref'])): ?>
+                <span class="pill pill-warn" style="background:#fdecea; border:1px solid #c62828; color:#b71c1c; margin-left:4px;"><?= te('Awaiting proof') ?></span>
+              <?php endif; ?>
+              <p class="sub" style="margin:4px 0 0;">
+                <?= te('Parcel') ?>
+                <a href="<?= $base ?>/parcel.php?id=<?= (int)$p['parcel_id'] ?>"><?= e($p['parcel_no']) ?></a>
+                &nbsp;|&nbsp; <?= te('Year') ?> <?= e($p['fee_year']) ?>
+                &nbsp;|&nbsp; <?= e($p['district_name']) ?> / <?= e($p['village_name']) ?>
+                &nbsp;|&nbsp; <?= te('Area') ?> <?= number_format((float)$p['area_sqm'], 2) ?> m²
+              </p>
+              <p style="margin:4px 0;">
+                <b><?= te('Amount') ?>:</b> <?= number_format((float)$p['amount'], 0) ?> <?= te('kip') ?>
+                &nbsp;<b><?= te('Method') ?>:</b> <?= e(payment_method_label((string)$p['method'])) ?>
+                <?php if ($p['payer_name']): ?> &nbsp;<b><?= te('Payer') ?>:</b> <?= e($p['payer_name']) ?><?php endif; ?>
+                <?php if (!empty($p['bank_ref'])): ?> &nbsp;<b><?= te('Bank ref') ?>:</b> <?= e($p['bank_ref']) ?><?php endif; ?>
+              </p>
+              <?php if (!empty($p['slip_path'])): ?>
+                <p style="margin:4px 0;"><b><?= te('Slip photo') ?>:</b><br>
+                  <img src="<?= e($p['slip_path']) ?>" class="slip-zoom" style="max-width:200px; border-radius:4px; background:#fff; cursor:zoom-in;" alt="<?= te('Slip photo') ?>">
+                </p>
+              <?php endif; ?>
+              <?php if (!empty($p['verify_method'])): ?>
+                <p class="sub"><?= te('Verified via {method}', ['method' => e($p['verify_method'])]) ?><?php if ($p['paid_at']): ?> <?= te('on {date}', ['date' => e($p['paid_at'])]) ?><?php endif; ?></p>
+              <?php endif; ?>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px; align-self:start;">
+              <?php if ($p['status'] === 'ISSUED'): ?>
+                <button class="js-modal btn btn-green" type="button" data-form="verify-modal"
+                  data-title="<?= te('Verify payment') ?>" data-submit="<?= te('Confirm & verify') ?>"
+                  data-payment-id="<?= (int)$p['id'] ?>" data-amount="<?= number_format((float)$p['amount'], 2, '.', '') ?>">
+                  <?= te('Verify') ?>
+                </button>
+                <button class="js-modal btn btn-red" type="button" data-form="reject-modal"
+                  data-title="<?= te('Reject payment') ?>" data-submit="<?= te('Reject') ?>"
+                  data-payment-id="<?= (int)$p['id'] ?>">
+                  <?= te('Reject') ?>
+                </button>
+              <?php else: ?>
+                <span class="pill pill-<?= e(strtolower($p['status'])) ?>"><?= e(t($p['status'])) ?></span>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+        <?php endforeach; ?>
       <?php endif; ?>
 
       <?php if ($matchedToday): ?>
@@ -581,5 +630,141 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
   }
 })();
 </script>
-</body>
-</html>
+
+<!-- ==================== BANK TAB MODALS ==================== -->
+<template id="verify-modal">
+  <form class="form-grid" style="grid-template-columns:1fr;">
+    <input type="hidden" name="do_action" value="verify">
+    <input type="hidden" name="payment_id">
+    <div class="form-group">
+      <label><?= te('Amount received') ?></label>
+      <input name="amount" type="number" step="any" min="0">
+      <p class="sub"><?= te('Leave blank to accept the slip amount.') ?></p>
+    </div>
+    <div class="form-group">
+      <label><?= te('Note') ?> (<?= te('optional') ?>)</label>
+      <input name="note">
+    </div>
+  </form>
+</template>
+
+<template id="reject-modal">
+  <form class="form-grid" style="grid-template-columns:1fr;">
+    <input type="hidden" name="do_action" value="reject">
+    <input type="hidden" name="payment_id">
+    <div class="form-group">
+      <label><?= te('Reason') ?> (<?= te('optional') ?>)</label>
+      <input name="reason" placeholder="<?= te('optional') ?>">
+      <p class="sub"><?= te('If blank, the default reason will be used.') ?></p>
+    </div>
+  </form>
+</template>
+
+<div id="bank-modal-bg" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(2px);" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#fff; border-radius:16px; padding:28px; max-width:480px; width:94%; box-shadow:0 20px 60px rgba(0,0,0,0.2); display:flex; flex-direction:column; max-height:92vh;">
+    <h2 id="bank-modal-title" style="margin:0 0 16px; font-size:20px; font-weight:700;"></h2>
+    <div id="bank-modal-content"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+      <button class="btn btn-red" type="button" id="bank-modal-cancel"><?= te('Cancel') ?></button>
+      <button class="btn btn-green" type="button" id="bank-modal-submit"><?= te('Confirm') ?></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var BG = document.getElementById('bank-modal-bg');
+  var TITLE = document.getElementById('bank-modal-title');
+  var CONTENT = document.getElementById('bank-modal-content');
+  var SUBMIT = document.getElementById('bank-modal-submit');
+  var CANCEL = document.getElementById('bank-modal-cancel');
+
+  var MSG = {
+    verified:   'Payment verified — obligation settled.',
+    rejected:   'Payment rejected.',
+    error:      'Action failed.'
+  };
+
+  // Open modal from a js-modal button
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest ? e.target.closest('.js-modal') : null;
+    if (!btn) return;
+    e.preventDefault();
+    var formId = btn.dataset.form;
+    var tpl = document.getElementById(formId);
+    if (!tpl) return;
+
+    TITLE.textContent = btn.dataset.title || '';
+    SUBMIT.textContent = btn.dataset.submit || 'Confirm';
+    CONTENT.innerHTML = '';
+    CONTENT.appendChild(tpl.content.cloneNode(true));
+
+    // Fill form fields from button data-* attributes
+    var form = CONTENT.querySelector('form');
+    if (form) {
+      form.querySelectorAll('[name]').forEach(function(field) {
+        var key = field.name.replace(/-./g, function(m) { return m[1].toUpperCase(); });
+        var val = btn.dataset[key.toLowerCase()] || btn.dataset[field.name];
+        if (val !== undefined) field.value = val;
+      });
+      SUBMIT.onclick = function() { submitModal(form, btn.dataset.action || formId); };
+    }
+
+    BG.style.display = 'flex';
+  });
+
+  // Close handlers
+  CANCEL.onclick = function() { BG.style.display = 'none'; };
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && BG.style.display === 'flex') BG.style.display = 'none';
+  });
+
+  function submitModal(form, action) {
+    var formData = new FormData(form);
+    var body = {};
+    var paymentId = formData.get('payment_id');
+    for (var [k, v] of formData.entries()) {
+      if (k !== 'do_action' && k !== 'payment_id') body[k] = v;
+    }
+
+    SUBMIT.disabled = true;
+    SUBMIT.textContent = '…';
+    fetch(API_BASE + '/payments.php?id=' + paymentId + '&' + (action === 'verify-modal' ? 'verify' : 'reject') + '=1', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      BG.style.display = 'none';
+      if (d && d.ok) {
+        var card = document.getElementById('card-' + paymentId);
+        if (card) {
+          card.style.transition = 'opacity 0.3s';
+          card.style.opacity = '0';
+          setTimeout(function() { card.remove(); }, 300);
+        }
+        showFlash(action === 'verify-modal' ? 'ok' : 'err', action === 'verify-modal' ? MSG.verified : MSG.rejected);
+      } else {
+        alert((d && d.error && d.error.message) || MSG.error);
+        SUBMIT.disabled = false;
+        SUBMIT.textContent = action === 'verify-modal' ? 'Confirm & verify' : 'Reject';
+      }
+    })
+    .catch(function() {
+      alert(MSG.error);
+      SUBMIT.disabled = false;
+      SUBMIT.textContent = 'Confirm';
+    });
+  }
+
+  function showFlash(type, text) {
+    var flash = document.createElement('p');
+    flash.className = 'flash ' + type;
+    flash.textContent = text;
+    var main = document.querySelector('main');
+    if (main) { main.insertBefore(flash, main.firstChild); }
+    setTimeout(function() { flash.style.opacity = '0'; setTimeout(function() { flash.remove(); }, 300); }, 4000);
+  }
+})();
+</script>
