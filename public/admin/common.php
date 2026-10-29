@@ -69,6 +69,7 @@ function admin_nav($role) {
 
     $navItems = [
         'parcel_entry.php' => 'Parcel Entry',
+        'scans.php'        => 'Scan Review',
         'parcels.php'      => 'Parcels',
         'obligations.php'  => 'Obligations',
         'payments.php'     => 'Payment Verify',
