@@ -618,7 +618,7 @@ $refGroups = [
             <p class="sub"><?= te('{n} zone(s) shown', ['n' => count($zones)]) ?><?php if ($zProvince || $zDistrict): ?> — <?= te('filtered') ?><?php endif; ?></p>
             <table>
               <thead><tr>
-                  <th><?= te('Code') ?></th><th><?= te('District') ?></th><th><?= te('Valuation zone') ?></th>
+                  <th><?= te('Code') ?></th><th><?= te('Province') ?></th><th><?= te('District') ?></th><th><?= te('Valuation zone') ?></th>
                   <th><?= te('Name (Lao)') ?></th>
                   <th><?= te('Villages') ?></th>
                                     <?php foreach (['main', 'branch', 'alley', 'none'] as $rcCode): ?>
@@ -630,6 +630,7 @@ $refGroups = [
                 <?php foreach ($zones as $z): $r = $z['rates'] ?? []; $vils = $z['villages'] ?? []; ?>
                   <tr>
                     <td><strong><?= e($z['code']) ?></strong></td>
+                    <td><?= e($z['province_name'] ?? '—') ?></td>
                     <td><?= e($z['district_name'] ?? '—') ?></td>
                     <td><?= $z['plan_zone'] ? e($z['plan_zone'] . ' ' . ($z['plan_name'] ?? '')) : '—' ?></td>
                     <td><?= e($z['name_lo']) ?></td>
@@ -657,7 +658,7 @@ $refGroups = [
           </tr>
         <?php endforeach; ?>
         <?php if (!$zones): ?>
-          <tr><td colspan="11" class="muted"><?= te('No zones yet — add one.') ?></td></tr>
+          <tr><td colspan="12" class="muted"><?= te('No zones yet — add one.') ?></td></tr>
         <?php endif; ?>
         </tbody>
       </table>

@@ -77,11 +77,12 @@ if ($method === 'GET') {
     $stmt = $pdo->prepare("SELECT z.code, z.name_lo, z.name_en, z.rate_per_sqm,
             z.valid_from, z.is_active, z.note, z.updated_at,
             z.district_id, d.name_lo AS district_name, d.code AS district_code,
-            d.province_id,
+            d.province_id, pv.name_lo AS province_name,
             z.plan_zone, p.name_lo AS plan_name, p.sort_order AS plan_sort,
             z.sort_order
         FROM zones z
         LEFT JOIN districts d ON d.id = z.district_id
+        LEFT JOIN provinces pv ON pv.id = d.province_id
         LEFT JOIN zone_plans p ON p.code = z.plan_zone
         $whereSql
         ORDER BY z.is_active DESC, d.code NULLS LAST, z.sort_order, z.code");
