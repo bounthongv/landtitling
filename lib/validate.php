@@ -35,6 +35,19 @@ function validate_phone($value, $label) {
     return null;
 }
 
+/** Escape LIKE/ILIKE metacharacters so user input is matched literally. */
+function like_escape($value) {
+    return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], (string)$value);
+}
+
+/** Last 8 digits of a phone number, or '' when the input has fewer than 8.
+ *  Lao mobile numbers are written 020x-xxx-xxx, 20x-xxx-xxx or bare, and the
+ *  +856 country code may be prefixed — all share the same trailing 8 digits. */
+function phone_tail8($value) {
+    $digits = preg_replace('/\D+/', '', (string)$value);
+    return strlen($digits) >= 8 ? substr($digits, -8) : '';
+}
+
 function validate_string($value, $label, $max = 255) {
     if (is_string($value) && strlen($value) > $max) {
         return "$label must be at most $max characters";

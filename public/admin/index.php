@@ -40,15 +40,15 @@ const TOKEN = '<?= e($_SESSION['admin_token'] ?? '') ?>';
 const I18N = <?= json_encode([
     'noScans'      => t('No pending scans right now.'),
     'pendingScans' => t('{n} pending scan(s) to review.'),
+    'loadFailed'   => t('Could not load the dashboard data — check the API.'),
     'kip'          => t('kip'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-async function api(path, opts) {
+async function api(path, opts = {}) {
   const r = await fetch(path, {
     ...opts,
     headers: { 'Content-Type': 'application/json', ...(opts.headers || {}), 'Authorization': 'Bearer ' + TOKEN },
   });
-  const j = await r.json();
-  return j;
+  return r.json().catch(() => ({ ok: false }));
 }
 (async () => {
   const [scanResp, parcelResp, payResp] = await Promise.all([
@@ -57,14 +57,16 @@ async function api(path, opts) {
     api('/api/v1/payments.php?status=ISSUED'),
   ]);
   document.getElementById('scan-count').textContent = (scanResp.data?.scans?.length ?? 0);
-  document.getElementById('parcel-count').textContent = (parcelResp.data?.count ?? 0);
-  const issued = payResp.data ?? [];
-  document.getElementById('issued-count').textContent = issued.length;
-  const total = issued.reduce((s, p) => s + (parseFloat(p.fee_total) || 0), 0);
+  document.getElementById('parcel-count').textContent = (parcelResp.data?.total ?? 0);
+  document.getElementById('issued-count').textContent = (payResp.data?.total ?? 0);
+  const total = Number(payResp.data?.amount_total ?? 0);
   document.getElementById('fee-total').textContent = total.toLocaleString('en-US') + ' ' + I18N.kip;
 
   const sc = document.getElementById('scan-summary');
-  if (!scanResp.data || scanResp.data.scans.length === 0) {
+  const failed = [scanResp, parcelResp, payResp].filter(r => r.ok !== true).length;
+  if (failed > 0) {
+    sc.textContent = I18N.loadFailed;
+  } else if (!scanResp.data || scanResp.data.scans.length === 0) {
     sc.textContent = I18N.noScans;
   } else {
     sc.textContent = I18N.pendingScans.replace('{n}', scanResp.data.scans.length);

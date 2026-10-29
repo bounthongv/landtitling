@@ -367,7 +367,20 @@ if ($method === 'GET') {
     $st = $pdo->prepare($sql);
     $st->execute($params);
     $rows = $st->fetchAll();
-    json_ok(['payments' => $rows, 'count' => count($rows)]);
+
+    // The list is capped at 300 rows; these are the totals for the same filters.
+    $totStmt = $pdo->prepare("SELECT COUNT(*) AS n, COALESCE(SUM(pay.amount), 0) AS total
+        FROM payments pay
+        JOIN parcels par ON par.id = pay.parcel_id
+        $whereSql");
+    $totStmt->execute($params);
+    $tot = $totStmt->fetch();
+    json_ok([
+        'payments' => $rows,
+        'count' => count($rows),
+        'total' => (int)$tot['n'],
+        'amount_total' => (float)$tot['total'],
+    ]);
 }
 
 json_error('Not found', 404, 'not_found');

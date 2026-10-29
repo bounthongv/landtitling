@@ -20,23 +20,35 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_error('Method not allowed', 405, 'method_not_allowed');
 }
 
+$parcelId = (int)($_GET['parcel_id'] ?? 0);
 $parcelNo = trim((string)($_GET['parcel_no'] ?? ''));
-if ($parcelNo === '') {
-    json_error('parcel_no is required', 400, 'missing_parcel_no');
+if ($parcelId <= 0 && $parcelNo === '') {
+    json_error('parcel_no or parcel_id is required', 400, 'missing_parcel');
 }
 $feeYear = (int)($_GET['fee_year'] ?? 0) ?: (int)date('Y');
 
+// District staff may only price their own district's parcels.
+$scope = staff_scope($me);
+$scoped = $me['role'] !== 'citizen' && $scope['district_id'] !== null;
+
 // EXACT match only — a substring match would let anyone page through the land
-// registry one character at a time.
-$stmt = $pdo->prepare("SELECT p.id AS parcel_id, p.parcel_no, p.sub_parcel_no, p.area_sqm,
+// registry one character at a time. parcel_id disambiguates numbers that repeat
+// across villages (parcel_no is only unique within district+village+sub_parcel).
+$sql = "SELECT p.id AS parcel_id, p.parcel_no, p.sub_parcel_no, p.area_sqm,
         p.zone_code, p.road_category, p.title_no, p.title_type, p.issued_date, p.status,
         d.name_lo AS district_name, v.name_lo AS village_name
     FROM parcels p
     JOIN districts d ON d.id = p.district_id
     JOIN villages  v ON v.id = p.village_id
-    WHERE p.parcel_no = :pn
-    ORDER BY p.id");
-$stmt->execute([':pn' => $parcelNo]);
+    WHERE " . ($parcelId > 0 ? 'p.id = :pid' : 'p.parcel_no = :pn');
+$args = $parcelId > 0 ? [':pid' => $parcelId] : [':pn' => $parcelNo];
+if ($scoped) {
+    $sql .= " AND p.district_id = :sd";
+    $args[':sd'] = $scope['district_id'];
+}
+$sql .= " ORDER BY p.id";
+$stmt = $pdo->prepare($sql);
+$stmt->execute($args);
 $rows = $stmt->fetchAll();
 
 if (!$rows) {

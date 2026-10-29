@@ -16,9 +16,15 @@ if ($method === 'GET') {
     $district = $_GET['district_id'] ?? null;
     $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
     $owner_name = trim((string)($_GET['owner_name'] ?? ''));
+    $owner_id_number = trim((string)($_GET['id_number'] ?? ''));
+    $phone = trim((string)($_GET['phone'] ?? ''));
     $parcel_no = $_GET['parcel_no'] ?? '';
     $status = $_GET['status'] ?? null;
     $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    $limit = (int)($_GET['limit'] ?? 200);
+    $limit = max(1, min(200, $limit ?: 200));
+    // Owner phone / national ID detail is for the officer counter only.
+    $withOwners = !empty($_GET['with_owners']) && $staff;
 
     // Citizens may look up a specific parcel they name, or their own, but must not be
     // able to enumerate the whole land registry.
@@ -70,13 +76,30 @@ if ($method === 'GET') {
     $params = [];
     if ($district) { $where[] = 'p.district_id = :district'; $params[':district'] = (int)$district; }
     if ($province_id) { $where[] = 'd.province_id = :province_id'; $params[':province_id'] = $province_id; }
+    // Owner identity filters. Every supplied criterion must be met by the SAME
+    // owner: name/national ID are contains-matches, the phone compares the last
+    // 8 digits so 020…, 20…, +856 20… and bare numbers all resolve alike.
+    $identity = [];
     if ($owner_name !== '') {
-        // Contains-match (wildcard) on any owner's full name — same name the
-        // certificate calls "Issued To" (owners.full_name via parcel_owners).
+        $identity[] = "o.full_name ILIKE :owner";
+        $params[':owner'] = '%' . like_escape($owner_name) . '%';
+    }
+    if ($owner_id_number !== '') {
+        $identity[] = "o.id_number ILIKE :idnum";
+        $params[':idnum'] = '%' . like_escape($owner_id_number) . '%';
+    }
+    if ($phone !== '') {
+        $phoneTail = phone_tail8($phone);
+        if ($phoneTail === '') {
+            json_error('Telephone must contain at least 8 digits', 422, 'bad_phone');
+        }
+        $identity[] = "right(regexp_replace(COALESCE(o.phone, ''), '\\D', '', 'g'), 8) = :phone_tail";
+        $params[':phone_tail'] = $phoneTail;
+    }
+    if ($identity) {
         $where[] = "EXISTS (SELECT 1 FROM parcel_owners po
                     JOIN owners o ON o.id = po.owner_id
-                    WHERE po.parcel_id = p.id AND o.full_name ILIKE :owner)";
-        $params[':owner'] = '%' . $owner_name . '%';
+                    WHERE po.parcel_id = p.id AND " . implode(' AND ', $identity) . ")";
     }
     if ($parcel_no !== '') { $where[] = 'p.parcel_no ILIKE :parcel'; $params[':parcel'] = '%' . $parcel_no . '%'; }
     if ($status) { $where[] = 'p.status = :status'; $params[':status'] = $status; }
@@ -86,6 +109,15 @@ if ($method === 'GET') {
     }
 
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+    // The list is capped at 200 rows; `total` is the registry size for the same filters.
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM parcels p
+        JOIN districts d ON d.id = p.district_id
+        JOIN villages v ON v.id = p.village_id
+        $whereSql");
+    $countStmt->execute($params);
+    $total = (int)$countStmt->fetchColumn();
+
     // pr.name_lo AS province overrides the free-text parcels.province column with the
     // authoritative province name (same source as the filter dropdown), so the UI
     // never mixes English/Lao spellings of the same province.
@@ -100,10 +132,24 @@ if ($method === 'GET') {
         LEFT JOIN provinces pr ON pr.id = d.province_id
         $whereSql
         ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC
-        LIMIT 200");
+        LIMIT $limit");
     $stmt->execute($params);
     $parcels = $stmt->fetchAll();
-    json_ok(['parcels' => $parcels, 'count' => count($parcels)], 200);
+
+    // Opt-in owner detail (id / phone / national ID) for the counter search list.
+    if ($withOwners && $parcels) {
+        $ids = implode(',', array_map('intval', array_column($parcels, 'id')));
+        $ost = $pdo->query("SELECT po.parcel_id, o.id, o.full_name, o.phone, o.id_number, po.role, po.share_pct
+            FROM parcel_owners po JOIN owners o ON o.id = po.owner_id
+            WHERE po.parcel_id IN ($ids)
+            ORDER BY o.id");
+        $byParcel = [];
+        foreach ($ost->fetchAll() as $o) { $byParcel[(int)$o['parcel_id']][] = $o; }
+        foreach ($parcels as &$p) { $p['owners'] = $byParcel[(int)$p['id']] ?? []; }
+        unset($p);
+    }
+
+    json_ok(['parcels' => $parcels, 'count' => count($parcels), 'total' => $total], 200);
 }
 
 // ---- POST: create/update parcel with full data and owners ----

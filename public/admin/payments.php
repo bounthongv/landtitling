@@ -51,8 +51,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['do_action'])) {
         $amount = (isset($_POST['amount']) && $_POST['amount'] !== '') ? (float)$_POST['amount'] : null;
         $slipUpload = (!empty($_FILES['slip']) && ($_FILES['slip']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK)
             ? $_FILES['slip'] : null;
-        $pid = 0;
-        if ($parcelNo !== '') {
+        $pid = (int)($_POST['parcel_id'] ?? 0);
+        // parcel_id is authoritative: parcel numbers repeat across villages, so
+        // resolving by number alone could settle the wrong parcel.
+        if (!$pid && $parcelNo !== '') {
             $res = api_call('GET', 'parcels.php?parcel_no=' . urlencode($parcelNo), null, $token);
             foreach (($res['data']['parcels'] ?? []) as $row) {
                 if (($row['parcel_no'] ?? '') === $parcelNo) { $pid = (int)$row['id']; break; }
@@ -306,8 +308,12 @@ function render_payment_card(array $p, string $base): void
         <h2><?= te('Record counter payment') ?></h2>
         <p class="sub"><?= te('Cash, cheque, bank or mobile payment collected at the district office — settles the obligation immediately and prints the receipt.') ?></p>
         <h3 style="margin:14px 0 4px;"><?= te('Step 1 — verify the obligation') ?></h3>
+        <p class="sub"><?= te('Enter any one field, or combine them to narrow the search.') ?></p>
         <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
-          <div class="form-group"><label><?= te('Parcel no') ?></label><input id="counter-parcel" required></div>
+          <div class="form-group"><label><?= te('Parcel no') ?></label><input id="counter-parcel"></div>
+          <div class="form-group"><label><?= te('Owner name') ?></label><input id="counter-owner-name"></div>
+          <div class="form-group"><label><?= te('Telephone') ?></label><input id="counter-phone" inputmode="tel" placeholder="020 555 1234"></div>
+          <div class="form-group"><label><?= te('National ID') ?></label><input id="counter-idnum"></div>
           <div class="form-group"><label><?= te('Tax year') ?></label>
             <select id="counter-year">
               <?php foreach ($years as $y): ?>
@@ -323,15 +329,17 @@ function render_payment_card(array $p, string $base): void
               <option value="mobile"><?= e(payment_method_label('mobile')) ?></option>
             </select>
           </div>
-          <div class="form-group"><label>&nbsp;</label><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Verify obligation') ?></button></div>
+          <div class="form-group"><label>&nbsp;</label><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Search parcel') ?></button></div>
         </div>
         <div id="counter-verify-result" style="display:none; margin-top:10px; padding:10px 12px; border-radius:6px; font-size:14px;"></div>
+        <div id="counter-matches" style="display:none; margin-top:10px;"></div>
 
         <div id="counter-record-box" style="display:none; margin-top:14px; padding-top:12px; border-top:1px dashed #c9b458;">
           <h3 style="margin:0 0 2px;"><?= te('Step 2 — record & settle') ?></h3>
           <p class="sub" id="counter-record-note"></p>
           <form method="post" enctype="multipart/form-data" class="form-grid" id="counter-settle-form" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
             <input type="hidden" name="do_action" value="settle">
+            <input type="hidden" name="parcel_id">
             <input type="hidden" name="parcel_no">
             <input type="hidden" name="fee_year">
             <input type="hidden" name="method">
@@ -574,12 +582,23 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
   var MSG = {
     loading:  <?= json_encode(t('-- loading --')) ?>,
     notfound: <?= json_encode(t('Parcel not found.')) ?>,
+    noMatch:  <?= json_encode(t('No parcels match the filter.')) ?>,
     ownerPh:  <?= json_encode(t('-- select owner (payer) --')) ?>,
     assessed: <?= json_encode(t('Obligation for {year} ({status}) — due {due} kip, paid {paid} kip, balance {out} kip')) ?>,
     settled:  <?= json_encode(t('Obligation already settled — nothing to collect')) ?>,
     fresh:    <?= json_encode(t('No obligation for {year} yet — settles at {amt} kip (zone {zone}, {rate} kip/m²)')) ?>,
     norate:   <?= json_encode(t('No zone rate set for this parcel — assign a valuation zone first')) ?>,
     expect:   <?= json_encode(t('Obligation verified — expected {amt} kip.')) ?>,
+    needCrit: <?= json_encode(t('Enter a parcel number, owner name, telephone or national ID.')) ?>,
+    badPhone: <?= json_encode(t('Telephone must contain at least 8 digits.')) ?>,
+    searchFailed: <?= json_encode(t('Search failed.')) ?>,
+    matches:  <?= json_encode(t('{n} parcel(s) matched — select one, or refine your search.')) ?>,
+    showing:  <?= json_encode(t('Showing {shown} of {total} — refine your search to narrow it down.')) ?>,
+    select:   <?= json_encode(t('Select')) ?>,
+    colParcel:<?= json_encode(t('Parcel')) ?>,
+    colOwner: <?= json_encode(t('Owner')) ?>,
+    colVillage:<?= json_encode(t('Village')) ?>,
+    colArea:  <?= json_encode(t('Area')) ?>,
     status: { <?php foreach (['UNPAID', 'PARTIAL', 'PAID', 'OVERPAID', 'WAIVED'] as $s) { echo json_encode($s) . ': ' . json_encode(t($s)) . ', '; } ?> }
   };
   var parcelInput = document.getElementById('counter-parcel');
@@ -591,6 +610,11 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
   var recordNote = document.getElementById('counter-record-note');
   var settleForm = document.getElementById('counter-settle-form');
   var ownerSel = document.getElementById('counter-owner');
+  var ownerNameInput = document.getElementById('counter-owner-name');
+  var phoneInput = document.getElementById('counter-phone');
+  var idNumInput = document.getElementById('counter-idnum');
+  var matchesBox = document.getElementById('counter-matches');
+  var parcelIdInput = settleForm ? settleForm.querySelector('input[name=parcel_id]') : null;
   var amountInput = settleForm ? settleForm.querySelector('input[name=amount]') : null;
   var chequeGroup = document.getElementById('counter-cheque-group');
   var bankRefGroup = document.getElementById('counter-bankref-group');
@@ -641,72 +665,165 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     };
     syncEvidence();
   }
-  // Changing parcel/year after a verify invalidates the result — re-verify.
-  if (parcelInput) {
-    parcelInput.onchange = yearSel.onchange = function() {
-      resetRecord();
-      verifyRes.style.display = 'none';
-      verifyRes.innerHTML = '';
-    };
+  // Changing any search field after a result invalidates it — search again.
+  function resetSearch() {
+    resetRecord();
+    verifyRes.style.display = 'none';
+    verifyRes.innerHTML = '';
+    if (matchesBox) { matchesBox.style.display = 'none'; matchesBox.innerHTML = ''; }
+    if (parcelIdInput) { parcelIdInput.value = ''; }
   }
+  var searchInputs = [parcelInput, ownerNameInput, phoneInput, idNumInput];
+  for (var si = 0; si < searchInputs.length; si++) {
+    if (searchInputs[si]) { searchInputs[si].onchange = resetSearch; }
+  }
+  if (yearSel) { yearSel.onchange = resetSearch; }
+
+  function digitsOf(s) { return String(s == null ? '' : s).replace(/\D+/g, ''); }
+
+  // Mirrors the server rule: name/ID contain the text, phone compares last 8 digits.
+  function ownerMatches(o) {
+    var nq = ownerNameInput ? ownerNameInput.value.trim().toLowerCase() : '';
+    var iq = idNumInput ? idNumInput.value.trim().toLowerCase() : '';
+    var pt = phoneInput ? digitsOf(phoneInput.value).slice(-8) : '';
+    var ok = true;
+    if (nq) { ok = ok && String(o.full_name || '').toLowerCase().indexOf(nq) >= 0; }
+    if (iq) { ok = ok && String(o.id_number || '').toLowerCase().indexOf(iq) >= 0; }
+    if (pt.length === 8) { ok = ok && digitsOf(o.phone).slice(-8) === pt; }
+    return ok;
+  }
+
+  // Price one parcel and open step 2 — same rules however it was selected.
+  function openFee(parcelId, parcelNo) {
+    var yr = yearSel.value;
+    resetRecord();
+    if (parcelIdInput) { parcelIdInput.value = parcelId; }
+    showVerify('<b>' + esc(MSG.loading) + '</b>', 'warn');
+    fetch(API_BASE + '/parcel_fee.php?parcel_id=' + encodeURIComponent(parcelId) + '&fee_year=' + encodeURIComponent(yr),
+          { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d || !d.ok) { showVerify(esc(MSG.notfound), 'err'); return; }
+        var data = d.data;
+        var p = data.parcel || {};
+        var ob = data.obligation;
+        var payable = 0;
+        if (ob) {
+          var out = Number(ob.outstanding) || 0;
+          if (out > 0) {
+            showVerify('<b>' + esc(fillText(MSG.assessed, {
+              year: yr,
+              status: MSG.status[ob.status] || ob.status,
+              due: fmtKip(ob.amount_due),
+              paid: fmtKip(ob.amount_paid),
+              out: fmtKip(out)
+            })) + '</b>', 'warn');
+            payable = out;
+          } else {
+            showVerify('<b>' + esc(MSG.settled) + '</b>', 'ok');
+            return;
+          }
+        } else if (data.rate_found) {
+          showVerify('<b>' + esc(fillText(MSG.fresh, {
+            year: yr,
+            amt: fmtKip(data.amount_due),
+            zone: p.zone_code || '?',
+            rate: fmtKip(data.rate_per_sqm)
+          })) + '</b>', 'warn');
+          payable = Number(data.amount_due) || 0;
+        } else {
+          showVerify('<b>' + esc(MSG.norate) + '</b>', 'err');
+          return;
+        }
+        // Something to collect — open step 2, pre-filled with the expected amount.
+        settleForm.querySelector('input[name=parcel_no]').value = parcelNo || '';
+        settleForm.querySelector('input[name=fee_year]').value = yr;
+        settleForm.querySelector('input[name=method]').value = methodSel.value;
+        var owners = data.owners || [];
+        ownerSel.innerHTML = '<option value="">' + esc(MSG.ownerPh) + '</option>';
+        var preselect = '';
+        for (var i = 0; i < owners.length; i++) {
+          ownerSel.innerHTML += '<option value="' + owners[i].id + '">' + esc(owners[i].full_name) + '</option>';
+          if (!preselect && ownerMatches(owners[i])) { preselect = String(owners[i].id); }
+        }
+        if (preselect) { ownerSel.value = preselect; }
+        if (amountInput && payable > 0) { amountInput.value = payable; }
+        recordNote.textContent = payable > 0 ? fillText(MSG.expect, { amt: fmtKip(payable) }) : '';
+        syncEvidence();
+        recordBox.style.display = 'block';
+      })
+      .catch(function() { showVerify(esc(MSG.notfound), 'err'); });
+  }
+
+  // Result list when the search matches more than one parcel.
+  function renderMatches(rows, total) {
+    var h = '<table><thead><tr><th>' + esc(MSG.colParcel) + '</th><th>' + esc(MSG.colOwner)
+      + '</th><th>' + esc(MSG.colVillage) + '</th><th>' + esc(MSG.colArea) + '</th><th></th></tr></thead><tbody>';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var names = [];
+      for (var j = 0; j < (r.owners || []).length; j++) { names.push(esc(r.owners[j].full_name)); }
+      if (!names.length) { names.push(esc(r.owners_names || '')); }
+      var label = r.parcel_no + (r.sub_parcel_no ? ' / ' + r.sub_parcel_no : '');
+      h += '<tr><td>' + esc(label) + '</td><td>' + names.join(', ') + '</td><td>'
+        + esc((r.village_name || '') + ' · ' + (r.district_name || '')) + '</td><td>' + esc(r.area_sqm) + '</td>'
+        + '<td><button type="button" class="btn btn-gold btn-sm" data-pid="' + Number(r.id)
+        + '" data-pno="' + esc(r.parcel_no) + '">' + esc(MSG.select) + '</button></td></tr>';
+    }
+    h += '</tbody></table>';
+    if (total > rows.length) {
+      h += '<p class="sub">' + esc(fillText(MSG.showing, { shown: rows.length, total: total })) + '</p>';
+    }
+    matchesBox.innerHTML = h;
+    matchesBox.style.display = 'block';
+    var btns = matchesBox.querySelectorAll('button[data-pid]');
+    for (var k = 0; k < btns.length; k++) {
+      btns[k].onclick = function() {
+        matchesBox.style.display = 'none';
+        openFee(this.getAttribute('data-pid'), this.getAttribute('data-pno'));
+      };
+    }
+  }
+
   if (verifyBtn) {
     verifyBtn.onclick = function() {
       var no = parcelInput.value.trim();
-      if (!no) { parcelInput.focus(); return; }
-      var yr = yearSel.value;
-      resetRecord();
+      var name = ownerNameInput ? ownerNameInput.value.trim() : '';
+      var phone = phoneInput ? phoneInput.value.trim() : '';
+      var idn = idNumInput ? idNumInput.value.trim() : '';
+      if (!no && !name && !phone && !idn) {
+        showVerify(esc(MSG.needCrit), 'err');
+        parcelInput.focus();
+        return;
+      }
+      if (phone && digitsOf(phone).length < 8) {
+        showVerify(esc(MSG.badPhone), 'err');
+        phoneInput.focus();
+        return;
+      }
+      resetSearch();
       showVerify('<b>' + esc(MSG.loading) + '</b>', 'warn');
-      fetch(API_BASE + '/parcel_fee.php?parcel_no=' + encodeURIComponent(no) + '&fee_year=' + encodeURIComponent(yr),
-            { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
+      var qs = 'limit=15&with_owners=1';
+      if (no)    { qs += '&parcel_no=' + encodeURIComponent(no); }
+      if (name)  { qs += '&owner_name=' + encodeURIComponent(name); }
+      if (phone) { qs += '&phone=' + encodeURIComponent(phone); }
+      if (idn)   { qs += '&id_number=' + encodeURIComponent(idn); }
+      fetch(API_BASE + '/parcels.php?' + qs, { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
         .then(function(r) { return r.json(); })
         .then(function(d) {
-          if (!d || !d.ok) { showVerify(esc(MSG.notfound), 'err'); return; }
-          var data = d.data;
-          var p = data.parcel || {};
-          var ob = data.obligation;
-          var payable = 0;
-          if (ob) {
-            var out = Number(ob.outstanding) || 0;
-            if (out > 0) {
-              showVerify('<b>' + esc(fillText(MSG.assessed, {
-                year: yr,
-                status: MSG.status[ob.status] || ob.status,
-                due: fmtKip(ob.amount_due),
-                paid: fmtKip(ob.amount_paid),
-                out: fmtKip(out)
-              })) + '</b>', 'warn');
-              payable = out;
-            } else {
-              showVerify('<b>' + esc(MSG.settled) + '</b>', 'ok');
-              return;
-            }
-          } else if (data.rate_found) {
-            showVerify('<b>' + esc(fillText(MSG.fresh, {
-              year: yr,
-              amt: fmtKip(data.amount_due),
-              zone: p.zone_code || '?',
-              rate: fmtKip(data.rate_per_sqm)
-            })) + '</b>', 'warn');
-            payable = Number(data.amount_due) || 0;
-          } else {
-            showVerify('<b>' + esc(MSG.norate) + '</b>', 'err');
+          if (!d || !d.ok) { showVerify(esc(MSG.searchFailed), 'err'); return; }
+          var rows = (d.data && d.data.parcels) || [];
+          var total = (d.data && d.data.total) || rows.length;
+          if (!rows.length) { showVerify(esc(MSG.noMatch), 'err'); return; }
+          if (rows.length === 1) {
+            verifyRes.style.display = 'none';
+            openFee(rows[0].id, rows[0].parcel_no);
             return;
           }
-          // Something to collect — open step 2, pre-filled with the expected amount.
-          settleForm.querySelector('input[name=parcel_no]').value = no;
-          settleForm.querySelector('input[name=fee_year]').value = yr;
-          settleForm.querySelector('input[name=method]').value = methodSel.value;
-          var owners = data.owners || [];
-          ownerSel.innerHTML = '<option value="">' + esc(MSG.ownerPh) + '</option>';
-          for (var i = 0; i < owners.length; i++) {
-            ownerSel.innerHTML += '<option value="' + owners[i].id + '">' + esc(owners[i].full_name) + '</option>';
-          }
-          if (amountInput && payable > 0) { amountInput.value = payable; }
-          recordNote.textContent = payable > 0 ? fillText(MSG.expect, { amt: fmtKip(payable) }) : '';
-          syncEvidence();
-          recordBox.style.display = 'block';
+          showVerify('<b>' + esc(fillText(MSG.matches, { n: total })) + '</b>', 'warn');
+          renderMatches(rows, total);
         })
-        .catch(function() { showVerify(esc(MSG.notfound), 'err'); });
+        .catch(function() { showVerify(esc(MSG.searchFailed), 'err'); });
     };
   }
 })();
