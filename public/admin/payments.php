@@ -129,6 +129,14 @@ function attach_counter_evidence(int $paymentId, ?array $file, string $token): s
 
 $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
 
+// Counter entry can settle arrears, so offer every year back to 2016 (the first
+// full year of the current land-tax decree) plus any configured fee years.
+$counterYears = array_unique(array_merge(
+    range((int)date('Y'), 2016),
+    array_map(fn($y) => (int)$y['year'], $years)
+));
+rsort($counterYears);
+
 // ---- Per-tab data ----------------------------------------------------------
 $payments = []; $count = 0;
 $countIssued = $countPaid = $countRej = 0;
@@ -315,8 +323,8 @@ function render_payment_card(array $p, string $base): void
           <div class="form-group"><label><?= te('Telephone') ?></label><input id="counter-phone" inputmode="tel" placeholder="020 555 1234"></div>
           <div class="form-group"><label><?= te('Tax year') ?></label>
             <select id="counter-year">
-              <?php foreach ($years as $y): ?>
-              <option value="<?= e($y['year']) ?>" <?= (int)$y['year'] === (int)date('Y') ? 'selected' : '' ?>><?= e($y['year']) ?></option>
+              <?php foreach ($counterYears as $y): ?>
+              <option value="<?= (int)$y ?>" <?= (int)$y === (int)date('Y') ? 'selected' : '' ?>><?= (int)$y ?></option>
               <?php endforeach; ?>
             </select>
           </div>
