@@ -1,6 +1,6 @@
 <?php
 // public/admin/scans.php — scan review: upload + OCR, review parsed fields, confirm -> parcel + owners;
-// discard marks a scan rejected so it leaves the queue without creating a parcel.
+// discard permanently deletes a scan (and its image) so it leaves the queue without creating a parcel.
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
@@ -78,10 +78,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel']) &&
     }
 }
 
-// --- POST: discard → scan rejected (no parcel), leaves the review queue ---
+// --- POST: discard → permanently delete the scan (no parcel) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['discard_scan_id'])) {
     $discardId = (int)$_POST['discard_scan_id'];
-    $data = api_call('POST', 'scans/reject.php?id=' . $discardId, [], $token);
+    $data = api_call('POST', 'scans/delete.php?id=' . $discardId, [], $token);
     if (!empty($data['ok'])) {
         $success = t('Scan discarded.');
         if ($discardId === $scanId) $scanId = 0;
@@ -148,9 +148,7 @@ $districts = $province_id
     : [];
 $villages = $district_id ? (api_call('GET', 'villages.php?district_id=' . $district_id)['data'] ?? []) : [];
 $zones = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
-$view = ($_GET['view'] ?? '') === 'discarded' ? 'discarded' : 'pending';
 $pendingScans = api_call('GET', 'scans.php?status=pending', null, $token)['data']['scans'] ?? [];
-$discardedScans = api_call('GET', 'scans.php?status=rejected', null, $token)['data']['scans'] ?? [];
 
 $parsedLabels = [
     'parcel_no' => t('Parcel no'), 'sub_parcel_no' => t('Sub-parcel'), 'area_sqm' => t('Area (m²)'),
@@ -213,33 +211,8 @@ $landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agric
           </div>
 
       <div class="form-box">
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-          <a class="btn btn-sm <?= $view === 'pending' ? 'btn-green' : 'btn-gold' ?>" href="scans.php"><?= te('Pending in queue ({n})', ['n' => count($pendingScans)]) ?></a>
-          <a class="btn btn-sm <?= $view === 'discarded' ? 'btn-green' : 'btn-gold' ?>" href="scans.php?view=discarded"><?= te('Discarded scans ({n})', ['n' => count($discardedScans)]) ?></a>
-        </div>
-
-        <?php if ($view === 'discarded'): ?>
-          <?php if (empty($discardedScans)): ?>
-            <p class="empty"><?= te('No discarded scans.') ?></p>
-          <?php else: ?>
-          <table>
-            <thead><tr><th>#</th><th><?= te('Uploaded') ?></th><th><?= te('Uploaded by') ?></th><th><?= te('Discarded by') ?></th><th><?= te('Discarded at') ?></th><th><?= te('Note') ?></th><th></th></tr></thead>
-            <tbody>
-              <?php foreach ($discardedScans as $s): ?>
-              <tr>
-                <td><?= (int)$s['id'] ?></td>
-                <td><?= e($s['created_at']) ?></td>
-                <td><?= e($s['created_by_name'] ?: '—') ?></td>
-                <td><?= e($s['verified_by_name'] ?: '—') ?></td>
-                <td><?= e($s['verified_at'] ?: '—') ?></td>
-                <td><?= e($s['note'] ?: '—') ?></td>
-                <td><a class="btn btn-gold btn-sm" href="scans.php?scan_id=<?= (int)$s['id'] ?>"><?= te('View') ?> →</a></td>
-              </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-          <?php endif; ?>
-        <?php elseif (empty($pendingScans)): ?>
+        <h3><?= te('Pending in queue ({n})', ['n' => count($pendingScans)]) ?></h3>
+        <?php if (empty($pendingScans)): ?>
           <p class="empty"><?= te('No scans waiting for review.') ?></p>
         <?php else: ?>
         <table>
@@ -256,7 +229,7 @@ $landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agric
               <td style="white-space:nowrap;">
                 <a class="btn btn-gold btn-sm" href="scans.php?scan_id=<?= (int)$s['id'] ?>"><?= te('Review →') ?></a>
                 <?php if ($canDiscardScan($s)): ?>
-                <form method="post" action="scans.php" style="display:inline;" onsubmit="return confirm(<?= e(json_encode(t('Discard this scan? It will be marked rejected and removed from the review queue.'), JSON_UNESCAPED_UNICODE)) ?>);">
+                <form method="post" action="scans.php" style="display:inline;" onsubmit="return confirm(<?= e(json_encode(t('Discard this scan? The scan and its image will be deleted permanently.'), JSON_UNESCAPED_UNICODE)) ?>);">
                   <input type="hidden" name="discard_scan_id" value="<?= (int)$s['id'] ?>">
                   <button type="submit" class="btn btn-red btn-sm"><?= te('Discard') ?></button>
                 </form>
@@ -307,15 +280,6 @@ $landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agric
         </div>
       </div>
 
-      <?php if (($scan['status'] ?? '') === 'rejected'): ?>
-      <div class="form-box" style="border-color:#f9a825; background:#fff8e1;">
-        <?= e(t('This scan was discarded by {name} on {date}.', [
-              'name' => $scan['verified_by_name'] ?: '—',
-              'date' => $scan['verified_at'] ?: '—',
-        ])) ?>
-        <?php if (!empty($scan['note'])): ?><p class="sub"><?= e($scan['note']) ?></p><?php endif; ?>
-      </div>
-      <?php else: ?>
       <div class="form-box">
         <h3><?= te('Confirm / Edit Parcel Data') ?></h3>
         <form method="post" action="scans.php?scan_id=<?= (int)$scan['id'] ?>">
@@ -434,13 +398,12 @@ $landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agric
           </div>
         </form>
         <?php if ($canDiscardScan($scan)): ?>
-        <form method="post" action="scans.php?scan_id=<?= (int)$scan['id'] ?>" style="margin-top:10px;" onsubmit="return confirm(<?= e(json_encode(t('Discard this scan? It will be marked rejected and removed from the review queue.'), JSON_UNESCAPED_UNICODE)) ?>);">
+        <form method="post" action="scans.php?scan_id=<?= (int)$scan['id'] ?>" style="margin-top:10px;" onsubmit="return confirm(<?= e(json_encode(t('Discard this scan? The scan and its image will be deleted permanently.'), JSON_UNESCAPED_UNICODE)) ?>);">
           <input type="hidden" name="discard_scan_id" value="<?= (int)$scan['id'] ?>">
           <button type="submit" class="btn btn-red"><?= te('Discard') ?></button>
         </form>
         <?php endif; ?>
       </div>
-      <?php endif; ?>
     <?php endif; ?>
   </main>
 </div>

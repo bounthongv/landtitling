@@ -15,15 +15,12 @@ $scope = require_staff_write($me);   // only district admin/officer confirm scan
 $id = (int)($_GET['id'] ?? '0');
 if (!$id) { json_error('Scan id required', 400, 'missing_id'); }
 
-$stmt = $pdo->prepare("SELECT ts.id, ts.status, ts.parcel_id, ts.district_id, p.district_id AS parcel_district
+$stmt = $pdo->prepare("SELECT ts.id, ts.parcel_id, ts.district_id, p.district_id AS parcel_district
                        FROM title_scans ts LEFT JOIN parcels p ON p.id = ts.parcel_id
                        WHERE ts.id = :id");
 $stmt->execute([':id' => $id]);
 $scan = $stmt->fetch();
 if (!$scan) { json_error('Scan not found', 404, 'not_found'); }
-if ($scan['status'] === 'rejected') {
-    json_error('This scan was discarded and cannot be confirmed', 409, 'scan_rejected');
-}
 // District staff may only confirm scans that belong to their own district.
 $scanDistrict = $scan['district_id'] !== null ? (int)$scan['district_id']
     : ($scan['parcel_district'] !== null ? (int)$scan['parcel_district'] : null);

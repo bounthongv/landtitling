@@ -85,7 +85,7 @@
   "Deleted.": "ລຶບແລ້ວ.",
   "Discard": "ຖິ້ມ",
   "Discard failed": "ຖິ້ມລົ້ມເຫຼວ",
-  "Discard this scan? It will be marked rejected and removed from the review queue.": "ຖິ້ມການສະແກນນີ້ບໍ? ມັນຈະຖືກໝາຍວ່າປະຕິເສດ ແລະ ຖືກເອົາອອກຈາກຄິວກວດສອບ.",
+  "Discard this scan? The scan and its image will be deleted permanently.": "ຖິ້ມການສະແກນນີ້ບໍ? ການສະແກນ ແລະ ຮູບຂອງມັນ ຈະຖືກລຶບອອກຖາວອນ.",
   "Demo credentials": "ບັນຊີສາທິດ",
   "District": "ເມືອງ",
   "District (optional)": "ເມືອງ (ບໍ່ບັງຄັບ)",
@@ -540,7 +540,6 @@
   "Required fields": "ຊ່ອງຂໍ້ມູນທີ່ຈຳເປັນ",
   "Optional details": "ລາຍລະອຽດເພີ່ມເຕີມ",
   "Estimated tax": "ຄ່າພາສີຄາດຄະເນ",
-  "This scan was discarded by {name} on {date}.": "ການສະແກນນີ້ຖືກຖິ້ມໂດຍ {name} ເມື່ອ {date}.",
   "This village is not mapped to a valuation zone — ask the administrator to map it before this parcel can be billed.": "ບ້ານນີ້ຍັງບໍ່ໄດ້ກຳນົດເຂດປະເມີນລາຄາທີ່ດິນ — ກະລຸນາແຈ້ງຜູ້ດູແລລະບົບ ໃຫ້ກຳນົດເຂດກ່ອນ ຈຶ່ງຈະຄິດໄລ່ຄ່າພາສີໄດ້",
   "Land Parcel Owner": "ເຈົ້າຂອງຕອນດິນ",
   "Tax year": "ປີພັນທະ",
@@ -622,9 +621,5 @@
   "Payment is recorded as awaiting proof — review it in the Bank tab.": "ທະບຽນການຊຳລະໄວ້ແລ້ວ ໃນສະຖານະລໍຖ້າຫຼັກຖານ — ກວດສອບໄດ້ໃນໜ້າທະນາຄານ.",
   "Evidence photo upload failed (payment was settled anyway).": "ຂຶ້ນຮູບຫຼັກຖານລົ້ມເຫຼວ (ການຊຳລະແມ່ນຖືກຈັດການແລ້ວ).",
   "Cash, cheque, bank or mobile payment collected at the district office — settles the obligation immediately and prints the receipt.": "ການຊຳລະເງິນເປັນເງິນສົດ, ທີເຊັກ, ທະນາຄານ ຫຼື ມືຖື ທີ່ຮັບຢູ່ບ້ານກົດ — ຈະປິດພັນທະທັນທີ ແລະ ພິມໃບຮັບເງິນ.",
-  "Discarded scans ({n})": "ການສະແກນທີ່ຖືກຖິ້ມ ({n})",
-  "Discarded by": "ຖິ້ມໂດຍ",
-  "Discarded at": "ຖິ້ມເມື່ອ",
-  "No discarded scans.": "ບໍ່ມີການສະແກນທີ່ຖືກຖິ້ມ.",
   "No scans waiting for review.": "ບໍ່ມີຮູບສະແກນທີ່ລໍຖ້າກວດສອບ."
 }
