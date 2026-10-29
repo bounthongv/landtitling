@@ -645,6 +645,7 @@ $refGroups = [
                 data-form="zone-form" data-title="<?= te('Edit zone') ?>" data-submit="<?= te('Update zone') ?>"
                 data-do-action="zone_save" data-readonly="code"
                 data-code="<?= e($z['code']) ?>" data-name-lo="<?= e($z['name_lo']) ?>" data-name-en="<?= e($z['name_en'] ?? '') ?>"
+                data-province-id="<?= (int)($z['province_id'] ?? 0) ?: '' ?>"
                 data-district-id="<?= (int)($z['district_id'] ?? 0) ?: '' ?>" data-plan-zone="<?= e($z['plan_zone'] ?? '') ?>"
                 data-sort-order="<?= (int)($z['sort_order'] ?? 0) ?>"
                 data-rate-main="<?= (float)($r['main'] ?? 0) ?>" data-rate-branch="<?= (float)($r['branch'] ?? 0) ?>"
@@ -669,6 +670,12 @@ $refGroups = [
           <div class="form-group"><label><?= te('Code') ?></label><input name="code" required placeholder="A1"></div>
           <div class="form-group"><label><?= te('Name (Lao)') ?></label><input name="name_lo" required></div>
           <div class="form-group"><label><?= te('Name (EN)') ?></label><input name="name_en"></div>
+          <div class="form-group"><label><?= te('Province') ?></label>
+            <select name="province_id"><option value=""><?= te('-- all provinces --') ?></option>
+              <?php foreach ($provinces as $p): ?>
+              <option value="<?= (int)$p['id'] ?>"><?= e($p['name_lo']) ?></option>
+              <?php endforeach; ?></select>
+          </div>
           <div class="form-group"><label><?= te('District') ?></label>
             <select name="district_id"><option value=""><?= te('— unassigned / legacy —') ?></option>
               <?= district_options($districtsAll, $provinces) ?></select>
@@ -734,11 +741,59 @@ $refGroups = [
                                                                 if (hint) hint.textContent = '<?= te('Failed to load villages.') ?>';
                                                               });
                                                             }
+                                                            // Province narrows the district list; choosing a district
+                                                            // also fills in its province so the two never disagree.
+                                                            function filterDistricts(provSel, distSel) {
+                                                              const pid = String(provSel.value || '');
+                                                              [...distSel.querySelectorAll('optgroup')].forEach(function (g) {
+                                                                g.style.display = (pid && g.dataset.province !== pid) ? 'none' : '';
+                                                              });
+                                                              const sel = distSel.selectedOptions[0];
+                                                              if (sel && sel.parentElement && sel.parentElement.tagName === 'OPTGROUP'
+                                                                  && sel.parentElement.style.display === 'none') {
+                                                                distSel.value = '';
+                                                              }
+                                                            }
+                                                            function provinceOfDistrict(distSel) {
+                                                              const sel = distSel.selectedOptions[0];
+                                                              return (sel && sel.parentElement && sel.parentElement.tagName === 'OPTGROUP')
+                                                                ? String(sel.parentElement.dataset.province || '') : '';
+                                                            }
+                                                            function bindZoneLocation(form) {
+                                                              const distSel = form.querySelector('select[name="district_id"]');
+                                                              const provSel = form.querySelector('select[name="province_id"]');
+                                                              if (!distSel || !provSel || distSel.dataset.provBound) return;
+                                                              distSel.dataset.provBound = '1';
+                                                              if (!provSel.value) {
+                                                                const pid = provinceOfDistrict(distSel);
+                                                                if (pid) provSel.value = pid;
+                                                              }
+                                                              filterDistricts(provSel, distSel);
+                                                              provSel.addEventListener('change', function () {
+                                                                const before = String(distSel.value || '');
+                                                                filterDistricts(provSel, distSel);
+                                                                // Changing province may drop the district; its villages
+                                                                // must not linger and be submitted with the new zone.
+                                                                if (String(distSel.value || '') !== before) {
+                                                                  const vsel = form.querySelector('select[name="village_ids[]"]');
+                                                                  if (vsel) vsel.innerHTML = '';
+                                                                  distSel.dataset.loadedFor = '';
+                                                                  const hint = document.getElementById('village-hint');
+                                                                  if (hint) hint.textContent = '<?= te('Select a district to load its villages, then choose the ones in this zone. Hold Ctrl/Cmd to select multiple.') ?>';
+                                                                }
+                                                              });
+                                                              distSel.addEventListener('change', function () {
+                                                                const pid = provinceOfDistrict(distSel);
+                                                                if (pid) provSel.value = pid;
+                                                                filterDistricts(provSel, distSel);
+                                                              });
+                                                            }
                                                             const obs = new MutationObserver(function () {
                                                               const form = document.getElementById('modal-form');
                                                               if (!form) return;
                                                               const distSel = form.querySelector('select[name="district_id"]');
                                                               if (!distSel) return;
+                                                              bindZoneLocation(form);
                                                               if (!distSel.dataset.villageBound) {
                                                                 distSel.dataset.villageBound = '1';
                                                                 distSel.addEventListener('change', function () {
