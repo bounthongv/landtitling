@@ -313,7 +313,6 @@ function render_payment_card(array $p, string $base): void
           <div class="form-group"><label><?= te('Parcel no') ?></label><input id="counter-parcel"></div>
           <div class="form-group"><label><?= te('Owner name') ?></label><input id="counter-owner-name"></div>
           <div class="form-group"><label><?= te('Telephone') ?></label><input id="counter-phone" inputmode="tel" placeholder="020 555 1234"></div>
-          <div class="form-group"><label><?= te('National ID') ?></label><input id="counter-idnum"></div>
           <div class="form-group"><label><?= te('Tax year') ?></label>
             <select id="counter-year">
               <?php foreach ($years as $y): ?>
@@ -589,7 +588,7 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     fresh:    <?= json_encode(t('No obligation for {year} yet — settles at {amt} kip (zone {zone}, {rate} kip/m²)')) ?>,
     norate:   <?= json_encode(t('No zone rate set for this parcel — assign a valuation zone first')) ?>,
     expect:   <?= json_encode(t('Obligation verified — expected {amt} kip.')) ?>,
-    needCrit: <?= json_encode(t('Enter a parcel number, owner name, telephone or national ID.')) ?>,
+    needCrit: <?= json_encode(t('Enter a parcel number, owner name or telephone.')) ?>,
     badPhone: <?= json_encode(t('Telephone must contain at least 8 digits.')) ?>,
     searchFailed: <?= json_encode(t('Search failed.')) ?>,
     matches:  <?= json_encode(t('{n} parcel(s) matched — select one, or refine your search.')) ?>,
@@ -612,7 +611,6 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
   var ownerSel = document.getElementById('counter-owner');
   var ownerNameInput = document.getElementById('counter-owner-name');
   var phoneInput = document.getElementById('counter-phone');
-  var idNumInput = document.getElementById('counter-idnum');
   var matchesBox = document.getElementById('counter-matches');
   var parcelIdInput = settleForm ? settleForm.querySelector('input[name=parcel_id]') : null;
   var amountInput = settleForm ? settleForm.querySelector('input[name=amount]') : null;
@@ -673,7 +671,7 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     if (matchesBox) { matchesBox.style.display = 'none'; matchesBox.innerHTML = ''; }
     if (parcelIdInput) { parcelIdInput.value = ''; }
   }
-  var searchInputs = [parcelInput, ownerNameInput, phoneInput, idNumInput];
+  var searchInputs = [parcelInput, ownerNameInput, phoneInput];
   for (var si = 0; si < searchInputs.length; si++) {
     if (searchInputs[si]) { searchInputs[si].onchange = resetSearch; }
   }
@@ -681,14 +679,12 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
 
   function digitsOf(s) { return String(s == null ? '' : s).replace(/\D+/g, ''); }
 
-  // Mirrors the server rule: name/ID contain the text, phone compares last 8 digits.
+  // Mirrors the server rule: name contains the text, phone compares last 8 digits.
   function ownerMatches(o) {
     var nq = ownerNameInput ? ownerNameInput.value.trim().toLowerCase() : '';
-    var iq = idNumInput ? idNumInput.value.trim().toLowerCase() : '';
     var pt = phoneInput ? digitsOf(phoneInput.value).slice(-8) : '';
     var ok = true;
     if (nq) { ok = ok && String(o.full_name || '').toLowerCase().indexOf(nq) >= 0; }
-    if (iq) { ok = ok && String(o.id_number || '').toLowerCase().indexOf(iq) >= 0; }
     if (pt.length === 8) { ok = ok && digitsOf(o.phone).slice(-8) === pt; }
     return ok;
   }
@@ -790,8 +786,7 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
       var no = parcelInput.value.trim();
       var name = ownerNameInput ? ownerNameInput.value.trim() : '';
       var phone = phoneInput ? phoneInput.value.trim() : '';
-      var idn = idNumInput ? idNumInput.value.trim() : '';
-      if (!no && !name && !phone && !idn) {
+      if (!no && !name && !phone) {
         showVerify(esc(MSG.needCrit), 'err');
         parcelInput.focus();
         return;
@@ -807,7 +802,6 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
       if (no)    { qs += '&parcel_no=' + encodeURIComponent(no); }
       if (name)  { qs += '&owner_name=' + encodeURIComponent(name); }
       if (phone) { qs += '&phone=' + encodeURIComponent(phone); }
-      if (idn)   { qs += '&id_number=' + encodeURIComponent(idn); }
       fetch(API_BASE + '/parcels.php?' + qs, { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
         .then(function(r) { return r.json(); })
         .then(function(d) {
