@@ -1,8 +1,8 @@
 <?php
 // API v1: users.php — admin user management.
-// Staff (admin/officer): full CRUD + password reset + activate/deactivate.
-// Citizens: read-only, plus linking a citizen login to an owner record — that link
-// is what makes a parcel visible in the citizen app (owners.citizen_user_id).
+// Staff (admin/officer/manager): read lists; account changes are admin-only.
+// Linking a citizen login to an owner record is a staff write, district-scoped —
+// that link is what makes a parcel visible in the citizen app (owners.citizen_user_id).
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/validate.php';
@@ -16,19 +16,30 @@ $scope = staff_scope($me);
 // ---- GET: owner candidates (for linking), staff, or citizens ----
 if ($method === 'GET') {
     // Candidate owners to link to a citizen login. Officers usually know the parcel
-    // number rather than the owner's name, so both are searchable.
+    // number rather than the owner's name, so both are searchable. District staff
+    // only see owners in their district (or who own a parcel there).
     if ($_GET['candidates'] ?? '') {
         $q = trim((string)($_GET['q'] ?? ''));
-        $sql = "SELECT o.id, o.full_name, o.id_number, o.phone, o.citizen_user_id,
-                       (SELECT COUNT(*) FROM parcel_owners po WHERE po.owner_id = o.id) AS parcel_count,
-                       string_agg(COALESCE(p.parcel_no, ''), ', ' ORDER BY p.parcel_no) AS parcels
+        $sql = "WITH scoped_parcels AS (
+                    SELECT po.owner_id, p.id AS parcel_id, p.parcel_no
+                    FROM parcel_owners po
+                    JOIN parcels p ON p.id = po.parcel_id
+                    WHERE p.district_id = COALESCE(CAST(:did AS integer), p.district_id)
+                )
+                SELECT o.id, o.full_name, o.id_number, o.phone, o.citizen_user_id,
+                       COUNT(sp.parcel_id) AS parcel_count,
+                       string_agg(sp.parcel_no, ', ' ORDER BY sp.parcel_no) AS parcels
                 FROM owners o
-                LEFT JOIN parcel_owners po ON po.owner_id = o.id
-                LEFT JOIN parcels p ON p.id = po.parcel_id";
-        $params = [];
+                LEFT JOIN scoped_parcels sp ON sp.owner_id = o.id
+                WHERE (o.district_id = COALESCE(CAST(:did2 AS integer), o.district_id)
+                       OR sp.owner_id IS NOT NULL)";
+        $params = [':did' => $scope['district_id'], ':did2' => $scope['district_id']];
         if ($q !== '') {
-            $sql .= " WHERE (o.full_name ILIKE :q OR o.id_number ILIKE :q OR o.phone ILIKE :q OR p.parcel_no ILIKE :q)";
-            $params[':q'] = '%' . $q . '%';
+            $like = '%' . $q . '%';
+            $sql .= " AND (o.full_name ILIKE :q1 OR o.id_number ILIKE :q2 OR o.phone ILIKE :q3
+                        OR EXISTS (SELECT 1 FROM scoped_parcels sp2
+                                   WHERE sp2.owner_id = o.id AND sp2.parcel_no ILIKE :q4))";
+            $params += [':q1' => $like, ':q2' => $like, ':q3' => $like, ':q4' => $like];
         }
         $sql .= ' GROUP BY o.id ORDER BY o.full_name LIMIT 100';
         $st = $pdo->prepare($sql);
@@ -249,6 +260,7 @@ if ($method === 'POST' && $action === 'update') {
 
 // ---- Link a citizen login to an owner record ----
 if ($method === 'POST' && $action === 'link_owner') {
+    require_staff_write($me);   // linking grants a citizen access to an owner's parcels
     $userId  = (int)($body['user_id'] ?? 0);
     $ownerId = (int)($body['owner_id'] ?? 0);
     $unlink  = !empty($body['unlink']);
@@ -272,10 +284,27 @@ if ($method === 'POST' && $action === 'link_owner') {
     if ($ownerId <= 0) {
         json_error('owner_id is required', 400, 'missing_owner');
     }
-    $st = $pdo->prepare("SELECT id, full_name FROM owners WHERE id = :id");
-    $st->execute([':id' => $ownerId]);
+    // District staff may only link owners in their district (or who own a parcel there).
+    $ownerSql = "SELECT o.id, o.full_name FROM owners o
+        WHERE o.id = :id
+          AND (o.district_id = COALESCE(CAST(:did AS integer), o.district_id)";
+    $ownerArgs = [':id' => $ownerId, ':did' => $scope['district_id']];
+    if ($scope['district_id'] !== null) {
+        $ownerSql .= " OR EXISTS (SELECT 1 FROM parcel_owners po
+                        JOIN parcels p ON p.id = po.parcel_id
+                        WHERE po.owner_id = o.id AND p.district_id = :did2)";
+        $ownerArgs[':did2'] = $scope['district_id'];
+    }
+    $ownerSql .= ")";
+    $st = $pdo->prepare($ownerSql);
+    $st->execute($ownerArgs);
     $owner = $st->fetch();
-    if (!$owner) { json_error('Owner not found', 404, 'owner_not_found'); }
+    if (!$owner) {
+        $chk = $pdo->prepare("SELECT 1 FROM owners WHERE id = :id");
+        $chk->execute([':id' => $ownerId]);
+        if (!$chk->fetchColumn()) { json_error('Owner not found', 404, 'owner_not_found'); }
+        json_error('Owner outside your district', 403, 'out_of_scope');
+    }
 
     // One login per owner record: claim it from whoever held it before.
     $pdo->prepare("UPDATE owners SET citizen_user_id = NULL WHERE citizen_user_id = :u AND id <> :o")

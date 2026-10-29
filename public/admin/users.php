@@ -6,6 +6,8 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $allowedRoles = ['admin', 'officer', 'manager'];
 if (!in_array($role, $allowedRoles, true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
+// Linking is a write; managers are read-only.
+$canLink = in_array($role, ['admin', 'officer'], true);
 
 $tab = $_GET['tab'] ?? 'staff';
 $msg = '';
@@ -160,14 +162,14 @@ if ($linkingUser > 0) {
             <td><?= $c['is_active'] ? te('yes') : te('no') ?></td>
             <td><?= (int)$c['linked_owners'] ?></td>
             <td><?= (int)$c['linked_parcels'] ?></td>
-            <td><a href="?tab=citizens&link_user=<?= (int)$c['id'] ?>"><?= te('Link owner') ?></a></td>
+            <td><?php if ($canLink): ?><a href="?tab=citizens&link_user=<?= (int)$c['id'] ?>"><?= te('Link owner') ?></a><?php endif; ?></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
       </table>
     </div>
 
-    <?php if ($linkingUser > 0): ?>
+    <?php if ($canLink && $linkingUser > 0): ?>
     <div class="form-box">
       <h2><?= te('Link citizen #{id} to an owner', ['id' => (int)$linkingUser]) ?></h2>
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:12px;">
