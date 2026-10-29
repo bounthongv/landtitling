@@ -87,7 +87,7 @@ if ($method === 'GET') {
     $st = $pdo->prepare("SELECT u.id, u.username, u.role, u.level, u.district_id, u.phone, u.email, u.is_active, u.created_at,
             d.name_en AS district_name, d.name_lo AS district_name_lo, d.province_id,
             p.name_lo AS province_name,
-            (SELECT COUNT(*) FROM title_scans s WHERE s.verified_by = u.id) AS scans_verified
+            (SELECT COUNT(*) FROM title_scans s WHERE s.verified_by = u.id AND s.status = 'confirmed') AS scans_verified
         FROM users u
         LEFT JOIN districts d ON d.id = u.district_id
         LEFT JOIN provinces p ON p.id = d.province_id

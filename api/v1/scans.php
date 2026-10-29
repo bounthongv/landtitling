@@ -67,7 +67,9 @@ function normalize_land_use_class(string $raw): string {
 if ($method === 'GET' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
     $sql = "SELECT ts.*, p.parcel_no, p.sub_parcel_no, p.area_sqm, p.road_category,
-               p.village_id, p.district_id, p.status AS parcel_status
+               p.village_id, p.district_id, p.status AS parcel_status,
+               (SELECT username FROM users WHERE id = ts.created_by) AS created_by_name,
+               (SELECT username FROM users WHERE id = ts.verified_by) AS verified_by_name
         FROM title_scans ts
         LEFT JOIN parcels p ON p.id = ts.parcel_id
         WHERE ts.id = :id";
@@ -106,6 +108,12 @@ if ($method === 'GET' && isset($_GET['id'])) {
             'overall_confidence' => $row['overall_confidence'] !== null ? (int)$row['overall_confidence'] : null,
             'parcel_id' => $row['parcel_id'] !== null ? (int)$row['parcel_id'] : null,
             'created_at' => $row['created_at'],
+            'created_by' => $row['created_by'] !== null ? (int)$row['created_by'] : null,
+            'created_by_name' => $row['created_by_name'],
+            'verified_by' => $row['verified_by'] !== null ? (int)$row['verified_by'] : null,
+            'verified_by_name' => $row['verified_by_name'],
+            'verified_at' => $row['verified_at'],
+            'note' => $row['note'],
         ],
         'parcel' => $parcel,
         'district_id' => $parcel['district_id'] ?? null,
@@ -130,10 +138,14 @@ if ($method === 'GET') {
     }
     $stmt = $pdo->prepare("
         SELECT ts.id, ts.image_path, ts.status, ts.overall_confidence, ts.parcel_id, ts.created_at,
+               ts.created_by, cu.username AS created_by_name,
+               ts.verified_by, ts.verified_at, ts.note, vu.username AS verified_by_name,
                p.parcel_no, p.area_sqm, p.road_category, p.status AS parcel_status,
                d.name_lo AS district_name, v.name_lo AS village_name
         FROM title_scans ts
         LEFT JOIN parcels p ON p.id = ts.parcel_id
+        LEFT JOIN users cu ON cu.id = ts.created_by
+        LEFT JOIN users vu ON vu.id = ts.verified_by
         LEFT JOIN villages v ON p.village_id = v.id
         LEFT JOIN districts d ON COALESCE(ts.district_id, p.district_id) = d.id
         WHERE $where
