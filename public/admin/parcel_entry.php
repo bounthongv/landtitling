@@ -804,10 +804,11 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   const res = await fetch('/api/v1/parcels.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
-    body: JSON.stringify({ parcel, owners }),
+    body: JSON.stringify({ parcel, owners, scan_id: lastScan ? lastScan.id : undefined }),
   });
   const result = await res.json();
   if (result.ok) {
+    lastScan = null;
     showResult(I18N.savedId.replace('{id}', result.data.parcel_id), true);
     document.getElementById('parcel-form').reset();
     populateProvSelects();

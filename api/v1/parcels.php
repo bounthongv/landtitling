@@ -355,6 +355,24 @@ if ($method === 'POST') {
         $ownerIds[] = $ownerId;
     }
     
+    // A Parcel Entry save that started from a scanned title closes that scan;
+    // otherwise the upload stays 'parsed' in the review queue forever.
+    $scanId = (int)($body['scan_id'] ?? 0);
+    if ($scanId > 0) {
+        $st = $pdo->prepare("SELECT id, status, parcel_id, district_id FROM title_scans WHERE id = :id");
+        $st->execute([':id' => $scanId]);
+        $scanRow = $st->fetch();
+        $scanDistrict = $scanRow && $scanRow['district_id'] !== null ? (int)$scanRow['district_id'] : null;
+        if ($scanRow && $scanRow['status'] !== 'confirmed' && $scanRow['parcel_id'] === null
+            && ($scanDistrict === null || $scanDistrict === $districtId)) {
+            $pdo->prepare("UPDATE title_scans
+                SET parcel_id=:pid, status='confirmed', district_id=:did, verified_by=:v,
+                    verified_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+                WHERE id=:id AND status <> 'confirmed' AND parcel_id IS NULL")
+                ->execute([':pid' => $parcelId, ':did' => $districtId, ':v' => $me['sub'], ':id' => $scanId]);
+        }
+    }
+    
     json_ok([
         'parcel_id' => $parcelId,
         'owner_ids' => $ownerIds,
