@@ -23,14 +23,14 @@ $role = $user['role'];
     <?php if ($role === 'admin'): ?><p class="sub"><?= te('Back-Office System. Managed by the provincial/district officer for day-to-day work.') ?></p><?php endif; ?>
 
     <section class="cards">
-      <div class="card stat"><h3><?= te('Pending scans') ?></h3><p class="num" id="scan-count">—</p></div>
+      <div class="card stat"><h3><?= te('Unreviewed scan uploads') ?></h3><p class="num" id="scan-count">—</p></div>
       <div class="card stat"><h3><?= te('Parcels') ?></h3><p class="num" id="parcel-count">—</p></div>
       <div class="card stat"><h3><?= te('Issued payments') ?></h3><p class="num" id="issued-count">—</p></div>
       <div class="card stat"><h3><?= te('Total taxes (kips)') ?></h3><p class="num" id="fee-total">—</p></div>
     </section>
 
     <div class="grid">
-      <div class="card"><h3><?= te('Pending scans to confirm') ?></h3><p class="sub" id="scan-summary"><?= te('Loading…') ?></p></div>
+      <div class="card"><h3><?= te('Scan uploads awaiting review') ?></h3><p class="sub" id="scan-summary"><?= te('Loading…') ?></p></div>
       <div class="card"><h3><?= te('Zone rates (locational, flat)') ?></h3><p class="sub"><?= te('Kip per m². Rate depends only on district + road category.') ?></p></div>
     </div>
   </main>
@@ -38,8 +38,8 @@ $role = $user['role'];
 <script>
 const TOKEN = '<?= e($_SESSION['admin_token'] ?? '') ?>';
 const I18N = <?= json_encode([
-    'noScans'      => t('No pending scans right now.'),
-    'pendingScans' => t('{n} pending scan(s) to review.'),
+    'noScans'      => t('No scan uploads to review.'),
+    'pendingScans' => t('{n} scan upload(s) awaiting review.'),
     'loadFailed'   => t('Could not load the dashboard data — check the API.'),
     'kip'          => t('kip'),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
