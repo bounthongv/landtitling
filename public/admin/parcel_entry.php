@@ -272,7 +272,7 @@ $parsedLabels = [
             </div>
             <!-- #1 -->
             <div class="cert-row req-row">
-              <label><?= te('Ref No') ?></label>
+              <label><?= te('Title no') ?></label>
               <div class="val req-field"><input type="text" name="ref_no" required></div>
             </div>
             <!-- #4-6: land location. #7 Unit moved into Optional details. -->
@@ -294,6 +294,12 @@ $parsedLabels = [
             <div class="cert-row">
               <label><?= te('Phone') ?></label>
               <div class="val"><input type="text" name="owner_phone" placeholder="020 555 1234"></div>
+            </div>
+            <!-- #26 then #27: the map sheet + parcel number on that sheet are the
+                 parcel's identity on paper — a number can repeat on other sheets. -->
+            <div class="cert-row req-row">
+              <label><?= te('Map sheet') ?></label>
+              <div class="val req-field"><input type="text" name="map_no" required placeholder="e.g. A250-038"></div>
             </div>
             <!-- #27 -->
             <div class="cert-row req-row">
@@ -374,14 +380,13 @@ $parsedLabels = [
                   <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Zone') ?></label><input type="text" name="zone" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ"></span>
                 </div>
               </div>
-              <!-- #24-26: registration book / leaf / map. (#27 Parcel No is
-                   required and now sits at the top of the form.) -->
+              <!-- #24-25: registration book / leaf. (#26 map sheet and #27
+                   parcel no. are required and sit at the top of the form.) -->
               <div class="cert-row">
                 <label><?= te('Registration') ?></label>
                 <div class="inline">
                   <span class="ci"><label><?= te('Registration Book') ?></label><input type="text" name="book"></span>
                   <span class="ci"><label><?= te('Leaf No') ?></label><input type="text" name="leaf"></span>
-                  <span class="ci"><label><?= te('Map No') ?></label><input type="text" name="map_no" placeholder="e.g. A250-038"></span>
                 </div>
               </div>
               <!-- #29 -->

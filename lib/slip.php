@@ -138,7 +138,16 @@ function slip_render_html(array $payment, array $parcel, $district_name, $villag
     $due    = $h($payment['due_date'] ?? '');
     $district_name = $h($district_name);
     $village_name  = $h($village_name);
+    // The paper title identifies a plot by certificate no. (#1), map sheet (#26)
+    // and parcel no. on that sheet (#27) — print all three so the receipt can be
+    // matched to the title the citizen brings to the counter.
     $parcel_no     = $h($parcel['parcel_no'] ?? '');
+    $sub_parcel_no = $h($parcel['sub_parcel_no'] ?? '');
+    $title_no      = $h($parcel['title_no'] ?? '');
+    $map_ref_no    = $h($parcel['map_ref_no'] ?? '');
+    $parcel_label  = $parcel_no === '' ? '—' : $parcel_no . ($sub_parcel_no !== '' ? ' / ' . $sub_parcel_no : '');
+    $title_label   = $title_no === '' ? '—' : $title_no;
+    $sheet_label   = $map_ref_no === '' ? '—' : $map_ref_no;
     // Province comes from the parcel record when available, else the seeded default.
     $province = $h($parcel['province'] ?? 'Savannakhet');
     $titleLo  = $receipt ? 'ໃບຮັບເງິນ' : 'ໃບຊໍາລະ';
@@ -176,7 +185,9 @@ function slip_render_html(array $payment, array $parcel, $district_name, $villag
   <div class="row"><span class="label">ແຂວງ / Province</span><span>{$province}</span></div>
   <div class="row"><span class="label">ເມືອງ / District</span><span>{$district_name}</span></div>
   <div class="row"><span class="label">ບ້ານ / Village</span><span>{$village_name}</span></div>
-  <div class="row"><span class="label">ຕອນດິນ / Parcel No.</span><span>{$parcel_no}</span></div>
+  <div class="row"><span class="label">ເລກທີໃບຕາດິນ / Title No.</span><span>{$title_label}</span></div>
+  <div class="row"><span class="label">ແຜນທີ່ດິນແຜ່ນທີ / Map sheet</span><span>{$sheet_label}</span></div>
+  <div class="row"><span class="label">ຕອນດິນ / Parcel No.</span><span>{$parcel_label}</span></div>
   <div class="row"><span class="label">ພື້ນທີ່ / Area</span><span>{$area} ຕາລາງແມັດ (m2)</span></div>
   <div class="row"><span class="label">ອັດຕາ / Rate</span><span>{$rate} ກີບ/ມ2</span></div>
   <div class="row"><span class="label">ວິທີຊໍາລະ / Method</span><span>{$method}</span></div>

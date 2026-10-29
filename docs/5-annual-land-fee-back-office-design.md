@@ -108,7 +108,7 @@ CREATE TABLE parcels (
   ocr_confidence INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (district_id, village_id, parcel_no, sub_parcel_no)   -- duplicate guard
+  UNIQUE (district_id, village_id, map_ref_no, parcel_no, sub_parcel_no)   -- duplicate guard (migration 013)
 );
 CREATE INDEX idx_parcels_parcel_no ON parcels (parcel_no);
 ```

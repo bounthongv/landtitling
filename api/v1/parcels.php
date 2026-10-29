@@ -18,6 +18,8 @@ if ($method === 'GET') {
     $owner_name = trim((string)($_GET['owner_name'] ?? ''));
     $phone = trim((string)($_GET['phone'] ?? ''));
     $parcel_no = $_GET['parcel_no'] ?? '';
+    $title_no = trim((string)($_GET['title_no'] ?? ''));
+    $map_ref_no = trim((string)($_GET['map_ref_no'] ?? ''));
     $status = $_GET['status'] ?? null;
     $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
     $limit = (int)($_GET['limit'] ?? 200);
@@ -30,6 +32,10 @@ if ($method === 'GET') {
     $mineOnly = !empty($_GET['mine']);
     if ($me['role'] === 'citizen' && !$id && $parcel_no === '' && !$mineOnly) {
         json_error('Specify a parcel number, or use mine=1 to list your own parcels', 403, 'listing_forbidden');
+    }
+    // Title no. (#1) and map sheet (#26) filters are registry-search tools for staff.
+    if (!$staff && ($title_no !== '' || $map_ref_no !== '')) {
+        json_error('Title and map-sheet search is for office staff', 403, 'staff_search_only');
     }
     if ($mineOnly) {
         if ($me['role'] !== 'citizen') {
@@ -97,6 +103,8 @@ if ($method === 'GET') {
                     WHERE po.parcel_id = p.id AND " . implode(' AND ', $identity) . ")";
     }
     if ($parcel_no !== '') { $where[] = 'p.parcel_no ILIKE :parcel'; $params[':parcel'] = '%' . $parcel_no . '%'; }
+    if ($title_no !== '') { $where[] = 'p.title_no ILIKE :title'; $params[':title'] = '%' . like_escape($title_no) . '%'; }
+    if ($map_ref_no !== '') { $where[] = 'p.map_ref_no ILIKE :sheet'; $params[':sheet'] = '%' . like_escape($map_ref_no) . '%'; }
     if ($status) { $where[] = 'p.status = :status'; $params[':status'] = $status; }
     if ($staff && $scope['district_id'] !== null) {
         $where[] = 'p.district_id = :scope_district';
@@ -280,7 +288,7 @@ if ($method === 'POST') {
         }
     } catch (PDOException $e) {
         if ($e->getCode() === '23505') {
-            json_error('A parcel with this number already exists in this village', 409, 'duplicate_parcel');
+            json_error('A parcel with this number already exists on this map sheet', 409, 'duplicate_parcel');
         }
         json_error('Failed to save parcel: ' . $e->getMessage(), 500, 'parcel_failed');
     }

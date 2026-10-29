@@ -67,6 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
           <tr><th><?= te('Area (m²)') ?></th><td><?= number_format((float)$parcel['area_sqm'], 2) ?></td></tr>
           <tr><th><?= te('Road category') ?></th><td><?= e(t(ucfirst($parcel['road_category'] ?? '—'))) ?></td></tr>
           <tr><th><?= te('Title no') ?></th><td><?= e($parcel['title_no'] ?? '—') ?></td></tr>
+          <tr><th><?= te('Map sheet') ?></th><td><?= $parcel['map_ref_no'] ? e($parcel['map_ref_no']) : '—' ?></td></tr>
+          <tr><th><?= te('Parcel no') ?></th><td><?= e($parcel['parcel_no']) ?><?= $parcel['sub_parcel_no'] ? ' / ' . e($parcel['sub_parcel_no']) : '' ?></td></tr>
           <tr><th><?= te('Title type') ?></th><td><?= e(t($parcel['title_type'] ?? '—')) ?></td></tr>
           <tr><th><?= te('Book / Volume / Page') ?></th><td><?= e($parcel['book_no'] ?? '—') ?> / <?= e($parcel['volume_no'] ?? '—') ?> / <?= e($parcel['page_no'] ?? '—') ?></td></tr>
           <tr><th><?= te('Land use') ?></th><td><?= e(t($parcel['land_use_class'] ?? '—')) ?></td></tr>

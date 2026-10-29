@@ -9,6 +9,8 @@ $village_id   = isset($_GET['village_id']) ? (int)$_GET['village_id'] : 0;
 $province_id  = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
 $owner_name   = trim((string)($_GET['owner_name'] ?? ''));
 $parcel_no   = $_GET['parcel_no'] ?? '';
+$map_ref_no  = trim((string)($_GET['map_ref_no'] ?? ''));
+$title_no    = trim((string)($_GET['title_no'] ?? ''));
 $status      = $_GET['status'] ?? '';
 
 $q = [];
@@ -16,6 +18,8 @@ if ($district_id)  { $q['district_id'] = $district_id; }
 if ($province_id)  { $q['province_id'] = $province_id; }
 if ($owner_name !== '') { $q['owner_name'] = $owner_name; }
 if ($parcel_no !== '')  { $q['parcel_no'] = $parcel_no; }
+if ($map_ref_no !== '') { $q['map_ref_no'] = $map_ref_no; }
+if ($title_no !== '')   { $q['title_no'] = $title_no; }
 if ($status !== '')     { $q['status'] = $status; }
 $url = 'parcels.php' . ($q ? '?' . http_build_query($q) : '');
 
@@ -125,6 +129,8 @@ $roadMap = [
         <div class="form-group"><label><?= te('Status') ?></label>
           <select name="status"><option value=""><?= te('-- all --') ?></option><option value="confirmed" <?= $status === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option><option value="active" <?= $status === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option><option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>><?= te('Draft') ?></option></select></div>
         <div class="form-group"><label><?= te('Parcel no') ?></label><input name="parcel_no" value="<?= e($parcel_no) ?>"></div>
+        <div class="form-group"><label><?= te('Map sheet') ?></label><input name="map_ref_no" value="<?= e($map_ref_no) ?>"></div>
+        <div class="form-group"><label><?= te('Title no') ?></label><input name="title_no" value="<?= e($title_no) ?>"></div>
         <div class="form-group"><label><?= te('Land Parcel Owner') ?></label><input name="owner_name" value="<?= e($owner_name) ?>"></div>
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Filter') ?></button></div>
       </form>
@@ -151,7 +157,7 @@ $roadMap = [
       <tbody>
         <?php foreach ($parcels as $p): ?>
         <tr>
-          <td><a href="<?= $base ?>/parcel.php?id=<?= (int)$p['id'] ?>"><?= e($p['parcel_no']) ?></a></td>
+          <td><a href="<?= $base ?>/parcel.php?id=<?= (int)$p['id'] ?>"><?= e($p['parcel_no']) ?></a><?php if (!empty($p['map_ref_no'])): ?><div style="font-size:12px; color:#777;"><?= te('Sheet') ?> <?= e($p['map_ref_no']) ?></div><?php endif; ?></td>
           <td><?= e($p['owners_names'] ?? '') ?: '—' ?></td>
           <td><?= e($p['province'] ?? '') ?></td>
           <td><?= e($p['district_name']) ?></td>

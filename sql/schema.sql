@@ -306,9 +306,10 @@ CREATE TABLE parcels (
 
 CREATE INDEX idx_parcels_parcel_no ON parcels (parcel_no);
 CREATE INDEX idx_parcels_district ON parcels (district_id);
--- Duplicate guard (COALESCE keeps NULL sub-parcel numbers comparable)
+-- Duplicate guard: a parcel no. is unique per map sheet (#26) within the village.
+-- COALESCE keeps NULL sheet / sub-parcel numbers comparable.
 CREATE UNIQUE INDEX uq_parcels_identity
-  ON parcels (district_id, village_id, parcel_no, COALESCE(sub_parcel_no, ''));
+  ON parcels (district_id, village_id, COALESCE(map_ref_no, ''), parcel_no, COALESCE(sub_parcel_no, ''));
 
 -- Co-ownership: a parcel may have several owners
 CREATE TABLE parcel_owners (

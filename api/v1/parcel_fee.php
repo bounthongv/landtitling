@@ -22,8 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 $parcelId = (int)($_GET['parcel_id'] ?? 0);
 $parcelNo = trim((string)($_GET['parcel_no'] ?? ''));
-if ($parcelId <= 0 && $parcelNo === '') {
-    json_error('parcel_no or parcel_id is required', 400, 'missing_parcel');
+$titleNo  = trim((string)($_GET['title_no'] ?? ''));
+$mapRefNo = trim((string)($_GET['map_ref_no'] ?? ''));
+if ($parcelId <= 0 && $parcelNo === '' && $titleNo === '') {
+    json_error('parcel_id, parcel_no or title_no is required', 400, 'missing_parcel');
 }
 $feeYear = (int)($_GET['fee_year'] ?? 0) ?: (int)date('Y');
 
@@ -33,15 +35,27 @@ $scoped = $me['role'] !== 'citizen' && $scope['district_id'] !== null;
 
 // EXACT match only — a substring match would let anyone page through the land
 // registry one character at a time. parcel_id disambiguates numbers that repeat
-// across villages (parcel_no is only unique within district+village+sub_parcel).
+// across villages (parcel_no is unique only within district+village+sheet+sub).
 $sql = "SELECT p.id AS parcel_id, p.parcel_no, p.sub_parcel_no, p.area_sqm,
-        p.zone_code, p.road_category, p.title_no, p.title_type, p.issued_date, p.status,
+        p.zone_code, p.road_category, p.title_no, p.map_ref_no, p.title_type,
+        p.issued_date, p.status,
         d.name_lo AS district_name, v.name_lo AS village_name
     FROM parcels p
     JOIN districts d ON d.id = p.district_id
     JOIN villages  v ON v.id = p.village_id
-    WHERE " . ($parcelId > 0 ? 'p.id = :pid' : 'p.parcel_no = :pn');
-$args = $parcelId > 0 ? [':pid' => $parcelId] : [':pn' => $parcelNo];
+    WHERE ";
+$conds = [];
+$args = [];
+if ($parcelId > 0) {
+    $conds[] = 'p.id = :pid';
+    $args[':pid'] = $parcelId;
+} else {
+    if ($parcelNo !== '') { $conds[] = 'p.parcel_no = :pn'; $args[':pn'] = $parcelNo; }
+    if ($titleNo !== '')  { $conds[] = 'p.title_no = :tn';  $args[':tn'] = $titleNo; }
+}
+// The map sheet (#26) narrows a parcel number that repeats on other sheets.
+if ($mapRefNo !== '') { $conds[] = 'p.map_ref_no = :mr'; $args[':mr'] = $mapRefNo; }
+$sql .= implode(' AND ', $conds);
 if ($scoped) {
     $sql .= " AND p.district_id = :sd";
     $args[':sd'] = $scope['district_id'];
@@ -113,6 +127,7 @@ json_ok([
         'zone_code'     => $zoneCode !== '' ? $zoneCode : null,
         'road_category' => $parcel['road_category'],
         'title_no'      => $parcel['title_no'],
+        'map_ref_no'    => $parcel['map_ref_no'],
         'title_type'    => $parcel['title_type'],
         'issued_date'   => $parcel['issued_date'],
         'status'        => $parcel['status'],

@@ -319,6 +319,8 @@ function render_payment_card(array $p, string $base): void
         <p class="sub"><?= te('Enter any one field, or combine them to narrow the search.') ?></p>
         <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
           <div class="form-group"><label><?= te('Parcel no') ?></label><input id="counter-parcel"></div>
+          <div class="form-group"><label><?= te('Map sheet') ?></label><input id="counter-sheet" placeholder="A250-038"></div>
+          <div class="form-group"><label><?= te('Title no') ?></label><input id="counter-title"></div>
           <div class="form-group"><label><?= te('Owner name') ?></label><input id="counter-owner-name"></div>
           <div class="form-group"><label><?= te('Telephone') ?></label><input id="counter-phone" inputmode="tel" placeholder="020 555 1234"></div>
           <div class="form-group"><label><?= te('Tax year') ?></label>
@@ -596,7 +598,7 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     fresh:    <?= json_encode(t('No obligation for {year} yet — settles at {amt} kip (zone {zone}, {rate} kip/m²)')) ?>,
     norate:   <?= json_encode(t('No zone rate set for this parcel — assign a valuation zone first')) ?>,
     expect:   <?= json_encode(t('Obligation verified — expected {amt} kip.')) ?>,
-    needCrit: <?= json_encode(t('Enter a parcel number, owner name or telephone.')) ?>,
+    needCrit: <?= json_encode(t('Enter a parcel number, map sheet, title number, owner name or telephone.')) ?>,
     badPhone: <?= json_encode(t('Telephone must contain at least 8 digits.')) ?>,
     searchFailed: <?= json_encode(t('Search failed.')) ?>,
     matches:  <?= json_encode(t('{n} parcel(s) matched — select one, or refine your search.')) ?>,
@@ -609,6 +611,8 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     status: { <?php foreach (['UNPAID', 'PARTIAL', 'PAID', 'OVERPAID', 'WAIVED'] as $s) { echo json_encode($s) . ': ' . json_encode(t($s)) . ', '; } ?> }
   };
   var parcelInput = document.getElementById('counter-parcel');
+  var sheetInput = document.getElementById('counter-sheet');
+  var titleInput = document.getElementById('counter-title');
   var yearSel = document.getElementById('counter-year');
   var methodSel = document.getElementById('counter-method');
   var verifyBtn = document.getElementById('counter-verify');
@@ -679,7 +683,7 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     if (matchesBox) { matchesBox.style.display = 'none'; matchesBox.innerHTML = ''; }
     if (parcelIdInput) { parcelIdInput.value = ''; }
   }
-  var searchInputs = [parcelInput, ownerNameInput, phoneInput];
+  var searchInputs = [parcelInput, sheetInput, titleInput, ownerNameInput, phoneInput];
   for (var si = 0; si < searchInputs.length; si++) {
     if (searchInputs[si]) { searchInputs[si].onchange = resetSearch; }
   }
@@ -769,6 +773,9 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
       for (var j = 0; j < (r.owners || []).length; j++) { names.push(esc(r.owners[j].full_name)); }
       if (!names.length) { names.push(esc(r.owners_names || '')); }
       var label = r.parcel_no + (r.sub_parcel_no ? ' / ' + r.sub_parcel_no : '');
+      // The paper identity is map sheet / parcel no — show both so the officer
+      // can tell apart parcels that share a number on different sheets.
+      if (r.map_ref_no) { label = r.map_ref_no + ' / ' + label; }
       h += '<tr><td>' + esc(label) + '</td><td>' + names.join(', ') + '</td><td>'
         + esc((r.village_name || '') + ' · ' + (r.district_name || '')) + '</td><td>' + esc(r.area_sqm) + '</td>'
         + '<td><button type="button" class="btn btn-gold btn-sm" data-pid="' + Number(r.id)
@@ -792,9 +799,11 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
   if (verifyBtn) {
     verifyBtn.onclick = function() {
       var no = parcelInput.value.trim();
+      var sheet = sheetInput ? sheetInput.value.trim() : '';
+      var title = titleInput ? titleInput.value.trim() : '';
       var name = ownerNameInput ? ownerNameInput.value.trim() : '';
       var phone = phoneInput ? phoneInput.value.trim() : '';
-      if (!no && !name && !phone) {
+      if (!no && !sheet && !title && !name && !phone) {
         showVerify(esc(MSG.needCrit), 'err');
         parcelInput.focus();
         return;
@@ -808,6 +817,8 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
       showVerify('<b>' + esc(MSG.loading) + '</b>', 'warn');
       var qs = 'limit=15&with_owners=1';
       if (no)    { qs += '&parcel_no=' + encodeURIComponent(no); }
+      if (sheet) { qs += '&map_ref_no=' + encodeURIComponent(sheet); }
+      if (title) { qs += '&title_no=' + encodeURIComponent(title); }
       if (name)  { qs += '&owner_name=' + encodeURIComponent(name); }
       if (phone) { qs += '&phone=' + encodeURIComponent(phone); }
       fetch(API_BASE + '/parcels.php?' + qs, { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
