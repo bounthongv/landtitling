@@ -76,6 +76,11 @@ if ($method === 'GET') {
 $me = require_auth(['admin', 'officer', 'manager']);
 $scope = staff_scope($me);
 
+// Village management mirrors Basic Data: admin role only.
+if ($method !== 'GET' && ($me['role'] ?? '') !== 'admin') {
+    json_error('Only admins can change villages', 403, 'forbidden');
+}
+
 // District staff cannot manage villages — that's a province-level function.
 if ($scope['district_id'] !== null && $method !== 'GET') {
     json_error('Village management is a province-level function', 403, 'read_only');

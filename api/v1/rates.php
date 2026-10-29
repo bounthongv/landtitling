@@ -9,6 +9,11 @@ $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $me = require_auth(['officer', 'admin', 'manager']);
 
+// Zone rates are admin-maintained (Basic Data is an admin screen).
+if ($method !== 'GET' && ($me['role'] ?? '') !== 'admin') {
+    json_error('Only admins can change zone rates', 403, 'forbidden');
+}
+
 /** Read the 4 rate values from either `rates: {main:…}` or flat body keys. */
 function rate_body_values(array $body): array
 {

@@ -13,6 +13,11 @@ $method = $_SERVER['REQUEST_METHOD'];
 $me = require_auth(['admin', 'officer', 'manager']);
 $scope = staff_scope($me);
 
+// Geography is admin-maintained (Basic Data is an admin screen).
+if ($method !== 'GET' && ($me['role'] ?? '') !== 'admin') {
+    json_error('Only admins can change districts', 403, 'forbidden');
+}
+
 // ---- GET: list (public) ----
 if ($method === 'GET') {
     $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;

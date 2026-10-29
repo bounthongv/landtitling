@@ -8,6 +8,11 @@ $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $me = require_auth(['officer', 'admin', 'manager']);
 
+// Fee years are admin-maintained (Basic Data is an admin screen).
+if ($method !== 'GET' && ($me['role'] ?? '') !== 'admin') {
+    json_error('Only admins can change fee years', 403, 'forbidden');
+}
+
 // ---- GET: list fee years with obligation counts ----
 if ($method === 'GET') {
     $stmt = $pdo->query("SELECT y.*,
