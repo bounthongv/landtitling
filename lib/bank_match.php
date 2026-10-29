@@ -137,9 +137,10 @@ function bank_parse_csv($csv, array $map, bool $hasHeader = true)
  *   ref unknown               -> unmatched; no ref but unique amount+date -> candidate hint
  *   ref already consumed      -> duplicate (never auto-applied)
  * Idempotent: transactions already matched/ignored are skipped.
+ * $districtId limits matching to that district's parcels (null = all).
  * Returns a summary array.
  */
-function bank_match_run(PDO $pdo, int $importId, $actorId = null)
+function bank_match_run(PDO $pdo, int $importId, $actorId = null, ?int $districtId = null)
 {
     $stmt = $pdo->prepare("SELECT * FROM bank_transactions
         WHERE import_id = :i AND match_status IN ('unmatched','partial')
@@ -157,9 +158,17 @@ function bank_match_run(PDO $pdo, int $importId, $actorId = null)
         if (!$ref) {
             // No reference: hint a candidate when exactly one open payment has this amount.
             $cand = null;
-            $st = $pdo->prepare("SELECT p.id FROM payments p
-                WHERE p.status = 'ISSUED' AND p.amount = :a ORDER BY p.created_at");
-            $st->execute([':a' => $amount]);
+            $candSql = "SELECT p.id FROM payments p";
+            $candArgs = [':a' => $amount];
+            if ($districtId !== null) {
+                $candSql .= " JOIN parcels par ON par.id = p.parcel_id WHERE par.district_id = :did";
+                $candArgs[':did'] = $districtId;
+                $candSql .= " AND p.status = 'ISSUED' AND p.amount = :a";
+            } else {
+                $candSql .= " WHERE p.status = 'ISSUED' AND p.amount = :a";
+            }
+            $st = $pdo->prepare($candSql . " ORDER BY p.created_at");
+            $st->execute($candArgs);
             $ids = $st->fetchAll(PDO::FETCH_COLUMN);
             if (count($ids) === 1) {
                 $cand = (int)$ids[0];
@@ -174,9 +183,19 @@ function bank_match_run(PDO $pdo, int $importId, $actorId = null)
             continue;
         }
 
-        // Find the payment for this reference.
-        $st = $pdo->prepare("SELECT * FROM payments WHERE reference_no = :ref");
-        $st->execute([':ref' => $ref]);
+        // Find the payment for this reference (within the actor's district, if scoped).
+        $paySql = "SELECT pay.* FROM payments pay";
+        $payArgs = [':ref' => $ref];
+        if ($districtId !== null) {
+            $paySql .= " JOIN parcels par ON par.id = pay.parcel_id";
+        }
+        $paySql .= " WHERE pay.reference_no = :ref";
+        if ($districtId !== null) {
+            $paySql .= " AND par.district_id = :did";
+            $payArgs[':did'] = $districtId;
+        }
+        $st = $pdo->prepare($paySql);
+        $st->execute($payArgs);
         $pay = $st->fetch();
         if (!$pay) {
             $summary['unmatched']++;
