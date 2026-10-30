@@ -155,6 +155,31 @@ function slip_render_html(array $payment, array $parcel, $district_name, $villag
     $paidAt   = $h($payment['paid_at'] ?? '');
     $officer  = $h($officerName);
     $statusLo = $receipt ? '<div class="paid-mark">ຈ່າຍແລ້ວ / PAID</div>' : '';
+    // Tax + surcharge split. Only print it for obligation-backed payments (v2);
+    // legacy payment rows have no assessment behind them and keep the old layout.
+    $tax       = (float)($payment['amount_due'] ?? 0);
+    $surcharge = (float)($payment['penalty'] ?? 0);
+    $totalObl  = $tax + $surcharge;
+    $remaining = max(0.0, $totalObl - (float)($payment['amount_paid'] ?? 0));
+    $breakdown = '';
+    if ($tax > 0) {
+        $breakdown .= '
+  <div class="row"><span class="label">ຄ່າພາສີທີ່ດິນ / Land tax</span><span>' . number_format($tax, 0) . ' ກີບ</span></div>';
+        if ($surcharge > 0) {
+            $breakdown .= '
+  <div class="row"><span class="label">ຄ່າປັບຊໍາລະຊ້າ / Late-payment surcharge (10%)</span><span>' . number_format($surcharge, 0) . ' ກີບ</span></div>';
+        }
+        $breakdown .= '
+  <div class="row"><span class="label">ລວມຕ້ອງຊໍາລະ / Total obligation</span><span>' . number_format($totalObl, 0) . ' ກີບ</span></div>';
+        if ($receipt && abs((float)$payment['amount'] - $totalObl) > 0.005) {
+            $breakdown .= '
+  <div class="row"><span class="label">ຮັບເງິນ / Amount received</span><span>' . $amount . ' ກີບ</span></div>';
+            if ($remaining > 0) {
+                $breakdown .= '
+  <div class="row"><span class="label">ຍັງຄ້າງ / Remaining balance</span><span>' . number_format($remaining, 0) . ' ກີບ</span></div>';
+            }
+        }
+    }
     $foot = $receipt
         ? 'ຊໍາລະສໍາເລັດແລ້ວ — ຂອບໃຈທີ່ຊໍາລະ / Payment received — thank you'
         : 'ກະລຸນາຊໍາລະທີ່ທະນາຄານ ຫຼື ຫ້ອງການອາກອນ ພາຍໃນວັນທີ ' . $due . ' ແລ້ວສົ່ງຫຼັກຖານການຊໍາລະ';
@@ -197,7 +222,7 @@ HTML
     . ($receipt && $officer !== '' ? "
   <div class=\"row\"><span class=\"label\">ຜູ້ຮັບເງິນ / Received by</span><span>{$officer}</span></div>" : '')
     . <<<HTML
-  <div class="amount">{$amount} ກີບ (kip)</div>
+  <div class="amount">{$amount} ກີບ (kip)</div>{$breakdown}
   <div class="qr"><img src="{$qr_url}" width="160" height="160" alt="QR"></div>
   <div class="foot">{$foot}</div>
 </div>

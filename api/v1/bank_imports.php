@@ -185,7 +185,9 @@ if ($method === 'POST' && isset($_GET['txn_id'])) {
         $pdo->prepare("UPDATE payments SET status='PAID', paid_at=CURRENT_TIMESTAMP, verified_by=:v,
             verify_method='manual', bank_import_id=:imp, verify_note=:n WHERE id=:id")
             ->execute([':v' => $me['sub'], ':imp' => (int)$t['import_id'], ':n' => $body['note'] ?? 'statement override', ':id' => $payId]);
-        $obligation = !empty($pay['obligation_id']) ? fee_settle_obligation($pdo, (int)$pay['obligation_id']) : null;
+        $obligation = !empty($pay['obligation_id'])
+            ? fee_settle_obligation($pdo, (int)$pay['obligation_id'], $t['txn_date'] ?: null)
+            : null;
         $pdo->prepare("UPDATE bank_transactions SET matched_payment_id=:pid, match_status='matched' WHERE id=:id")
             ->execute([':pid' => $payId, ':id' => $txnId]);
         fee_audit($pdo, $me['sub'] ?? null, 'bank_txn_apply', 'bank_transaction', $txnId, [

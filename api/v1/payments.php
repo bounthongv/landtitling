@@ -14,7 +14,12 @@ $method = $_SERVER['REQUEST_METHOD'];
 function payment_context(PDO $pdo, array $payment): array {
     $out = ['obligation' => null, 'parcel' => null, 'owners' => []];
     if (!empty($payment['obligation_id'])) {
-        $st = $pdo->prepare("SELECT o.*, d.name_lo AS district_name FROM fee_obligations o
+        // Penalty is derived while the obligation is still owed, frozen once settled.
+        $pen = fee_penalty_sql('o');
+        $st = $pdo->prepare("SELECT o.id, o.parcel_id, o.fee_year, o.amount_due, o.amount_paid,
+                o.rate_per_sqm, $pen AS penalty, o.penalty_override, o.status, o.due_date,
+                d.name_lo AS district_name
+            FROM fee_obligations o
             JOIN districts d ON d.id = o.district_id WHERE o.id = :id");
         $st->execute([':id' => (int)$payment['obligation_id']]);
         $out['obligation'] = $st->fetch() ?: null;
@@ -73,11 +78,16 @@ if ($method === 'POST' && !isset($_GET['id'])) {
         json_error('obligation_id (or parcel_id) is required', 400, 'missing_obligation');
     }
 
-    $st = $pdo->prepare("SELECT o.*, p.parcel_no FROM fee_obligations o
+    $pen = fee_penalty_sql('o');
+    $st = $pdo->prepare("SELECT o.*, p.parcel_no,
+            $pen AS penalty_live,
+            (o.amount_due + $pen - o.amount_paid) AS outstanding
+        FROM fee_obligations o
         JOIN parcels p ON p.id = o.parcel_id WHERE o.id = :id");
     $st->execute([':id' => $obligationId]);
     $ob = $st->fetch();
     if (!$ob) { json_error('Obligation not found', 404, 'obligation_not_found'); }
+    $ob['penalty'] = (float)$ob['penalty_live'];
 
     // District staff may only raise payments for their own district's parcels.
     if ($me['role'] !== 'citizen') {
@@ -90,8 +100,8 @@ if ($method === 'POST' && !isset($_GET['id'])) {
         }
     }
 
-    // Settle against what is still outstanding.
-    $outstanding = round(((float)$ob['amount_due'] + (float)$ob['penalty']) - (float)$ob['amount_paid'], 2);
+    // Settle against what is still outstanding (tax + late-payment surcharge).
+    $outstanding = round((float)$ob['outstanding'], 2);
     if ($outstanding <= 0) {
         json_error('Obligation is already settled', 409, 'already_settled');
     }
@@ -172,6 +182,9 @@ if ($method === 'GET' && isset($_GET['id']) && (isset($_GET['slip']) || isset($_
     $ctx = payment_context($pdo, $payment);
     $slip = $payment;
     $slip['amount']        = (float)$payment['amount'];
+    $slip['amount_due']    = (float)($ctx['obligation']['amount_due'] ?? 0);
+    $slip['penalty']       = (float)($ctx['obligation']['penalty'] ?? 0);
+    $slip['amount_paid']   = (float)($ctx['obligation']['amount_paid'] ?? 0);
     $slip['rate_per_sqm']  = (float)($ctx['obligation']['rate_per_sqm'] ?? 0);
     $slip['due_date']      = $ctx['obligation']['due_date'] ?? '';
     $officerName = '';

@@ -10,6 +10,29 @@ $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
 $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
 $view        = $_GET['view'] ?? '';       // '' = all, 'arrears' = overdue only
 $status      = $_GET['status'] ?? '';
+$penalty_id  = isset($_GET['penalty']) ? (int)$_GET['penalty'] : 0;
+
+// ---- POST: officer waive/reduce of the late-payment surcharge ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'penalty') {
+    $mode = ($_POST['mode'] ?? 'set') === 'auto' ? 'auto' : 'set';
+    $body = [
+        'action'        => 'penalty',
+        'obligation_id' => (int)($_POST['obligation_id'] ?? 0),
+        'mode'          => $mode,
+    ];
+    if ($mode === 'set') {
+        $body['amount'] = $_POST['amount'] ?? '';
+        $body['reason'] = $_POST['reason'] ?? '';
+    }
+    $r = api_call('POST', 'fee_obligations.php', $body, $token);
+    $back = trim(preg_replace('/(^|&)penalty=\d+/', '', $_SERVER['QUERY_STRING'] ?? ''), '&');
+    $q = ['msg' => !empty($r['ok']) ? 'penalty_ok' : 'penalty_err'];
+    if (empty($r['ok']) && !empty($r['error']['message'])) {
+        $q['e'] = $r['error']['message'];
+    }
+    header('Location: obligations.php?' . ($back !== '' ? $back . '&' : '') . http_build_query($q));
+    exit;
+}
 
 // ---- POST: generate obligations (all / by district) ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'generate') {
@@ -58,11 +81,15 @@ asort($provinces);
 
 $totalDue = 0.0;
 $totalPaid = 0.0;
+$totalPenalty = 0.0;
 $overdueCount = 0;
+$penaltyRow = null;
 foreach ($obligations as $o) {
     $totalDue += (float)$o['amount_due'];
     $totalPaid += (float)$o['amount_paid'];
+    $totalPenalty += (float)$o['penalty'];
     if (in_array($o['status'], ['UNPAID', 'PARTIAL'], true) && $o['days_overdue'] > 0) { $overdueCount++; }
+    if ($penalty_id && (int)$o['id'] === $penalty_id) { $penaltyRow = $o; }
 }
 $msg = $_GET['msg'] ?? '';
 ?>
@@ -83,6 +110,8 @@ $msg = $_GET['msg'] ?? '';
   <main class="main">
     <?php if ($msg === 'generated'): ?><p class="flash ok"><?= te('Generated obligations for {year} — {n} parcel(s).', ['year' => (int)($_GET['fee_year'] ?? 0), 'n' => (int)($_GET['n'] ?? 0)]) ?></p><?php endif; ?>
     <?php if ($msg === 'error'): ?><p class="flash err"><?= te('Generation failed.') ?></p><?php endif; ?>
+    <?php if ($msg === 'penalty_ok'): ?><p class="flash ok"><?= te('Penalty updated.') ?></p><?php endif; ?>
+    <?php if ($msg === 'penalty_err'): ?><p class="flash err"><?= te('Penalty update failed.') ?><?= !empty($_GET['e']) ? ': ' . e($_GET['e']) : '' ?></p><?php endif; ?>
 
     <h1><?= te('Annual Obligations') ?></h1>
     <p class="sub"><?= te('Fee = zone rate (district × road category) × area. One obligation per parcel per year.') ?></p>
@@ -156,14 +185,44 @@ $msg = $_GET['msg'] ?? '';
       <p class="sub"><?= te('Safe to re-run: existing unpaid obligations are updated to the current rate; paid ones are left alone.') ?></p>
     </div>
 
+    <?php if ($penaltyRow): ?>
+    <div class="form-box">
+      <h2><?= te('Adjust penalty') ?> — <?= te('Parcel') ?> <?= e($penaltyRow['parcel_no']) ?> (<?= (int)$penaltyRow['fee_year'] ?>)</h2>
+      <p class="sub">
+        <?= te('Land tax') ?>: <?= number_format((float)$penaltyRow['amount_due'], 0) ?> <?= te('kip') ?> &nbsp;|&nbsp;
+        <?= te('Late-payment surcharge') ?>: <?= number_format((float)$penaltyRow['penalty'], 0) ?> <?= te('kip') ?> &nbsp;|&nbsp;
+        <?= te('Due date') ?>: <?= e($penaltyRow['due_date']) ?>
+      </p>
+      <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
+        <input type="hidden" name="action" value="penalty">
+        <input type="hidden" name="obligation_id" value="<?= (int)$penaltyRow['id'] ?>">
+        <div class="form-group"><label><?= te('Penalty override') ?> (<?= te('kip') ?>)</label>
+          <input type="number" name="amount" min="0" step="0.01"
+                 value="<?= e($penaltyRow['penalty_override'] !== null ? $penaltyRow['penalty_override'] : $penaltyRow['penalty']) ?>">
+        </div>
+        <div class="form-group"><label><?= te('Reason') ?></label>
+          <input type="text" name="reason" maxlength="500" value="<?= e($penaltyRow['penalty_note'] ?? '') ?>">
+        </div>
+        <div class="form-group"><label>&nbsp;</label>
+          <button class="btn btn-blue" type="submit" name="mode" value="set"><?= te('Save') ?></button>
+        </div>
+        <div class="form-group"><label>&nbsp;</label>
+          <button class="btn btn-green" type="submit" name="mode" value="auto"><?= te('Automatic (10%)') ?></button>
+        </div>
+      </form>
+      <p class="sub"><?= te('The surcharge is 10% of the land tax when payment is late. An officer may waive or reduce it with a reason; every change is audited.') ?></p>
+    </div>
+    <?php endif; ?>
+
     <div class="form-box">
       <h2><?= te('Summary') ?></h2>
       <table>
         <tbody>
           <tr><th><?= te('Count') ?></th><td><?= $count ?></td></tr>
           <tr><th><?= te('Total due') ?></th><td><?= number_format($totalDue, 0) ?> <?= te('kip') ?></td></tr>
+          <tr><th><?= te('Total penalty') ?></th><td><?= number_format($totalPenalty, 0) ?> <?= te('kip') ?></td></tr>
           <tr><th><?= te('Total paid') ?></th><td><?= number_format($totalPaid, 0) ?> <?= te('kip') ?></td></tr>
-          <tr><th><?= te('Outstanding') ?></th><td><?= number_format($totalDue - $totalPaid, 0) ?> <?= te('kip') ?></td></tr>
+          <tr><th><?= te('Outstanding') ?></th><td><?= number_format($totalDue + $totalPenalty - $totalPaid, 0) ?> <?= te('kip') ?></td></tr>
           <tr><th><?= te('Overdue (unpaid & past due)') ?></th><td><?= $overdueCount ?></td></tr>
         </tbody>
       </table>
@@ -173,7 +232,7 @@ $msg = $_GET['msg'] ?? '';
       <p class="empty"><?= te('No obligations match the filter.') ?></p>
     <?php else: ?>
     <table style="margin-top:8px;">
-      <thead><tr><th><?= te('Year') ?></th><th><?= te('Parcel') ?></th><th><?= te('District') ?></th><th><?= te('Village') ?></th><th><?= te('Rate') ?></th><th><?= te('Area') ?></th><th><?= te('Due') ?></th><th><?= te('Paid') ?></th><th><?= te('Status') ?></th><th><?= te('Due date') ?></th><th><?= te('Overdue days') ?></th></tr></thead>
+      <thead><tr><th><?= te('Year') ?></th><th><?= te('Parcel') ?></th><th><?= te('District') ?></th><th><?= te('Village') ?></th><th><?= te('Rate') ?></th><th><?= te('Area') ?></th><th><?= te('Due') ?></th><th><?= te('Paid') ?></th><th><?= te('Penalty') ?></th><th><?= te('Status') ?></th><th><?= te('Due date') ?></th><th><?= te('Overdue days') ?></th></tr></thead>
       <tbody>
         <?php foreach ($obligations as $o): ?>
         <tr>
@@ -185,6 +244,15 @@ $msg = $_GET['msg'] ?? '';
           <td><?= number_format((float)$o['area_sqm'], 2) ?></td>
           <td><?= number_format((float)$o['amount_due'], 0) ?></td>
           <td><?= number_format((float)$o['amount_paid'], 0) ?></td>
+          <td>
+            <?= number_format((float)$o['penalty'], 0) ?>
+            <?php if ($o['penalty_override'] !== null): ?>
+              <span class="sub">(<?= (float)$o['penalty'] > 0 ? te('reduced') : te('waived') ?>)</span>
+            <?php endif; ?>
+            <?php if (in_array($o['status'], ['UNPAID', 'PARTIAL'], true) && (int)$o['days_overdue'] > 0): ?>
+              <br><a href="obligations.php?<?= e(http_build_query(array_merge($qs, ['penalty' => (int)$o['id']]))) ?>"><?= te('Adjust') ?></a>
+            <?php endif; ?>
+          </td>
           <td><span class="pill pill-<?= e(strtolower($o['status'])) ?>"><?= e(t($o['status'])) ?></span></td>
           <td><?= e($o['due_date']) ?></td>
           <td><?= (int)$o['days_overdue'] > 0 ? (int)$o['days_overdue'] : '' ?></td>

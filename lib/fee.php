@@ -65,6 +65,52 @@ function fee_compute_amount($pdo, $zoneCode, $areaSqm, $roadCategory = null)
 }
 
 /**
+ * Late-payment surcharge rate — decree 385/2009 Art. 10: 10% of the year's
+ * tax when it is paid after the due date. The decree's other Art. 10
+ * surcharges are deliberately out of scope (docs/15-landtax-reg.md §5).
+ */
+function fee_penalty_rate(): float
+{
+    return 0.10;
+}
+
+/**
+ * SQL for the effective surcharge of an obligation aliased $alias.
+ *
+ * Derived live while the obligation is still owed (UNPAID or PARTIAL — a part
+ * payment made before the due date must not lock the surcharge at zero), and
+ * frozen once the row reaches a terminal status. The frozen value is written by
+ * fee_settle_obligation(). An officer's override (0 = waived) wins over the
+ * automatic 10%.
+ *
+ * $asOf is a SQL expression: CURRENT_DATE normally, or ':asof' when the caller
+ * binds a date (bank matching prices at the statement's transaction date).
+ */
+function fee_penalty_sql(string $alias = 'o', string $asOf = 'CURRENT_DATE'): string
+{
+    $a    = preg_replace('/[^A-Za-z0-9_.]/', '', $alias);
+    $rate = number_format(fee_penalty_rate(), 4, '.', '');
+    return "CASE WHEN {$a}.status IN ('PAID','OVERPAID','WAIVED','REFUNDED','DISPUTED')"
+        . " THEN COALESCE({$a}.penalty, 0)"
+        . " WHEN {$a}.penalty_override IS NOT NULL THEN {$a}.penalty_override"
+        . " WHEN {$a}.due_date < {$asOf} THEN ROUND({$a}.amount_due * {$rate}, 2)"
+        . " ELSE 0 END";
+}
+
+/**
+ * PHP mirror of the automatic surcharge, used only to bound an officer's
+ * override (waive/reduce, never inflate). Reads go through fee_penalty_sql().
+ */
+function fee_penalty_auto(float $amountDue, ?string $dueDate, ?string $asOf = null): float
+{
+    $asOf = $asOf ?: date('Y-m-d');
+    if ($dueDate === null || $dueDate === '' || $dueDate >= $asOf) {
+        return 0.0;
+    }
+    return round($amountDue * fee_penalty_rate(), 2);
+}
+
+/**
  * Resolve the valuation zone for a parcel write.
  *
  * An explicit zone supplied by the caller wins. When it is blank the parcel's
@@ -183,6 +229,10 @@ function fee_upsert_obligation($pdo, $parcelId, $year)
               area_sqm    = EXCLUDED.area_sqm,
               rate_per_sqm = EXCLUDED.rate_per_sqm,
               amount_due  = EXCLUDED.amount_due,
+              penalty_override = CASE
+                  WHEN fee_obligations.penalty_override > EXCLUDED.amount_due
+                       THEN EXCLUDED.amount_due
+                  ELSE fee_obligations.penalty_override END,
               updated_at  = now()
           WHERE fee_obligations.amount_paid = 0
     ")->execute([
@@ -197,8 +247,9 @@ function fee_upsert_obligation($pdo, $parcelId, $year)
         ':due'  => $fy['due_date'],
     ]);
 
-    $stmt = $pdo->prepare("SELECT id, amount_due, amount_paid, penalty, status, due_date
-        FROM fee_obligations WHERE parcel_id = :pid AND fee_year = :fy");
+    $pen = fee_penalty_sql('o');
+    $stmt = $pdo->prepare("SELECT o.id, o.amount_due, o.amount_paid, $pen AS penalty, o.status, o.due_date
+        FROM fee_obligations o WHERE o.parcel_id = :pid AND o.fee_year = :fy");
     $stmt->execute([':pid' => $parcelId, ':fy' => (int)$year]);
     return $stmt->fetch();
 }
@@ -207,10 +258,25 @@ function fee_upsert_obligation($pdo, $parcelId, $year)
  * Settle an obligation from its payments: recompute amount_paid from PAID rows and
  * set the matching status. This is the ONLY place obligation status is derived, so
  * manual verification and statement auto-matching cannot drift apart.
- * Returns the updated obligation row.
+ *
+ * The late-payment surcharge is stamped here at the date the money arrived
+ * ($paidOn, the bank statement date when matching; otherwise today). The stamp
+ * is final once the status becomes terminal; while the row stays PARTIAL reads
+ * keep deriving the surcharge (see fee_penalty_sql). A cleared override still
+ * wins over the automatic 10%. Returns the updated obligation row.
  */
-function fee_settle_obligation(PDO $pdo, $obligationId)
+function fee_settle_obligation(PDO $pdo, $obligationId, ?string $paidOn = null)
 {
+    $asOf = 'CURRENT_DATE';
+    $args = [':id' => (int)$obligationId];
+    if ($paidOn !== null && $paidOn !== '') {
+        $asOf = 'CAST(:asof AS date)';
+        $args[':asof'] = $paidOn;
+    }
+    $pen = fee_penalty_sql('o', $asOf);
+    $pdo->prepare("UPDATE fee_obligations o SET penalty = $pen, updated_at = now()
+        WHERE o.id = :id AND o.status IN ('UNPAID','PARTIAL')")->execute($args);
+
     $stmt = $pdo->prepare("SELECT amount_due, amount_paid, penalty, status
         FROM fee_obligations WHERE id = :id");
     $stmt->execute([':id' => (int)$obligationId]);
@@ -229,7 +295,7 @@ function fee_settle_obligation(PDO $pdo, $obligationId)
     $penal = (float)($ob['penalty'] ?? 0);
     $total = $due + $penal;
 
-    if ($ob['status'] === 'WAIVED' || $ob['status'] === 'DISPUTED') {
+    if (in_array($ob['status'], ['WAIVED', 'DISPUTED', 'REFUNDED'], true)) {
         $status = $ob['status'];            // officer decision wins until explicitly cleared
     } elseif ($paid <= 0) {
         $status = 'UNPAID';

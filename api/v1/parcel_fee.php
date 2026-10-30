@@ -101,21 +101,23 @@ $owners = array_map(function (array $o): array {
 }, $ost->fetchAll());
 
 // The assessed obligation for this year, when the parcel has been assessed.
-$bst = $pdo->prepare("SELECT id, parcel_id, fee_year, zone_code, area_sqm, rate_per_sqm,
-        amount_due, amount_paid, penalty, status, due_date,
-        (amount_due + penalty - amount_paid) AS outstanding
-    FROM fee_obligations
-    WHERE parcel_id = :pid AND fee_year = :fy");
+$pen = fee_penalty_sql('o');
+$bst = $pdo->prepare("SELECT o.id, o.parcel_id, o.fee_year, o.zone_code, o.area_sqm, o.rate_per_sqm,
+        o.amount_due, o.amount_paid, $pen AS penalty, o.penalty_override, o.penalty_note,
+        o.status, o.due_date,
+        (o.amount_due + $pen - o.amount_paid) AS outstanding
+    FROM fee_obligations o
+    WHERE o.parcel_id = :pid AND o.fee_year = :fy");
 $bst->execute([':pid' => $parcelId, ':fy' => $feeYear]);
 $obligation = $bst->fetch() ?: null;
 
 // Every other year on record — the parcel's history, newest first.
-$hst = $pdo->prepare("SELECT id, parcel_id, fee_year, zone_code, area_sqm, rate_per_sqm,
-        amount_due, amount_paid, penalty, status, due_date,
-        (amount_due + penalty - amount_paid) AS outstanding
-    FROM fee_obligations
-    WHERE parcel_id = :pid AND fee_year <> :fy
-    ORDER BY fee_year DESC");
+$hst = $pdo->prepare("SELECT o.id, o.parcel_id, o.fee_year, o.zone_code, o.area_sqm, o.rate_per_sqm,
+        o.amount_due, o.amount_paid, $pen AS penalty, o.status, o.due_date,
+        (o.amount_due + $pen - o.amount_paid) AS outstanding
+    FROM fee_obligations o
+    WHERE o.parcel_id = :pid AND o.fee_year <> :fy
+    ORDER BY o.fee_year DESC");
 $hst->execute([':pid' => $parcelId, ':fy' => $feeYear]);
 
 json_ok([

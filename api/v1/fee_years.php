@@ -50,9 +50,10 @@ if ($method === 'POST') {
           SET due_date = EXCLUDED.due_date, status = EXCLUDED.status")
         ->execute([':y' => $year, ':d' => $dueDate, ':s' => $status]);
 
-    // Obligations carry their own due_date copy — keep unpaid ones in step with the year.
+    // Obligations carry their own due_date copy — keep every unpaid balance in
+    // step with the year, including partials (their surcharge dates from it).
     $pdo->prepare("UPDATE fee_obligations SET due_date = :d, updated_at = now()
-        WHERE fee_year = :y AND amount_paid = 0")
+        WHERE fee_year = :y AND status IN ('UNPAID','PARTIAL')")
         ->execute([':d' => $dueDate, ':y' => $year]);
 
     json_ok(['year' => $year, 'due_date' => $dueDate, 'status' => $status]);

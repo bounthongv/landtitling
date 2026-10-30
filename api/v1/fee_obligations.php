@@ -44,9 +44,12 @@ if ($method === 'GET') {
     }
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
+    $pen = fee_penalty_sql('o');
     $stmt = $pdo->prepare("SELECT o.*, p.parcel_no, p.sub_parcel_no,
             d.name_lo AS district_name, v.name_lo AS village_name,
-            (CURRENT_DATE - o.due_date) AS days_overdue
+            (CURRENT_DATE - o.due_date) AS days_overdue,
+            $pen AS penalty_live,
+            (o.amount_due + $pen - o.amount_paid) AS outstanding
         FROM fee_obligations o
         JOIN parcels  p ON p.id = o.parcel_id
         JOIN districts d ON d.id = o.district_id
@@ -58,6 +61,13 @@ if ($method === 'GET') {
         LIMIT 500");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
+    // The stored penalty is only authoritative once the obligation is settled;
+    // while it is still owed the surcharge is derived (see fee_penalty_sql).
+    foreach ($rows as &$row) {
+        $row['penalty'] = (float)$row['penalty_live'];
+        unset($row['penalty_live']);
+    }
+    unset($row);
     json_ok(['obligations' => $rows, 'count' => count($rows)]);
 }
 
@@ -143,6 +153,86 @@ if ($method === 'POST') {
             'after'    => $ob,
         ]);
         json_ok(['obligation' => $ob, 'before' => $before]);
+    }
+
+    // ---- POST: officer waive/reduce of the late-payment surcharge (audited) ----
+    if ($action === 'penalty') {
+        require_staff_write($me);
+        $obligationId = (int)($body['obligation_id'] ?? 0);
+        if ($obligationId <= 0) {
+            json_error('obligation_id is required', 400, 'missing_obligation_id');
+        }
+        $mode = (string)($body['mode'] ?? '');
+        if (!in_array($mode, ['auto', 'set'], true)) {
+            json_error('mode must be auto or set', 400, 'invalid_mode');
+        }
+
+        $pen  = fee_penalty_sql('o');
+        $stmt = $pdo->prepare("SELECT o.*, CURRENT_DATE::text AS today,
+                p.district_id AS parcel_district, $pen AS penalty_live
+            FROM fee_obligations o
+            JOIN parcels p ON p.id = o.parcel_id
+            WHERE o.id = :id");
+        $stmt->execute([':id' => $obligationId]);
+        $ob = $stmt->fetch();
+        if (!$ob) { json_error('Obligation not found', 404, 'not_found'); }
+        if ($scope['district_id'] !== null && (int)$ob['parcel_district'] !== $scope['district_id']) {
+            json_error('Obligation outside your district', 403, 'out_of_scope');
+        }
+        if (!in_array($ob['status'], ['UNPAID', 'PARTIAL'], true)) {
+            json_error('Penalties can only be adjusted while the obligation is unpaid', 409, 'bad_state');
+        }
+
+        $before = [
+            'penalty'          => (float)$ob['penalty_live'],
+            'penalty_override' => $ob['penalty_override'] !== null ? (float)$ob['penalty_override'] : null,
+        ];
+        $reason = null;
+        if ($mode === 'auto') {
+            $pdo->prepare("UPDATE fee_obligations
+                SET penalty_override = NULL, penalty_note = NULL,
+                    penalty_set_by = NULL, penalty_set_at = NULL, updated_at = now()
+                WHERE id = :id")->execute([':id' => $obligationId]);
+        } else {
+            $reason = trim((string)($body['reason'] ?? ''));
+            if ($reason === '') { json_error('A reason is required', 400, 'missing_reason'); }
+            if (mb_strlen($reason) > 500) { $reason = mb_substr($reason, 0, 500); }
+
+            // Waive or reduce only: the override can never exceed the automatic
+            // 10%, and there is nothing to override before the due date.
+            $auto = fee_penalty_auto((float)$ob['amount_due'], $ob['due_date'] ?? null, (string)$ob['today']);
+            if ($auto <= 0) {
+                json_error('This obligation is not past its due date', 409, 'not_late');
+            }
+            if (!isset($body['amount']) || !is_numeric($body['amount'])) {
+                json_error('amount is required', 400, 'invalid_amount');
+            }
+            $amount = round((float)$body['amount'], 2);
+            if ($amount < 0 || $amount > $auto + 0.005) {
+                json_error('The reduction cannot exceed the automatic surcharge', 400, 'invalid_amount');
+            }
+            $pdo->prepare("UPDATE fee_obligations
+                SET penalty_override = :amt, penalty_note = :n,
+                    penalty_set_by = :by, penalty_set_at = now(), updated_at = now()
+                WHERE id = :id")
+                ->execute([':amt' => $amount, ':n' => $reason, ':by' => $me['sub'], ':id' => $obligationId]);
+        }
+
+        $stmt = $pdo->prepare("SELECT o.*, $pen AS penalty_live FROM fee_obligations o WHERE o.id = :id");
+        $stmt->execute([':id' => $obligationId]);
+        $after = $stmt->fetch();
+        fee_audit($pdo, $me['sub'] ?? null, 'obligation_penalty', 'obligation', $obligationId, [
+            'mode'   => $mode,
+            'before' => $before,
+            'after'  => [
+                'penalty'          => (float)$after['penalty_live'],
+                'penalty_override' => $after['penalty_override'] !== null ? (float)$after['penalty_override'] : null,
+            ],
+            'reason' => $reason,
+        ]);
+        $after['penalty'] = (float)$after['penalty_live'];
+        unset($after['penalty_live']);
+        json_ok(['obligation' => $after]);
     }
 
     json_error('Unknown action', 400, 'bad_action');

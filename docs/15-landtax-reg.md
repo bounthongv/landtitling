@@ -142,6 +142,15 @@ the Waive action. Legal grounds as read from the scan:
 
 **Tax year: 1 October – 30 September** (state budget year).
 
+**Implemented — 10% only.** The app applies the first row: an obligation that is
+still `UNPAID`/`PARTIAL` after `fee_obligations.due_date` carries
+`ROUND(amount_due × 0.10, 2)`. It is derived live (`fee_penalty_sql()` in
+`lib/fee.php`) and frozen into `fee_obligations.penalty` when the obligation is
+settled. An officer may waive or reduce it with a reason (`penalty_override`,
+`penalty_note`, audited as `obligation_penalty`). The remaining rows — 30% wrong
+declaration, refusal 100/150/200%, idle land, uncultivated paddy, obstruction —
+are **not** implemented.
+
 ## 6. Reconciliation with our seed rates — off by ~3 orders of magnitude
 
 The original placeholder seed shipped 248 tier rates in the band
@@ -216,7 +225,9 @@ Mapping assumptions (flagged here, not in the app):
 Still open (deliberately not changed by this work):
 - **Tax year:** the decree's year is 1 Oct – 30 Sep; our seed due date is
   30 June — decide whether `fee_years` due dates follow the decree's year.
-- **Surcharges (§5)** map onto `fee_obligations.penalty`; the **exemption
+- **Surcharges (§5)** are implemented for the 10% late-payment row only;
+  `fee_obligations.penalty` is derived while the obligation is unpaid and
+  frozen at settlement, with an audited officer override. The **exemption
   list (§4)** is the legal basis for our Waive (ຍົກເວັ້ນ) action.
 
 ## 7. How this document was produced

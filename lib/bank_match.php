@@ -216,11 +216,17 @@ function bank_match_run(PDO $pdo, int $importId, $actorId = null, ?int $district
             continue;
         }
 
-        // Due amount for the payment's obligation.
+        // Due amount for the payment's obligation, priced at the statement date so
+        // a payment made before the due date is not surcharged for a late import.
         $due = (float)$pay['amount'];
         if (!empty($pay['obligation_id'])) {
-            $st = $pdo->prepare("SELECT amount_due, penalty FROM fee_obligations WHERE id = :id");
-            $st->execute([':id' => (int)$pay['obligation_id']]);
+            $pen = fee_penalty_sql('o', 'CAST(:asof AS date)');
+            $st = $pdo->prepare("SELECT o.amount_due, $pen AS penalty
+                FROM fee_obligations o WHERE o.id = :id");
+            $st->execute([
+                ':asof' => $t['txn_date'] ?: date('Y-m-d'),
+                ':id'   => (int)$pay['obligation_id'],
+            ]);
             $ob = $st->fetch();
             if ($ob) { $due = (float)$ob['amount_due'] + (float)$ob['penalty']; }
         }
@@ -245,7 +251,9 @@ function bank_match_run(PDO $pdo, int $importId, $actorId = null, ?int $district
                 ':bref' => $t['bank_ref'] ?: null,
                 ':id'   => (int)$pay['id'],
             ]);
-        $obligation = !empty($pay['obligation_id']) ? fee_settle_obligation($pdo, (int)$pay['obligation_id']) : null;
+        $obligation = !empty($pay['obligation_id'])
+            ? fee_settle_obligation($pdo, (int)$pay['obligation_id'], $t['txn_date'] ?: null)
+            : null;
 
         $isOver = $amount > $due + 0.005;
         $pdo->prepare("UPDATE bank_transactions SET reference_no = :ref, matched_payment_id = :pid,

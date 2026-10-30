@@ -594,6 +594,7 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     noMatch:  <?= json_encode(t('No parcels match the filter.')) ?>,
     ownerPh:  <?= json_encode(t('-- select owner (payer) --')) ?>,
     assessed: <?= json_encode(t('Obligation for {year} ({status}) — due {due} kip, paid {paid} kip, balance {out} kip')) ?>,
+    penaltyNote: <?= json_encode(t('Includes a late-payment surcharge of {pen} kip (10%).')) ?>,
     settled:  <?= json_encode(t('Obligation already settled — nothing to collect')) ?>,
     fresh:    <?= json_encode(t('No obligation for {year} yet — settles at {amt} kip (zone {zone}, {rate} kip/m²)')) ?>,
     norate:   <?= json_encode(t('No zone rate set for this parcel — assign a valuation zone first')) ?>,
@@ -719,13 +720,17 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
         if (ob) {
           var out = Number(ob.outstanding) || 0;
           if (out > 0) {
-            showVerify('<b>' + esc(fillText(MSG.assessed, {
+            var obHtml = '<b>' + esc(fillText(MSG.assessed, {
               year: yr,
               status: MSG.status[ob.status] || ob.status,
               due: fmtKip(ob.amount_due),
               paid: fmtKip(ob.amount_paid),
               out: fmtKip(out)
-            })) + '</b>', 'warn');
+            })) + '</b>';
+            if (Number(ob.penalty) > 0) {
+              obHtml += '<br><span>' + esc(fillText(MSG.penaltyNote, { pen: fmtKip(ob.penalty) })) + '</span>';
+            }
+            showVerify(obHtml, 'warn');
             payable = out;
           } else {
             showVerify('<b>' + esc(MSG.settled) + '</b>', 'ok');

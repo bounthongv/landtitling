@@ -623,5 +623,17 @@
   "Payment is recorded as awaiting proof — review it in the Bank tab.": "ທະບຽນການຊຳລະໄວ້ແລ້ວ ໃນສະຖານະລໍຖ້າຫຼັກຖານ — ກວດສອບໄດ້ໃນໜ້າທະນາຄານ.",
   "Evidence photo upload failed (payment was settled anyway).": "ຂຶ້ນຮູບຫຼັກຖານລົ້ມເຫຼວ (ການຊຳລະແມ່ນຖືກຈັດການແລ້ວ).",
   "Cash, cheque, bank or mobile payment collected at the district office — settles the obligation immediately and prints the receipt.": "ການຊຳລະເງິນເປັນເງິນສົດ, ທີເຊັກ, ທະນາຄານ ຫຼື ມືຖື ທີ່ຮັບຢູ່ບ້ານກົດ — ຈະປິດພັນທະທັນທີ ແລະ ພິມໃບຮັບເງິນ.",
-  "No scans waiting for review.": "ບໍ່ມີຮູບສະແກນທີ່ລໍຖ້າກວດສອບ."
+  "No scans waiting for review.": "ບໍ່ມີຮູບສະແກນທີ່ລໍຖ້າກວດສອບ.",
+  "Adjust": "ປັບແຕ່ງ",
+  "Adjust penalty": "ປັບແຕ່ງຄ່າປັບ",
+  "Land tax": "ພາສີທີ່ດິນ",
+  "Late-payment surcharge": "ຄ່າປັບຊໍາລະຊ້າ",
+  "Total penalty": "ລວມຄ່າປັບ",
+  "Penalty override": "ຄ່າປັບທີ່ກຳນົດ",
+  "Automatic (10%)": "ອັດຕະໂນມັດ (10%)",
+  "reduced": "ຫຼຸດແລ້ວ",
+  "Penalty updated.": "ອັບເດດຄ່າປັບແລ້ວ.",
+  "Penalty update failed.": "ອັບເດດຄ່າປັບລົ້ມເຫຼວ.",
+  "The surcharge is 10% of the land tax when payment is late. An officer may waive or reduce it with a reason; every change is audited.": "ຄ່າປັບແມ່ນ 10% ຂອງພາສີທີ່ດິນ ເມື່ອຊໍາລະຊ້າ. ເຈົ້າໜ້າທີ່ສາມາດຍົກເວັ້ນ ຫຼື ຫຼຸດໄດ້ ພ້ອມເຫດຜົນ; ທຸກການປ່ຽນແປງຖືກບັນທຶກ.",
+  "Includes a late-payment surcharge of {pen} kip (10%).": "ລວມຄ່າປັບຊໍາລະຊ້າ {pen} ກີບ (10%)."
 }

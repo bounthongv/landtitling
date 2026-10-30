@@ -5,6 +5,7 @@
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/validate.php';
+require_once __DIR__ . '/../../lib/fee.php';
 
 $me = require_auth(['officer', 'admin', 'manager']);
 $scope = staff_scope($me);
@@ -96,13 +97,15 @@ case 'arrears': {
     $where = [];
     $params = [];
     rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
+    $where[] = "o.status IN ('UNPAID','PARTIAL')";
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
     // No filter at all (e.g. super admin, nothing selected) must not emit a bare WHERE.
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+    $pen = fee_penalty_sql('o');
 
     $stmt = $pdo->prepare("SELECT par.parcel_no, d.name_lo AS district, v.name_lo AS village,
-            o.fee_year, o.due_date, o.amount_due, o.amount_paid, o.penalty,
-            (o.amount_due + o.penalty - o.amount_paid) AS outstanding,
+            o.fee_year, o.due_date, o.amount_due, o.amount_paid, $pen AS penalty,
+            (o.amount_due + $pen - o.amount_paid) AS outstanding,
             (CURRENT_DATE - o.due_date) AS days_overdue,
             CASE WHEN CURRENT_DATE > o.due_date THEN 'overdue' ELSE 'not yet due' END AS bucket,
             (SELECT COUNT(*) FROM fee_obligations x
@@ -118,7 +121,7 @@ case 'arrears': {
     $rows = $stmt->fetchAll();
 
     $stmt = $pdo->prepare("SELECT COUNT(DISTINCT o.parcel_id) AS parcels, COUNT(*) AS obligations,
-            COALESCE(SUM(o.amount_due + o.penalty - o.amount_paid),0) AS outstanding
+            COALESCE(SUM(o.amount_due + $pen - o.amount_paid),0) AS outstanding
         FROM fee_obligations o JOIN parcels par ON par.id = o.parcel_id $w");
     $stmt->execute($params);
     $tot = $stmt->fetch();
@@ -391,13 +394,14 @@ case 'mof': {
     rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+    $pen = fee_penalty_sql('o');
 
     $stmt = $pdo->prepare("SELECT o.fee_year, d.name_lo AS district, v.name_lo AS village,
             o.road_category,
             COUNT(*) AS parcels,
             COALESCE(SUM(o.amount_due),0)          AS assessed_kip,
             COALESCE(SUM(o.amount_paid),0)         AS collected_kip,
-            COALESCE(SUM(o.amount_due + o.penalty - o.amount_paid),0) AS outstanding_kip
+            COALESCE(SUM(o.amount_due + $pen - o.amount_paid),0) AS outstanding_kip
         FROM fee_obligations o
         JOIN parcels par ON par.id = o.parcel_id
         JOIN districts d ON d.id = par.district_id

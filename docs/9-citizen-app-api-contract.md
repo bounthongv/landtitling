@@ -165,6 +165,11 @@ Bearer token required (`citizen`, `officer` or `admin`).
 `obligation` is `null` when the parcel has not been assessed for that year
 yet — the amount is still returned, from the zone rate.
 
+`obligation.penalty` is the 10% late-payment surcharge (decree 385/2009 Art. 10).
+It is derived live while the obligation is `UNPAID`/`PARTIAL` and frozen once it
+is settled; `obligation.outstanding` always includes it. No client change is
+needed — the amount to collect is still `obligation.outstanding`.
+
 **Where the numbers come from** (the existing helpers do this already):
 
 ```php

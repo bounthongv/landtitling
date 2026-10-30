@@ -382,6 +382,11 @@ CREATE TABLE fee_obligations (
   amount_due DECIMAL(14,2) NOT NULL,     -- snapshot = rate_per_sqm * area_sqm
   amount_paid DECIMAL(14,2) NOT NULL DEFAULT 0,
   penalty DECIMAL(14,2) NOT NULL DEFAULT 0,
+  penalty_override DECIMAL(14,2)         -- officer waive/reduce; NULL = automatic 10%
+    CHECK (penalty_override IS NULL OR penalty_override >= 0),
+  penalty_note TEXT,
+  penalty_set_by INT,
+  penalty_set_at TIMESTAMP,
   status VARCHAR(20) NOT NULL DEFAULT 'UNPAID'
     CHECK (status IN ('UNPAID','PARTIAL','PAID','OVERPAID','WAIVED','REFUNDED','DISPUTED')),
   due_date DATE,
@@ -395,6 +400,8 @@ CREATE TABLE fee_obligations (
     FOREIGN KEY (district_id) REFERENCES districts(id),
   CONSTRAINT fk_obligations_road_cat
     FOREIGN KEY (road_category) REFERENCES road_categories(code),
+  CONSTRAINT fk_obligations_penalty_set_by
+    FOREIGN KEY (penalty_set_by) REFERENCES users(id),
   CONSTRAINT uq_obligations_parcel_year UNIQUE (parcel_id, fee_year)
 );
 

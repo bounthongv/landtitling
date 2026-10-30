@@ -3,6 +3,7 @@
 // Scoped strictly by owners.citizen_user_id, so a citizen can never see someone else's land.
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
+require_once __DIR__ . '/../../lib/fee.php';
 
 $pdo = db_connect();
 $me = require_auth(['citizen', 'officer', 'admin', 'manager']);
@@ -46,9 +47,11 @@ foreach ($rows as $r) {
 
 if ($byParcel) {
     $ids = implode(',', array_map('intval', array_keys($byParcel)));
-    $ostmt = $pdo->query("SELECT id, parcel_id, fee_year, amount_due, amount_paid, penalty, status, due_date,
-            (amount_due + penalty - amount_paid) AS outstanding
-        FROM fee_obligations WHERE parcel_id IN ($ids) ORDER BY fee_year DESC");
+    $pen = fee_penalty_sql('o');
+    $ostmt = $pdo->query("SELECT o.id, o.parcel_id, o.fee_year, o.amount_due, o.amount_paid,
+            $pen AS penalty, o.status, o.due_date,
+            (o.amount_due + $pen - o.amount_paid) AS outstanding
+        FROM fee_obligations o WHERE o.parcel_id IN ($ids) ORDER BY o.fee_year DESC");
     foreach ($ostmt->fetchAll() as $ob) {
         $pid = (int)$ob['parcel_id'];
         if (isset($byParcel[$pid])) {
