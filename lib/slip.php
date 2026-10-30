@@ -188,7 +188,7 @@ function slip_render_html(array $payment, array $parcel, $district_name, $villag
 <html lang="lo">
 <head><meta charset="UTF-8"><title>{$titleEn}</title>
 <style>
-  body { font-family: sans-serif; padding: 30px; }
+  body { font-family: 'Phetsarath OT', 'Pethsarath OT', 'Noto Sans Lao', 'Segoe UI', sans-serif; padding: 30px; }
   .slip { border: 2px solid #333; padding: 24px; max-width: 700px; margin: auto; }
   .head { text-align: center; border-bottom: 1px solid #999; padding-bottom: 12px; }
   .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ccc; }
