@@ -50,8 +50,10 @@ category, fee year and month?
 - **Source:** `payments` rows with `status = 'PAID'`, joined to their obligation
   and parcel. Cash-basis: grouped by the month of `paid_at`, not by fee year.
 - **Filters:** province, district, road, fee year, From/To (payment date).
-- **Columns:** District, Village, Road, Fee year, Month, Payments, Collected (kip).
-- **Summary:** number of payments and total kip in the filtered range.
+- **Columns:** District, Village, Road, Fee year, Month, Payments, Collected (kip),
+  Tax (kip), Surcharge (kip).
+- **Summary:** number of payments, total collected kip, the tax and surcharge
+  portions, and any overpayment (`overpaid_kip`).
 
 **How to use**
 
@@ -62,8 +64,13 @@ category, fee year and month?
 4. A fee year filter narrows to tax years, but the date range decides *when*
    the money arrived.
 
-Only settled (`PAID`) payments count. A surcharge collected with a late payment
-is inside `payments.amount`; the report does not split tax from surcharge.
+Only settled (`PAID`) payments count. Each payment's `amount` is split into land
+tax and surcharge chronologically per obligation: the payments fill `amount_due`
+first, then the penalty frozen at settlement. `Collected` is the cash total;
+`Tax + Surcharge` is the part attributable to the obligation, and anything above
+both is an overpayment (an officer may record more than the balance when
+verifying). The split uses every payment of the obligation, so a From/To range
+does not re-allocate earlier money.
 
 ## 3. Arrears & aging (Money)
 
@@ -279,8 +286,9 @@ CSV responses stream the header row and data rows, filename
 
 - CSV exports omit the summary cards and any nested summary arrays.
 - The audit report returns at most 1000 rows.
-- Collection reports settled money only; surcharges are not broken out there
-  (they are in Arrears, MOF and on the receipt).
+- The Collection split assumes tax is paid before surcharge. If the province
+  adopts a different allocation rule, the derived tax/surcharge columns change,
+  though `Collected` is unaffected.
 - MOF `Assessed` and `Collected` include waived/disputed/refunded obligations;
   only `Outstanding` is restricted to `UNPAID`/`PARTIAL` (collectable debt).
 - Bank `difference_kip` excludes counter cash and cheques, which never appear on

@@ -56,38 +56,78 @@ switch ($report) {
 
 // ---- Collection: kip collected by district/village/month/year/road ----
 case 'collection': {
-    $where = ["pay.status = 'PAID'"];
+    // Cash-basis, grouped by the month the money arrived. Each payment is split
+    // into land tax and late-payment surcharge chronologically per obligation:
+    // a payment fills the tax (amount_due) first, then the frozen penalty. Any
+    // excess over both is an overpayment and shows only in collected_kip.
+    $where = [];
     $params = [];
     rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
-    if ($year)   { $where[] = 'o.fee_year = :fy';       $params[':fy'] = $year; }
-    if ($from)   { $where[] = 'pay.paid_at >= :from';    $params[':from'] = $from . ' 00:00:00'; }
-    if ($to)     { $where[] = 'pay.paid_at <= :to';      $params[':to']   = $to . ' 23:59:59'; }
-    $w = 'WHERE ' . implode(' AND ', $where);
+    if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
+    $w = $where ? ' AND ' . implode(' AND ', $where) : '';
 
-    $stmt = $pdo->prepare("SELECT d.name_lo AS district, v.name_lo AS village, par.road_category,
-            o.fee_year, DATE_TRUNC('month', pay.paid_at)::date AS month,
-            COUNT(*) AS payments, COALESCE(SUM(pay.amount), 0) AS collected_kip
-        FROM payments pay
-        JOIN fee_obligations o ON o.id = pay.obligation_id
-        JOIN parcels par ON par.id = pay.parcel_id
-        JOIN districts d ON d.id = par.district_id
-        JOIN villages  v ON v.id = par.village_id
-        $w
-        GROUP BY d.name_lo, v.name_lo, par.road_category, o.fee_year, DATE_TRUNC('month', pay.paid_at)
-        ORDER BY month DESC, district, village");
-    $stmt->execute($params);
+    // Date filters apply to the visible rows only; the running totals must see
+    // every PAID payment of the obligation, or a range would re-allocate tax.
+    $dateWhere = [];
+    $dateParams = $params;
+    if ($from) { $dateWhere[] = 'p.paid_at >= :from'; $dateParams[':from'] = $from . ' 00:00:00'; }
+    if ($to)   { $dateWhere[] = 'p.paid_at <= :to';   $dateParams[':to']   = $to . ' 23:59:59'; }
+    $dw = $dateWhere ? 'WHERE ' . implode(' AND ', $dateWhere) : '';
+
+    $stmt = $pdo->prepare("WITH paid AS (
+            SELECT pay.id, pay.amount, pay.paid_at, o.amount_due,
+                   COALESCE(o.penalty, 0) AS penalty, o.fee_year,
+                   d.name_lo AS district, v.name_lo AS village, par.road_category,
+                   SUM(pay.amount) OVER (PARTITION BY pay.obligation_id
+                       ORDER BY pay.paid_at, pay.id) AS running_paid,
+                   COALESCE(SUM(pay.amount) OVER (PARTITION BY pay.obligation_id
+                       ORDER BY pay.paid_at, pay.id
+                       ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS prev_paid
+              FROM payments pay
+              JOIN fee_obligations o ON o.id = pay.obligation_id
+              JOIN parcels par ON par.id = pay.parcel_id
+              JOIN districts d ON d.id = par.district_id
+              JOIN villages  v ON v.id = par.village_id
+             WHERE pay.status = 'PAID' $w
+        ), split AS (
+            SELECT paid.*,
+                   GREATEST(LEAST(running_paid, amount_due) - LEAST(prev_paid, amount_due), 0) AS tax_part,
+                   GREATEST(LEAST(GREATEST(running_paid - amount_due, 0), penalty)
+                          - LEAST(GREATEST(prev_paid - amount_due, 0), penalty), 0) AS pen_part
+              FROM paid
+        )
+        SELECT district, village, road_category, fee_year,
+               DATE_TRUNC('month', paid_at)::date AS month,
+               COUNT(*) AS payments,
+               COALESCE(SUM(amount), 0) AS collected_kip,
+               COALESCE(SUM(tax_part), 0) AS tax_kip,
+               COALESCE(SUM(pen_part), 0) AS surcharge_kip
+          FROM split p
+          $dw
+         GROUP BY district, village, road_category, fee_year, DATE_TRUNC('month', paid_at)
+         ORDER BY month DESC, district, village");
+    $stmt->execute($dateParams);
     $rows = $stmt->fetchAll();
 
-    $stmt = $pdo->prepare("SELECT COUNT(*) AS n, COALESCE(SUM(pay.amount),0) AS total
-        FROM payments pay
-        JOIN fee_obligations o ON o.id = pay.obligation_id
-        JOIN parcels par ON par.id = pay.parcel_id $w");
-    $stmt->execute($params);
-    $tot = $stmt->fetch();
+    $payments = 0;
+    $collected = $tax = $surcharge = 0.0;
+    foreach ($rows as $r) {
+        $payments  += (int)$r['payments'];
+        $collected += (float)$r['collected_kip'];
+        $tax       += (float)$r['tax_kip'];
+        $surcharge += (float)$r['surcharge_kip'];
+    }
     $result = [
-        'columns' => ['District', 'Village', 'Road', 'Fee year', 'Month', 'Payments', 'Collected (kip)'],
+        'columns' => ['District', 'Village', 'Road', 'Fee year', 'Month', 'Payments',
+                      'Collected (kip)', 'Tax (kip)', 'Surcharge (kip)'],
         'rows'    => $rows,
-        'summary' => ['payments' => (int)($tot['n'] ?? 0), 'collected_kip' => (float)($tot['total'] ?? 0)],
+        'summary' => [
+            'payments'      => $payments,
+            'collected_kip' => $collected,
+            'tax_kip'       => $tax,
+            'surcharge_kip' => $surcharge,
+            'overpaid_kip'  => $collected - $tax - $surcharge,
+        ],
     ];
     break;
 }
