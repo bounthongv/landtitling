@@ -35,12 +35,13 @@ if (!$canFilterDist) { $district = 0; }
 
 // Reports that ignore the date range / that only make sense for certain filters.
 $dateReports   = ['collection', 'audit'];
+$yearReports   = ['collection', 'arrears', 'mof'];
 $parcelFilters = ['collection', 'arrears', 'registration', 'register', 'mof'];
 
 $params = ['report=' . urlencode($report)];
 if ($effProvince && in_array($report, $parcelFilters, true)) { $params[] = 'province_id=' . $effProvince; }
 if ($district && in_array($report, $parcelFilters, true)) { $params[] = 'district_id=' . $district; }
-if ($fee_year)    { $params[] = 'fee_year=' . $fee_year; }
+if ($fee_year && in_array($report, $yearReports, true)) { $params[] = 'fee_year=' . $fee_year; }
 if ($road !== '') { $params[] = 'road_category=' . urlencode($road); }
 if ($from && in_array($report, $dateReports, true)) { $params[] = 'from=' . $from; }
 if ($to   && in_array($report, $dateReports, true)) { $params[] = 'to=' . $to; }
@@ -143,6 +144,7 @@ $reportGroups = [
         </div>
         <?php endif; ?>
         <?php endif; ?>
+        <?php if (in_array($report, $yearReports, true)): ?>
         <div class="form-group"><label><?= te('Fee year') ?></label>
           <select name="fee_year"><option value=""><?= te('-- all --') ?></option>
             <?php foreach ($years as $y): ?>
@@ -150,6 +152,7 @@ $reportGroups = [
             <?php endforeach; ?>
           </select>
         </div>
+        <?php endif; ?>
         <?php if (in_array($report, $parcelFilters, true) && $report !== 'register'): ?>
         <div class="form-group"><label><?= te('Road') ?></label>
           <select name="road_category"><option value=""><?= te('-- all --') ?></option>

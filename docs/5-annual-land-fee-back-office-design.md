@@ -483,7 +483,8 @@ MOF CSV stays, re-based on `payments` + `fee_obligations`.
   (parcels/area + scan backlog + OCR-confidence distribution), register (parcel/owner export).
 - **E2** ✅ done — Bank reconciliation report: rows grouped per import × match status, plus a
   summary breaking down `by_status` and comparing `statement_matched_kip` against
-  `payments_paid_kip` with a `difference_kip`.
+  `bank_paid_kip` (bank transfer + mobile; counter cash and cheques are split into
+  `counter_cash_kip`) with a `difference_kip`.
 - **E3** ✅ done — MOF CSV re-based on `fee_obligations` + `payments`: fee_year, district, village,
   road, parcels, assessed / collected / outstanding. **Provisional:** the column set was not
   confirmed with the Ministry of Finance and must be checked before this is filed officially.

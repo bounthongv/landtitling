@@ -236,7 +236,7 @@ case 'register': {
     }
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-    $stmt = $pdo->prepare("SELECT p.parcel_no, p.sub_parcel_no, p.title_no, p.title_type,
+    $stmt = $pdo->prepare("SELECT p.parcel_no, p.sub_parcel_no, p.title_no, p.map_ref_no, p.title_type,
             p.book_no, p.volume_no, p.page_no, p.land_use_class, p.issued_date,
             p.area_sqm, p.road_category, d.name_lo AS district, v.name_lo AS village, p.status,
             (SELECT COUNT(*) FROM parcel_owners po WHERE po.parcel_id = p.id) AS owner_count,
@@ -251,7 +251,7 @@ case 'register': {
     $rows = $stmt->fetchAll();
 
     $result = [
-        'columns' => ['Parcel', 'Sub', 'Title no', 'Title type', 'Book', 'Volume', 'Page', 'Land use',
+        'columns' => ['Parcel', 'Sub', 'Title no', 'Map sheet', 'Title type', 'Book', 'Volume', 'Page', 'Land use',
                       'Issued', 'Area (m²)', 'Road', 'District', 'Village', 'Status', 'No. of owners', 'Owners'],
         'rows'    => $rows,
         'summary' => ['parcels' => count($rows)],
@@ -306,20 +306,31 @@ case 'bank': {
         $byStatus[$s['match_status']] = ['rows' => (int)$s['n'], 'total_kip' => (float)$s['total']];
         if ($s['match_status'] === 'matched') { $matchedTotal = (float)$s['total']; }
     }
-    $collectedStmt = $pdo->prepare("SELECT COALESCE(SUM(pay.amount),0) FROM payments pay
+    // Counter cash and cheques never appear on a statement, so they are split
+    // out: the difference then compares only bank/mobile money with the
+    // statement rows matched to it.
+    $collectedStmt = $pdo->prepare("SELECT
+            COALESCE(SUM(pay.amount),0) AS paid_kip,
+            COALESCE(SUM(CASE WHEN pay.method IN ('cash','cheque','counter')
+                              THEN pay.amount ELSE 0 END),0) AS counter_kip
+        FROM payments pay
         JOIN parcels par ON par.id = pay.parcel_id
         WHERE pay.status='PAID' $payWhere");
     $collectedStmt->execute($bankParams);
-    $collected = (float)$collectedStmt->fetchColumn();
+    $paid = $collectedStmt->fetch();
+    $collected  = (float)$paid['paid_kip'];
+    $counterKip = (float)$paid['counter_kip'];
 
     $result = [
         'columns' => ['Import', 'File', 'Imported', 'Match status', 'Rows', 'Total (kip)'],
         'rows'    => $rows,
         'summary' => [
-            'by_status'        => $byStatus,
+            'by_status'             => $byStatus,
             'statement_matched_kip' => $matchedTotal,
-            'payments_paid_kip'      => $collected,
-            'difference_kip'         => $collected - $matchedTotal,
+            'payments_paid_kip'     => $collected,
+            'counter_cash_kip'      => $counterKip,
+            'bank_paid_kip'         => $collected - $counterKip,
+            'difference_kip'        => $matchedTotal - ($collected - $counterKip),
         ],
     ];
     break;
@@ -401,7 +412,8 @@ case 'mof': {
             COUNT(*) AS parcels,
             COALESCE(SUM(o.amount_due),0)          AS assessed_kip,
             COALESCE(SUM(o.amount_paid),0)         AS collected_kip,
-            COALESCE(SUM(o.amount_due + $pen - o.amount_paid),0) AS outstanding_kip
+            COALESCE(SUM(CASE WHEN o.status IN ('UNPAID','PARTIAL')
+                              THEN o.amount_due + $pen - o.amount_paid ELSE 0 END),0) AS outstanding_kip
         FROM fee_obligations o
         JOIN parcels par ON par.id = o.parcel_id
         JOIN districts d ON d.id = par.district_id

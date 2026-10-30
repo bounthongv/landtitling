@@ -31,8 +31,8 @@ the picker by what they are for:
   own district, whatever the URL says; province staff are pinned to their
   province (Savannakhet, id 1, until the multi-province rollout); a super admin
   sees everything and may filter.
-- **Fee year** is offered for every report but only changes the result for
-  Collection, Arrears and MOF. The others ignore it.
+- **Fee year** is offered only for Collection, Arrears and MOF — the reports
+  it changes.
 - **Summary cards** above the table are report-specific totals. Arrays in the
   summary (OCR confidence buckets, bank match statuses) render as small tables.
 - **Download CSV** exports exactly the rows visible under the current filters,
@@ -110,8 +110,8 @@ is still outstanding?
 - **Summary:** number of grouped rows.
 
 `Assessed` is the sum of `amount_due`; `Collected` the sum of `amount_paid`;
-`Outstanding` is assessed + surcharge − collected, summed over every obligation
-in scope.
+`Outstanding` is amount due + surcharge − collected, summed only over unpaid and
+partially paid obligations.
 
 **How to use**
 
@@ -122,9 +122,9 @@ in scope.
 4. Keep the same fee year everywhere: this report, arrears and collection
    should agree once the year is closed.
 
-Caution: `Outstanding` currently includes rows whose status is not collectable
-(`WAIVED`, `DISPUTED`, `REFUNDED`), so it can be higher than the Arrears report,
-which only counts `UNPAID`/`PARTIAL`. See §11.
+`Outstanding` therefore reconciles with the Arrears report. Waived, disputed and
+refunded rows still count in `Assessed` and `Collected` because they are part of
+the year's record.
 
 ## 5. Data entry progress (Registry, id `registration`)
 
@@ -160,7 +160,7 @@ road filter narrows the parcel rows, not the scan counters).
 - **Filters:** province, district, road (API only — the screen shows the search
   box instead), parcel status (API only), and a parcel/title search (`q`,
   case-insensitive contains on parcel number or title number).
-- **Columns:** Parcel, Sub, Title no, Title type, Book, Volume, Page, Land use,
+- **Columns:** Parcel, Sub, Title no, Map sheet, Title type, Book, Volume, Page, Land use,
   Issued, Area (m²), Road, District, Village, Status, No. of owners, Owners
   (name and national ID, `;`-separated).
 - **Summary:** number of parcels.
@@ -174,9 +174,6 @@ road filter narrows the parcel rows, not the scan counters).
 3. For day-to-day lookup use **Registry → Parcels** instead; this report is for
    export and completeness checks.
 
-Known gap: the export has no map-sheet column (`map_ref_no`) yet, even though
-map sheet + parcel number is the paper identity used by the counter.
-
 ## 7. Bank reconciliation (Controls)
 
 **Question:** do the imported bank statements agree with the payments the
@@ -188,7 +185,9 @@ system says were settled?
   and stay hidden from them. Province staff see matched rows for the province.
 - **Columns:** Import, File, Imported, Match status, Rows, Total (kip).
 - **Summary:** rows and kip per match status (table), `statement_matched_kip`,
-  `payments_paid_kip`, and `difference_kip`.
+  `payments_paid_kip` (all settled money), `counter_cash_kip` (cash, cheque and
+  legacy counter rows), `bank_paid_kip` (bank transfer + mobile) and
+  `difference_kip` = matched statements − bank payments.
 
 **How to use**
 
@@ -196,10 +195,11 @@ system says were settled?
 2. Start with the per-status table: rows still `unmatched`, `duplicate` or
    `ignored` are the ones needing attention; resolve them in the bank import
    screens and re-run.
-3. `difference_kip` compares every settled payment (counter cash included) with
-   the matched statement rows. Cash receipts never appear on a statement, so a
-   non-zero difference is normal; use it as a rough bank-vs-cash signal, not as
-   a balance that must reach zero.
+3. `difference_kip` compares only `bank_paid_kip` with the matched statement
+   rows; counter cash and cheques are excluded, so it is a real bank-vs-ledger
+   check. A positive figure means statements carry money not booked as a
+   bank/mobile payment; a negative one means booked bank payments are missing
+   from the statements.
 
 This report is only meaningful once statements are being imported; until then
 it will show zeros.
@@ -277,14 +277,11 @@ CSV responses stream the header row and data rows, filename
 
 ## 11. Known limitations
 
-- The fee-year picker is shown for reports that ignore it (see §1).
 - CSV exports omit the summary cards and any nested summary arrays.
 - The audit report returns at most 1000 rows.
-- The register export has no map-sheet (`map_ref_no`) column yet.
 - Collection reports settled money only; surcharges are not broken out there
   (they are in Arrears, MOF and on the receipt).
-- MOF `Outstanding` includes waived/disputed/refunded obligations, unlike
-  Arrears. If the ministry expects collectable debt, the query should sum only
-  `UNPAID`/`PARTIAL` for the outstanding column — not done yet.
-- Bank `difference_kip` compares all settled payments (cash included) with
-  matched statement rows, so it is not a zero-balance control.
+- MOF `Assessed` and `Collected` include waived/disputed/refunded obligations;
+  only `Outstanding` is restricted to `UNPAID`/`PARTIAL` (collectable debt).
+- Bank `difference_kip` excludes counter cash and cheques, which never appear on
+  a statement (see §7).
