@@ -25,7 +25,7 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 | `lib/validate.php` | `collect_errors` / `validate_*` / `reject_on_errors` |
 | `lib/slip.php` | `LFE-{year}-{seq6}` reference generator (sequence-backed) + A4 slip HTML |
 | `lib/fee.php` | Zone rate lookup, `fee_upsert_obligation`, `fee_settle_obligation`, `fee_audit` |
-| `lib/ocr.php` | Tesseract OCR (`lao+eng --psm 6 -c tessedit_create_tsv=1`, via GD + `proc_open`) |
+| `lib/ocr.php` | Tesseract OCR (`lao+eng --psm 3 -c tessedit_create_tsv=1`, via GD + `proc_open`) |
 | `lib/title_parser.php` | Lao/EN title field parser + district/village fuzzy resolution |
 | `lib/bank_match.php` | Bank CSV parsing + the §5 matching engine |
 | `api/v1/*.php` | **The live** versioned JSON API (auth, fee, payments, districts, villages, rates, parcels, scans, reports) |
@@ -60,6 +60,9 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 - PHP 8.3+ built-in server from repo root: `php -S localhost:8080` with `PGHOST=localhost PGPORT=5432 PGDATABASE=landfee PGUSER=postgres PGPASSWORD=test1234 PG_SCHEMA=landfee`.
 - DB: Docker `landfee-test-postgres` (postgres:16-alpine) on localhost:5432. Load `sql/schema.sql` then `sql/seed_savannakhet.sql` (and `sql/seed_zone_rates_savannakhet.sql` for the A1–O4 zone skeleton).
 - OCR needs the `tesseract` binary with `lao` + `eng` language data and PHP GD; uploads land in `public/uploads` (gitignored).
+- **Title OCR is label-anchored, not positional.** `scans.php` stores the full page text in `ocr_raw` and the TSV word boxes in `ocr_words`; `title_parse_text()` (labels + regex over the full text) and `title_extract_word_fields()` (reads the words to the right of each printed label on a Tesseract line) are merged by per-field confidence. There is no fixed crop template — two certificate layouts are in circulation and the old 33-cell template only fit one, which is why it was deleted. Don't reintroduce position-based crops; measure against `sample land/` instead.
+- **OCR needs a real capture, and handwritten fields are never expected.** Field rows below ~1000 px on the long edge, red pen markup, or heavily compressed photos come back as noise (a 967×742 annotated screenshot yields almost nothing). Uploads under 500 px are rejected with `image_too_small`; everything else is stored and the officer sees the low `overall_confidence` and types it. A title no / book no / date filled in by pen is not readable by Tesseract, so don't treat it as a parser bug.
+- **Place names are matched on a normalised key.** `title_name_key()` (and its SQL twin `title_name_key_sql()`) drops whitespace and Lao tone marks and folds `ຳ`→`ໍາ` before exact/trigram comparison, because OCR re-spaces and re-spells names. It only affects matching — never rewrite the officer-visible name with it.
 - Flutter app: `cd mobile && flutter pub get && flutter run --dart-define=API_BASE=http://10.0.2.2:8091/api/v1`. `flutter analyze` must be clean. There is **no Android SDK on this dev machine**, so no APK can be built here — the app has never been run on a device.
 
 ## Demo Credentials

@@ -3,7 +3,6 @@
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/ocr.php';
 require_once __DIR__ . '/../../lib/title_parser.php';
-require_once __DIR__ . '/../../lib/title_template.php';
 require_once __DIR__ . '/../../lib/auth.php';
 
 $pdo = db_connect();
@@ -12,8 +11,9 @@ $me = require_auth(['officer', 'admin', 'manager']);
 $scope = staff_scope($me);
 
 /**
- * Normalize Lao land use description to internal code.
- * Handles variations in spacing, punctuation, and Lao/English.
+ * Normalize a Lao/English land-use description to the internal code.
+ * Returns '' when the text names no land-use class the app knows: an unknown
+ * value must not be defaulted (a wrong class misstates the parcel on reports).
  */
 function normalize_land_use_class(string $raw): string {
     $raw = mb_strtolower(trim($raw), 'UTF-8');
@@ -23,16 +23,16 @@ function normalize_land_use_class(string $raw): string {
     $raw = preg_replace('/^[\.\s]+|[\.\s]+$/', '', $raw);
     $raw = str_replace(['..', '.', ':', '|'], '', $raw);
     
-    // Lao keywords mapping
+    // Lao keywords mapping. The printed label itself (ປະເພດທີ່ດິນ) is NOT a
+    // class and must not be mapped.
     $laoMap = [
         'ກະສິກໍາ' => 'agricultural',
-        'ການຄ້າ' => 'commercial',
-        'ປະເພດທີ່ດິນ' => 'commercial',
+        'ກະສິກຳ' => 'agricultural',
+        'ລ້ຽງສັດ' => 'agricultural',
         'ທີ່ຢູ່ອາໄສ' => 'residential',
+        'ອາໄສ' => 'residential',
         'ການຄ້າ' => 'commercial',
         'ພານິດ' => 'commercial',
-        'ອາໄສ' => 'residential',
-        'ສະຖານະ' => 'commercial',
     ];
     
     // English keywords mapping
@@ -60,7 +60,7 @@ function normalize_land_use_class(string $raw): string {
         }
     }
     
-    return 'residential'; // default fallback
+    return '';
 }
 
 // ---- GET: single scan (for the review form) ----//
@@ -160,7 +160,19 @@ if ($method === 'POST') {
     if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif'], true)) {
         json_error('Invalid image type', 400, 'bad_type');
     }
+    // Nothing below is trustworthy if OCR cannot read the text: below ~500px on
+    // the long edge a phone-framed title comes back as noise, so reject it up
+    // front instead of storing a scan full of confident nonsense.
+    $size = @getimagesize($file['tmp_name']);
+    if (!$size) {
+        json_error('Unreadable image', 400, 'bad_image');
+    }
+    if (max($size[0], $size[1]) < 500) {
+        json_error('Image too small for OCR (need at least 500px on the long edge)', 400, 'image_too_small');
+    }
+
     $cfg = require __DIR__ . '/../../lib/config.php';
+    $tessdataDir = $cfg['ocr_tessdata_dir'] ?? '';
     $uploadDir = $cfg['uploads'];
     if (!is_dir($uploadDir)) { mkdir($uploadDir, 0755, true); }
     $filename = uniqid('scan_', true) . '.' . $ext;
@@ -193,9 +205,8 @@ if ($method === 'POST') {
         $rawText = $ocrResult['text'] ?? '';
     } else {
         // Tesseract: full-page text -> fuzzy structure (fallback + audit trail)
-        $tessdataDir = $cfg['ocr_tessdata_dir'] ?? '';
         $ocrResult = ocr_extract_from_image($destPath, $tessdataDir);
-        $engineLabel = 'tesseract-lao-psm3+roi';
+        $engineLabel = 'tesseract-lao-psm3';
         $rawText = trim($ocrResult['text'] ?? '');
         $parsed = title_parse_text($rawText, $pdo);
         $structuredFields = $parsed['fields'] ?? [];
@@ -210,34 +221,38 @@ if ($method === 'POST') {
 
     // Normalize values to canonical form and set per-field confidence.
     foreach ($fields as $key => $value) {
-        // Normalize land_use_class from descriptive text to internal codes
-        if ($key === 'land_use_class' && is_string($value)) {
-            $fields[$key] = normalize_land_use_class($value);
-        }
         // Gemini provides no per-field confidence; assign a high default.
         $fieldConf[$key] = $ocrMethod === 'gemini' ? 95 : ($parsed['confidence'][$key] ?? 60);
     }
 
-    // Pass 2: position-based ROI read of the standard form layout. Each region is a
-    // full "label: value" line; roi_extract_value() pulls just the value out of it.
-    // Where a ROI value came through it overrides the structured guess
-    // ONLY if its confidence is higher than the current confidence.
-    $roi = ocr_extract_fields($destPath, title_template_regions(), $tessdataDir ?? '');
-    if ($roi['error'] === null && !empty($roi['fields'])) {
-        foreach ($roi['fields'] as $key => $r) {
-            $raw = trim((string)$r['text']);
-            if ($raw === '') continue;
+    // Pass 2: label-anchored read of the full-page word boxes. The certificate is
+    // in circulation with two different column layouts, so the old fixed
+    // positional template fitted at most one of them; here each field's printed
+    // label is located among the recognised words and the words to its right on
+    // the same line are the value. Layout-independent, and no second OCR pass.
+    // A word-box value overrides the text parse only when it is more confident.
+    if ($ocrMethod !== 'gemini' && !empty($ocrResult['words'])) {
+        foreach (title_extract_word_fields($ocrResult['words'], title_scan_labels()) as $key => $r) {
             $c = (int)$r['confidence'];
-            if ($c < 50) continue;                       // too noisy to trust
-            $ex = roi_extract_value($key, $raw);
+            // A truncated or drifted label ("ທີຕັ້ງ" for ທີ່ຕັ້ງຕອນດິນ) can also
+            // sit on a page header, so it is only trusted when the value itself
+            // reads cleanly.
+            if ($c < (empty($r['label_exact']) ? 75 : 50)) continue;
+            $ex = roi_extract_value($key, $r['text']);
             if (!$ex['ok'] || $ex['value'] === null || $ex['value'] === '') continue;
-            // Only override if ROI confidence is higher than current confidence
-            $currentConf = $fieldConf[$key] ?? 0;
-            if ($c > $currentConf) {
+            if ($c > ($fieldConf[$key] ?? 0)) {
                 $fields[$key] = $ex['value'];
                 $fieldConf[$key] = $c;
             }
         }
+    }
+
+    // Land use arrives as a printed Lao phrase; store the canonical code. Unknown
+    // text is dropped rather than defaulted to residential — a wrong land-use
+    // label changes nothing about the fee but misstates the parcel on reports.
+    if (isset($fields['land_use_class']) && is_string($fields['land_use_class'])) {
+        $fields['land_use_class'] = normalize_land_use_class($fields['land_use_class']);
+        if ($fields['land_use_class'] === '') unset($fields['land_use_class'], $fieldConf['land_use_class']);
     }
 
     // Final geography gate (runs after both passes): only trust auto-resolved
@@ -249,24 +264,27 @@ if ($method === 'POST') {
     if (!empty($fields['district_name'])) {
         [$did, $dc] = title_resolve_district($fields['district_name'], $pdo);
         $fields['district_id'] = ($did && $dc >= 90) ? $did : null;
-        if ($did && $dc >= 90) $fieldConf['district_id'] = max($fieldConf['district_id'] ?? 0, $dc);
+        if ($fields['district_id']) $fieldConf['district_id'] = max($fieldConf['district_id'] ?? 0, $dc);
+        else unset($fieldConf['district_id']);          // no id, no confidence
     } else {
         $fields['district_id'] = null;
     }
     if (!empty($fields['village_name'])) {
         [$vid, $vc] = title_resolve_village($fields['village_name'], $fields['district_id'] ?? null, $pdo);
         $fields['village_id'] = ($vid && $vc >= 90) ? $vid : null;
-        if ($vid && $vc >= 90) $fieldConf['village_id'] = max($fieldConf['village_id'] ?? 0, $vc);
+        if ($fields['village_id']) $fieldConf['village_id'] = max($fieldConf['village_id'] ?? 0, $vc);
+        else unset($fieldConf['village_id']);
     } else {
         $fields['village_id'] = null;
     }
 
     $overall = title_overall_confidence($fieldConf);
 
-    // The OCR raw box shows the structured JSON (both engines) so the officer can
-    // verify what was parsed; the full page text is kept for the audit trail.
-    $structuredJson = json_encode($fields, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    $fullText = $rawText;
+    // ocr_raw is the full page text (what the review screen shows next to the
+    // image); the structured values live in parsed_fields, and the word boxes
+    // are kept so a scan can be re-parsed without a second OCR pass.
+    $fullText = (string)$rawText;
+    $wordsJson = json_encode($ocrResult['words'] ?? [], JSON_UNESCAPED_UNICODE);
 
     $stmt = $pdo->prepare("
         INSERT INTO title_scans
@@ -277,8 +295,8 @@ if ($method === 'POST') {
     $stmt->execute([
         ':p'       => $webPath,
         ':eng'     => $engineLabel,
-        ':raw'     => $structuredJson,
-        ':words'   => json_encode([], JSON_UNESCAPED_UNICODE),
+        ':raw'     => $fullText,
+        ':words'   => $wordsJson,
         ':fields'  => json_encode($fields, JSON_UNESCAPED_UNICODE),
         ':conf'    => json_encode($fieldConf, JSON_UNESCAPED_UNICODE),
         ':overall' => $overall,

@@ -271,38 +271,62 @@ Replace the current "OCR text + one regex hint" with a real pipeline.
 ### 3.1 Pipeline
 
 1. **Capture** — single or batch upload; store raw image; record officer + district office.
-2. **Pre-OCR** (`ocr_prepare()` in `lib/ocr.php`): grayscale, deskew, upscale toward ~300 DPI
-   via GD (or ImageMagick if present). Low-contrast Lao titles benefit more from this than from
-   parser tweaks.
-3. **OCR** — Tesseract `lao+eng --psm 6`; keep full text **and** word boxes (`ocr_words`) so the
-   review UI can highlight where each field came from.
-4. **Parse** (`lib/title_parser.php`, new): `parse_title_text(string $text, PDO $pdo)` →
-   `['fields' => [...], 'confidence' => [...]]`.
-   - **Deterministic fields** via anchored Lao/EN labels + regex: parcel no, sub-parcel, area
-     (`ຕາລາງແມັດ` / `m²` / `sqm`), book/volume/page, title type, issued date.
-   - **Resolvers**: district/village names → `districts.id` / `villages.id` by fuzzy match against
-     the seeded 1,029 villages (Lao + EN). Prefer `pg_trgm` `similarity()`; fall back to PHP
-     Levenshtein if the extension is unavailable.
-   - **Owner block**: owner name(s), ID no, residence address (multiple owners → several rows).
-   - **Confidence** per field (match strength / regex anchored? / fuzzy score), plus `overall`.
+2. **Pre-OCR** (`ocr_prepare()` in `lib/ocr.php`): rotate by JPEG EXIF orientation (GD ignores
+   EXIF, so phone photos would otherwise be cropped sideways), upscale toward 3000 px on the long
+   edge, grayscale. **No contrast boost**: `IMG_FILTER_CONTRAST` with a negative argument *reduces*
+   contrast in GD; measured on real titles it cost ~8 points of mean word confidence and two
+   ground-truth tokens versus grayscale alone.
+3. **OCR** — Tesseract `lao+eng --psm 3` with the TSV sidecar. Lao alone misses the Latin serials
+   printed on the form (`A250-038`, `17 JUL 2026`); measured on three real titles lao+eng raised
+   mean confidence by 2–5 points with no Lao recall loss. Full text → `title_scans.ocr_raw`, word
+   boxes (with Tesseract's line ids) → `title_scans.ocr_words`.
+4. **Parse** (`lib/title_parser.php`):
+   - `title_parse_text()` — anchored Lao/EN labels + regex over the full text: title no, location
+     code, parcel no, area, book/leaf, map sheet, scale, issue date, district/village names.
+   - `title_extract_word_fields()` — **label-anchored read of the word boxes**: find each field's
+     printed label among the recognised words, then take the words to its right on the same
+     Tesseract line, stopping at the next known label or a wide column gap. Layout-independent
+     (two certificate layouts are in circulation), needs no positional template and no second OCR
+     pass. The longest matching label wins, so `ຕອນດິນເລກທີ` is never read as the title number.
+   - The two results are merged by per-field confidence; `district_name`/`village_name` are resolved
+     to ids (pg_trgm, PHP fallback) but only trusted at ≥ 90 — below that the officer picks it.
+     Names are compared on a normalised key (`title_name_key()`): whitespace, Lao tone marks and
+     `ຳ`/`ໍາ` spelling variance are ignored, because OCR splits and re-spells names freely
+     (`ນໍ້າອ່າງ` vs the stored `ນ້ຳອ່າງ`); the stored name is never rewritten.
 5. **Review & confirm** — officer sees image ⇄ parsed fields side by side, corrects, confirms.
    Confirm creates/updates the parcel + owner(s) and links the scan. Corrections are audit
    signal (future tuning).
 
-### 3.2 Lao label dictionary (starting point — verify wording with officers)
+**Measured limits (Oct 2026, three real titles).** A 924×1280 portrait scan yields 9 of 10 printed
+fields (title no, location code, parcel, area, book, leaf, map sheet, district, village; the scale
+prints as `ນອດ00` and is the only miss) and resolves both district and village ids automatically. A
+637×871 portrait JPEG reads the printed location code, parcel, area, leaf, map sheet, scale and
+village, but its district line is garbled (`ນະຄູຄູນ` for `ນະຄອນ ຫຼວງພະບາງ`) and is therefore
+left for the officer. **Handwritten fields are never expected**: on that certificate the title no,
+book no and issue date are filled in by pen and no engine reads them. A 967×742 landscape
+*screenshot* with red pen markup yields almost nothing — below ~1000 px the field rows are only a
+few pixels tall, so that is a capture problem, not a parser one. Uploads under 500 px on the long
+edge are rejected (`image_too_small`) rather than stored as noise.
 
-| Field | Lao label(s) to look for |
-|-------|--------------------------|
-| Province | ແຂວງ |
-| District | ເມືອງ |
-| Village | ບ້ານ |
-| Area | ເນື້ອທີ່, ຕາລາງແມັດ |
-| Parcel/title no | ເລກທີ່, ໜັງສືທີ່ດິນ, ໂຉງດິນ |
-| Owner name | ຊື່, ເຈົ້າຂອງ |
-| Address/residence | ທີ່ຢູ່ |
-| Date | ວັນທີ |
+### 3.2 Lao label dictionary (from the printed certificate)
 
-> These are a starting dictionary, not verified OCR ground truth — confirm against real titles.
+| Field | Printed label |
+|-------|---------------|
+| Title no | ເລກທີ |
+| Issue batch | ອອກຄັ້ງທີ |
+| Land location code | ທີ່ຕັ້ງຕອນດິນ |
+| Province / district / village / unit | ແຂວງ / ເມືອງ / ບ້ານ / ໜ່ວຍ |
+| Owner / DOB / nationality / occupation | ອອກໃຫ້ແກ່ / ວັນເດືອນປີເກີດ / ສັນຊາດ / ອາຊີບ |
+| Acquisition / ownership status | ການໄດ້ມາ… / ຖານະ… |
+| Land-use class / zone | ປະເພດທີ່ດິນ / ເຂດ |
+| Book / leaf | ເຫຼັ້ມທີ / ໃບທີ |
+| Map sheet | ແຜນທີ່ດິນເລກທີ |
+| Parcel no | ຕອນດິນເລກທີ |
+| Area / scale | ເນື້ອທີ່ (…ຕາແມັດ) / ມາດຕາສ່ວນ |
+| Issued at / date | ອອກໃຫ້ທີ່ / ວັນທີ … ເດືອນ … ປີ … |
+
+> OCR drops or swaps the tone marks constantly (`ຕອນດິນເລກທິ`, `ແຜນທິຕາດິນເລກທ໌`), so the
+> matcher compares consonant skeletons and tolerates one wrong character in a long label.
 
 ### 3.3 New API/changed endpoints
 
