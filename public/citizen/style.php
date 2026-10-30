@@ -4,14 +4,14 @@
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url('fonts/NotoSansLao-Regular.ttf') format('truetype');
+    src: url('/fonts/NotoSansLao-Regular.ttf') format('truetype');
   }
   @font-face {
     font-family: 'Noto Sans Lao';
     font-style: normal;
     font-weight: 700;
     font-display: swap;
-    src: url('fonts/NotoSansLao-Bold.ttf') format('truetype');
+    src: url('/fonts/NotoSansLao-Bold.ttf') format('truetype');
   }
   :root {
     --green: #1b5e20;
