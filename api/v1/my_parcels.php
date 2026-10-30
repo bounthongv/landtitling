@@ -21,8 +21,8 @@ if ($me['role'] !== 'citizen' && !empty($_GET['user_id'])) {
     }
 }
 
-$stmt = $pdo->prepare("SELECT p.id AS parcel_id, p.parcel_no, p.sub_parcel_no, p.area_sqm,
-        p.road_category, p.title_no, p.title_type, p.issued_date, p.status,
+$stmt = $pdo->prepare("SELECT p.id AS parcel_id, p.parcel_no, p.sub_parcel_no, p.map_ref_no, p.area_sqm,
+        p.road_category, p.zone_code, p.title_no, p.title_type, p.issued_date, p.status,
         d.name_lo AS district_name, v.name_lo AS village_name,
         o.id AS owner_id, po.role AS owner_role, po.share_pct, o.full_name AS owner_name
     FROM parcel_owners po

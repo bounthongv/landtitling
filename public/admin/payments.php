@@ -139,7 +139,7 @@ rsort($counterYears);
 
 // ---- Per-tab data ----------------------------------------------------------
 $payments = []; $count = 0;
-$countIssued = $countPaid = $countRej = 0;
+$countIssued = $countSubmitted = $countPaid = $countRej = 0;
 $counterReceived = []; $counterReceivedTotal = 0.0;
 $bankIssued = []; $awaitingProof = []; $matchedToday = [];
 
@@ -150,9 +150,10 @@ if ($tab === 'all' || $tab === 'counter') {
     $d = api_call('GET', 'payments.php?' . $qs, null, $token);
     $payments = $d['data']['payments'] ?? [];
     $count = $d['data']['count'] ?? 0;
-    $countIssued = api_call('GET', 'payments.php?status=ISSUED', null, $token)['data']['count'] ?? 0;
-    $countPaid   = api_call('GET', 'payments.php?status=PAID', null, $token)['data']['count'] ?? 0;
-    $countRej    = api_call('GET', 'payments.php?status=REJECTED', null, $token)['data']['count'] ?? 0;
+    $countIssued    = api_call('GET', 'payments.php?status=ISSUED', null, $token)['data']['count'] ?? 0;
+    $countSubmitted = api_call('GET', 'payments.php?status=SUBMITTED', null, $token)['data']['count'] ?? 0;
+    $countPaid      = api_call('GET', 'payments.php?status=PAID', null, $token)['data']['count'] ?? 0;
+    $countRej       = api_call('GET', 'payments.php?status=REJECTED', null, $token)['data']['count'] ?? 0;
 }
 
 if ($tab === 'counter') {
@@ -171,13 +172,14 @@ if ($tab === 'counter') {
 }
 
 if ($tab === 'bank') {
-    // Review queue: issued bank/mobile payments (oldest first), split into
-    // "has evidence" vs "awaiting proof"; plus today's auto-matched ones.
+    // Review queue: bank/mobile payments awaiting an officer — ISSUED (no proof
+    // yet) and SUBMITTED (receipt uploaded from the citizen app) — oldest first,
+    // split into "has evidence" vs "awaiting proof"; plus today's auto-matched.
     // A selected tax year narrows the queue; paid_after keeps the matched
     // scan to today's rows instead of the full history.
     $yearQs = $fee_year ? '&fee_year=' . $fee_year : '';
     foreach (['bank_transfer', 'mobile'] as $m) {
-        $d = api_call('GET', 'payments.php?status=ISSUED&method=' . $m . $yearQs, null, $token);
+        $d = api_call('GET', 'payments.php?status=ISSUED,SUBMITTED&method=' . $m . $yearQs, null, $token);
         foreach (($d['data']['payments'] ?? []) as $row) { $bankIssued[] = $row; }
         $d2 = api_call('GET', 'payments.php?status=PAID&method=' . $m . '&paid_after=' . date('Y-m-d'), null, $token);
         foreach (($d2['data']['payments'] ?? []) as $row) {
@@ -236,7 +238,7 @@ function render_payment_card(array $p, string $base): void
             <?php if ($p['status'] === 'ISSUED' && in_array($p['method'], ['bank_transfer', 'mobile'], true) && empty($p['slip_path']) && empty($p['bank_ref'])): ?>
               <span class="pill pill-warn" style="background:#fdecea; border:1px solid #c62828; color:#b71c1c;"><?= te('Awaiting proof') ?></span>
             <?php endif; ?>
-            <?php if ($p['status'] === 'ISSUED'): ?>
+            <?php if (in_array($p['status'], ['ISSUED', 'SUBMITTED'], true)): ?>
               <form method="post" style="display:inline-flex; flex-wrap:wrap; gap:6px; align-items:flex-end;">
                 <input type="hidden" name="do_action" value="verify">
                 <input type="hidden" name="payment_id" value="<?= (int)$p['id'] ?>">
@@ -473,7 +475,7 @@ function render_payment_card(array $p, string $base): void
                   <?= te('Upload slip') ?>
                 </button>
               <?php endif; ?>
-              <?php if ($p['status'] === 'ISSUED'): ?>
+              <?php if (in_array($p['status'], ['ISSUED', 'SUBMITTED'], true)): ?>
                 <button class="js-modal btn btn-green" type="button" data-form="verify-modal"
                   data-title="<?= te('Verify payment') ?>" data-submit="<?= te('Confirm & verify') ?>"
                   data-payment-id="<?= (int)$p['id'] ?>" data-amount="<?= number_format((float)$p['amount'], 2, '.', '') ?>">
@@ -518,6 +520,7 @@ function render_payment_card(array $p, string $base): void
       <!-- ================= ALL PAYMENTS ================= -->
       <div class="cards">
         <div class="card"><h3><?= te('Issued (to verify)') ?></h3><p class="num"><?= (int)$countIssued ?></p></div>
+        <div class="card"><h3><?= te('Submitted (with proof)') ?></h3><p class="num"><?= (int)$countSubmitted ?></p></div>
         <div class="card"><h3><?= te('Paid') ?></h3><p class="num"><?= (int)$countPaid ?></p></div>
         <div class="card"><h3><?= te('Rejected') ?></h3><p class="num"><?= (int)$countRej ?></p></div>
       </div>
@@ -527,7 +530,7 @@ function render_payment_card(array $p, string $base): void
           <input type="hidden" name="tab" value="all">
           <div class="form-group"><label><?= te('Status') ?></label>
             <select name="status">
-              <?php foreach (['ISSUED','PAID','REJECTED','REFUNDED'] as $s): ?>
+              <?php foreach (['ISSUED','SUBMITTED','PAID','REJECTED','REFUNDED'] as $s): ?>
               <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= e(t($s)) ?></option>
               <?php endforeach; ?>
             </select>

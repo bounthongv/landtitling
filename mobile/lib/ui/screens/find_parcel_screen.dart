@@ -11,47 +11,61 @@ import '../widgets/gov_header.dart';
 import '../widgets/status_chip.dart';
 import 'quote_screen.dart';
 
-/// Find a parcel by its number and see what is owed on it.
+/// Find a parcel on the land title and see what is owed on it.
 ///
-/// The parcel number is on the land title. The server works out the rate from
-/// the zone code on the parcel, so the citizen never has to know a rate.
+/// The identity on paper is two things: the map sheet and the parcel number on
+/// that sheet. A number can repeat on another sheet, so both are required. The
+/// server works out the rate from the zone code on the parcel, so the citizen
+/// never has to know a rate.
 class FindParcelScreen extends StatefulWidget {
-  const FindParcelScreen({super.key, this.initialParcelNo});
-
-  final String? initialParcelNo;
+  const FindParcelScreen({super.key});
 
   @override
   State<FindParcelScreen> createState() => _FindParcelScreenState();
 }
 
 class _FindParcelScreenState extends State<FindParcelScreen> {
-  late final TextEditingController _controller;
-  final _focus = FocusNode();
+  final _sheet = TextEditingController();
+  final _parcelNo = TextEditingController();
+  final _sheetFocus = FocusNode();
+  final _parcelNoFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialParcelNo ?? '');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if ((widget.initialParcelNo ?? '').isNotEmpty) {
-        _search();
-      } else {
-        _focus.requestFocus();
-      }
+      _sheetFocus.requestFocus();
     });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
-    _focus.dispose();
+    _sheet.dispose();
+    _parcelNo.dispose();
+    _sheetFocus.dispose();
+    _parcelNoFocus.dispose();
     super.dispose();
   }
 
+  bool get _ready =>
+      _sheet.text.trim().isNotEmpty && _parcelNo.text.trim().isNotEmpty;
+
   Future<void> _search() async {
+    if (!_ready) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(Strings.t('enterSheetAndParcel')),
+          backgroundColor: GovColors.danger,
+        ),
+      );
+      return;
+    }
     final controller = context.read<ParcelsController>();
     FocusScope.of(context).unfocus();
-    final quote = await controller.lookup(_controller.text);
+    final quote = await controller.lookup(
+      _parcelNo.text,
+      mapRefNo: _sheet.text,
+    );
     if (!mounted) return;
     if (quote == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,25 +95,44 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 26),
               children: [
                 SectionCard(
-                  title: 'ເລກຕອນດິນ',
-                  icon: Icons.search,
+                  title: 'ຂໍ້ມູນຕອນດິນ',
+                  icon: Icons.map_outlined,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       TextField(
-                        controller: _controller,
-                        focusNode: _focus,
+                        controller: _sheet,
+                        focusNode: _sheetFocus,
+                        autocorrect: false,
+                        textCapitalization: TextCapitalization.characters,
+                        textInputAction: TextInputAction.next,
+                        onSubmitted: (_) => _parcelNoFocus.requestFocus(),
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          labelText: Strings.t('mapSheet'),
+                          hintText: 'A250-038',
+                          prefixIcon: const Icon(Icons.map_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _parcelNo,
+                        focusNode: _parcelNoFocus,
                         autocorrect: false,
                         textInputAction: TextInputAction.search,
                         onSubmitted: (_) => _search(),
-                        decoration: const InputDecoration(
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          labelText: Strings.t('parcelNo'),
                           hintText: '1301.001.001.0001',
-                          prefixIcon: Icon(Icons.map_outlined),
+                          prefixIcon: const Icon(Icons.tag),
                         ),
                       ),
                       const SizedBox(height: 12),
                       FilledButton.icon(
-                        onPressed: controller.lookingUp ? null : _search,
+                        onPressed: controller.lookingUp || !_ready
+                            ? null
+                            : _search,
                         icon: controller.lookingUp
                             ? const SizedBox(
                                 width: 18,
@@ -130,6 +163,7 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
   Widget _quoteCard(ParcelQuote quote) {
     final parcel = quote.parcel;
     final settled = quote.isSettled;
+    final obligation = quote.obligation;
 
     return SectionCard(
       title: parcel.displayNo,
@@ -137,6 +171,10 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          InfoRow(
+            label: Strings.t('mapSheet'),
+            value: parcel.mapRefNo ?? '-',
+          ),
           InfoRow(
             label: Strings.t('district'),
             value: parcel.districtName ?? '-',
@@ -176,16 +214,29 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
             valueColor: GovColors.gov,
             bold: true,
           ),
-          if (quote.obligation != null)
+          if (obligation != null && obligation.penalty > 0)
+            InfoRow(
+              label: Strings.t('penalty'),
+              value: formatKip(obligation.penalty),
+              valueColor: GovColors.danger,
+            ),
+          if (obligation != null)
+            InfoRow(
+              label: Strings.t('outstanding'),
+              value: formatKip(quote.outstanding),
+              valueColor: settled ? GovColors.ok : GovColors.danger,
+              bold: true,
+            ),
+          if (obligation != null)
             InfoRow(
               label: Strings.t('dueDate'),
-              value: formatDate(quote.obligation!.dueDate),
+              value: formatDate(obligation.dueDate),
             ),
           const SizedBox(height: 12),
           if (settled)
             Row(
               children: [
-                StatusChip(status: quote.obligation!.status),
+                StatusChip(status: obligation!.status),
                 const SizedBox(width: 8),
                 const Text(
                   'ຊຳລະແລ້ວ',

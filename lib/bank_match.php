@@ -163,9 +163,9 @@ function bank_match_run(PDO $pdo, int $importId, $actorId = null, ?int $district
             if ($districtId !== null) {
                 $candSql .= " JOIN parcels par ON par.id = p.parcel_id WHERE par.district_id = :did";
                 $candArgs[':did'] = $districtId;
-                $candSql .= " AND p.status = 'ISSUED' AND p.amount = :a";
+                $candSql .= " AND p.status IN ('ISSUED','SUBMITTED') AND p.amount = :a";
             } else {
-                $candSql .= " WHERE p.status = 'ISSUED' AND p.amount = :a";
+                $candSql .= " WHERE p.status IN ('ISSUED','SUBMITTED') AND p.amount = :a";
             }
             $st = $pdo->prepare($candSql . " ORDER BY p.created_at");
             $st->execute($candArgs);

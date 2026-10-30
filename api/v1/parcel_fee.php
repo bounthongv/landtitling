@@ -54,7 +54,8 @@ if ($parcelId > 0) {
     if ($titleNo !== '')  { $conds[] = 'p.title_no = :tn';  $args[':tn'] = $titleNo; }
 }
 // The map sheet (#26) narrows a parcel number that repeats on other sheets.
-if ($mapRefNo !== '') { $conds[] = 'p.map_ref_no = :mr'; $args[':mr'] = $mapRefNo; }
+// Compared case-insensitively: the citizen types what is printed on the title.
+if ($mapRefNo !== '') { $conds[] = 'upper(btrim(p.map_ref_no)) = upper(btrim(:mr))'; $args[':mr'] = $mapRefNo; }
 $sql .= implode(' AND ', $conds);
 if ($scoped) {
     $sql .= " AND p.district_id = :sd";

@@ -10,6 +10,7 @@ class Parcel {
     required this.status,
     required this.obligations,
     this.subParcelNo,
+    this.mapRefNo,
     this.roadCategory,
     this.zoneCode,
     this.titleNo,
@@ -28,6 +29,7 @@ class Parcel {
       id: toInt(json['parcel_id'] ?? json['id']),
       parcelNo: toStr(json['parcel_no']),
       subParcelNo: toStrOrNull(json['sub_parcel_no']),
+      mapRefNo: toStrOrNull(json['map_ref_no']),
       areaSqm: toDouble(json['area_sqm']),
       status: toStr(json['status'], 'draft'),
       roadCategory: toStrOrNull(json['road_category']),
@@ -52,6 +54,11 @@ class Parcel {
   final int id;
   final String parcelNo;
   final String? subParcelNo;
+
+  /// The map sheet the parcel is drawn on. Together with [parcelNo] it is the
+  /// parcel's identity: a number can repeat on another sheet.
+  final String? mapRefNo;
+
   final double areaSqm;
   final String status;
   final String? roadCategory;

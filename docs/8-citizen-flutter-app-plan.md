@@ -23,7 +23,7 @@ separately. M8 (harden + release) not started.
 3. See the outstanding amount, penalty, due date, and status.
 4. **Issue a payment slip** (reference `LFE-{year}-{seq6}` + QR payload).
 5. **Pay**: photograph the bank slip and upload it as the receipt.
-6. **Track** the payment status (`ISSUED` → `PAID` / `REJECTED`) and the slip itself.
+6. **Track** the payment status (`ISSUED` → `SUBMITTED` → `PAID` / `REJECTED`) and the slip itself.
 7. Read the receipt photo back, and open the printable A4 slip.
 
 **Out of scope for the MVP** (legacy citizen-portal features that need back-office
@@ -121,19 +121,18 @@ The rates are placeholders until the province sets the real ones.
 |------|----------|-------|
 | Sign in | `POST api/v1/citizen_auth.php` `{action:"phone/signin", phone}` | **New endpoint** (specified in `9-citizen-app-api-contract.md`). Returns JWT `token` + `user{id,role}` + the phone + `created`. |
 | Change the PIN | `POST api/v1/citizen_auth.php` `{action:"phone/setpin", phone, current_pin, new_pin}` | Optional hardening — **not used**. The province decided against a PIN. |
-| Price a parcel | `GET api/v1/parcel_fee.php?parcel_no=...&fee_year=...` | **New endpoint.** Returns the parcel, its zone code, the rate and the amount — all computed by the server. |
-| Issue a payment slip | `POST api/v1/citizen_payments.php` `{parcel_no, fee_year, method, amount?}` | **New endpoint.** Returns `id, reference_no, amount, slip_qr, status:"ISSUED", due_date`. `amount` defaults to the outstanding balance, capped to it. |
+| Price a parcel | `GET api/v1/parcel_fee.php?map_ref_no=...&parcel_no=...&fee_year=...` | **New endpoint.** Map sheet + parcel number identify the parcel (a number repeats on other sheets). Returns the parcel, its zone code, the rate and the amount — all computed by the server. |
+| Issue a payment slip | `POST api/v1/citizen_payments.php` `{parcel_id, fee_year, method, amount?}` | **New endpoint.** The app issues by the `parcel_id` the lookup returned. `{parcel_no, map_ref_no}` also works (the sheet is required with the number). Returns `id, reference_no, amount, slip_qr, status:"ISSUED", due_date`; `amount` defaults to the outstanding balance, capped to it. |
 | List payments | `GET api/v1/citizen_payments.php` | **New endpoint.** Citizen-scoped: the payments they made, plus the ones on the parcels they own. |
-| Upload the receipt photo | `POST api/v1/citizen_payments.php?id={id}&receipt=1` multipart `slip` | **New endpoint.** jpg/jpeg/png/pdf/webp → sets `payments.slip_path`. |
+| Upload the receipt photo | `POST api/v1/citizen_payments.php?id={id}&receipt=1` multipart `slip` | **New endpoint.** jpg/jpeg/png/pdf/webp → sets `payments.slip_path` and moves the payment to `SUBMITTED` (proof is with the district). |
 | My parcels + obligations | `GET api/v1/my_parcels.php` | Exists. Scoped by `owners.citizen_user_id`. Each parcel carries `obligations[]`: `fee_year, amount_due, amount_paid, penalty, status, due_date, outstanding`. |
 | Printable A4 slip | `GET api/v1/payments.php?id={id}&slip=1` | Exists, but **returns HTML** and renders its QR through `api.qrserver.com` (a third party). The app renders its own slip and QR. |
 
-The three new endpoints are **not in the repository yet**: the backend has
-another owner, so the app is built against a written contract
-(`9-citizen-app-api-contract.md`) and the endpoints are added separately. The
-contract also specifies the one schema change the app needs
-(`payments.citizen_user_id` — so a payment made for a parcel that is not linked
-to the citizen still shows up in their own history).
+The three citizen endpoints were built to the written contract
+(`9-citizen-app-api-contract.md`) and are now in the repository. The contract
+also covers the two schema changes the app needs: `payments.citizen_user_id`
+(so a payment made for a parcel that is not linked to the citizen still shows
+up in their own history) and the `SUBMITTED` status (migration 015).
 
 **Rule for the app: never recompute the fee.** The amount comes from
 `fee_obligations` snapshots (`rate_per_sqm`, `area_sqm`, `amount_due`) computed
@@ -245,12 +244,12 @@ Lao as the default and an in-app toggle.
 |---|--------|-----------|-------------|
 | 1 | Login | ເຂົ້າສູ່ລະບົບ | phone number → signed in; the same screen creates the account on first use |
 | 2 | Home | ຕອນດິນຂອງຂ້ອຍ | summary card (total outstanding, year selector), parcel cards (parcel no, district/village, area, outstanding, status chip), bottom nav: ຕອນດິນ / ການຊຳລະ / ບ້ານຂ້ອຍ |
-| 3 | Parcel detail | ຂໍ້ມູນຕອນດິນ | parcel no, title no, district/village, area, zone, owner, per-year obligation rows, "ຊຳລະເງິນ" |
+| 3 | Parcel detail | ຂໍ້ມູນຕອນດິນ | map sheet, parcel no, title no, district/village, area, zone, owner, per-year obligation rows, "ຊຳລະເງິນ" |
 | 4 | Pay | ເບິ່ງຄ່າຊຳລະ | obligation summary (rate × area = due, penalty, outstanding), partial/full amount chooser, method (bank transfer / mobile money / counter) |
 | 5 | Slip | ສະລິບໄດ້ຊຳລະ | reference `LFE-2026-000123` (large, copyable), a QR placeholder, the amount, the due date |
-| 6 | Receipt | ອັບໂຫລດສະລິບເງິນ | camera/gallery, preview, upload → status becomes "awaiting verification" |
+| 6 | Receipt | ອັບໂຫລດສະລິບເງິນ | camera/gallery, preview, "send to the district" → status becomes `SUBMITTED` |
 | 7 | Payments | ການຊຳລະຂອງຂ້ອຍ | history list: reference, amount, status, date; pull-to-refresh |
-| 8 | Payment detail | ລາຍລະອຽດການຊຳລະ | status timeline (issued → receipt uploaded → verified/rejected), receipt image, reject reason (B-3) |
+| 8 | Payment detail | ລາຍລະອຽດການຊຳລະ | status timeline (issued → receipt uploaded → submitted → verified/rejected), receipt image, reject reason (B-3) |
 | 9 | About | ກ່ຽວກັບ | province, version, contact, sign-out |
 
 ---

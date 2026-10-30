@@ -60,6 +60,10 @@ class ParcelDetailScreen extends StatelessWidget {
                     children: [
                       InfoRow(label: Strings.t('parcelNo'), value: p.displayNo),
                       InfoRow(
+                        label: Strings.t('mapSheet'),
+                        value: p.mapRefNo ?? '-',
+                      ),
+                      InfoRow(
                         label: Strings.t('titleNo'),
                         value: p.titleNo ?? '-',
                       ),
@@ -117,8 +121,8 @@ class ParcelDetailScreen extends StatelessWidget {
   ) async {
     final controller = context.read<ParcelsController>();
     final messenger = ScaffoldMessenger.of(context);
-    final quote = await controller.lookup(
-      parcel.parcelNo,
+    final quote = await controller.lookupById(
+      parcel.id,
       feeYear: obligation.feeYear,
     );
     if (!context.mounted) return;

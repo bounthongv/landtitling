@@ -25,7 +25,7 @@ $role = $user['role'];
     <section class="cards">
       <div class="card stat"><h3><?= te('Unreviewed scan uploads') ?></h3><p class="num" id="scan-count">—</p></div>
       <div class="card stat"><h3><?= te('Parcels') ?></h3><p class="num" id="parcel-count">—</p></div>
-      <div class="card stat"><h3><?= te('Issued payments') ?></h3><p class="num" id="issued-count">—</p></div>
+      <div class="card stat"><h3><?= te('Payments awaiting review') ?></h3><p class="num" id="issued-count">—</p></div>
       <div class="card stat"><h3><?= te('Total taxes (kips)') ?></h3><p class="num" id="fee-total">—</p></div>
     </section>
 
@@ -54,7 +54,7 @@ async function api(path, opts = {}) {
   const [scanResp, parcelResp, payResp] = await Promise.all([
     api('/api/v1/scans.php?status=pending'),
     api('/api/v1/parcels.php'),
-    api('/api/v1/payments.php?status=ISSUED'),
+    api('/api/v1/payments.php?status=ISSUED,SUBMITTED'),
   ]);
   document.getElementById('scan-count').textContent = (scanResp.data?.scans?.length ?? 0);
   document.getElementById('parcel-count').textContent = (parcelResp.data?.total ?? 0);

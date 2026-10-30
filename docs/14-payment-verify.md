@@ -41,8 +41,9 @@ This is also the channel for **walk-in bank / mobile payments**: a citizen
 pays at a bank counter (or mobile money) and brings the paper slip to the
 office. No system record exists yet, so the officer records it here with
 method = bank/mobile — the payment is created ISSUED, the slip is
-attached, and it is verified so the obligation settles. Only pre-issued
-records (mobile app / bank statement matching) go to the Bank tab.
+attached (which moves it to SUBMITTED), and it is verified so the
+obligation settles. Only pre-issued records (mobile app / bank statement
+matching) go to the Bank tab.
 
 **Step 1 — Verify obligation (ກວດສອບພັນທະ).**
 
@@ -84,10 +85,10 @@ step 1 found something to collect:
    - **cash / cheque** — created and settled in one API call
      (verify method = counter); the evidence photo, if any, is attached
      to the payment afterwards.
-   - **bank / mobile** — created as ISSUED, evidence attached, then
-     verified (verify method = manual) so the obligation settles. If the
-     verify step fails for any reason, the payment stays ISSUED and
-     shows up in the Bank tab's review queue instead.
+   - **bank / mobile** — created as ISSUED, evidence attached (SUBMITTED),
+     then verified (verify method = manual) so the obligation settles. If
+     the verify step fails for any reason, the payment stays in the Bank
+     tab's review queue instead.
 
 Changing the parcel number or tax year after a verify hides step 2 and
 clears the result — re-verify before recording.
@@ -131,14 +132,19 @@ reference no, parcel, owner (or "no owner recorded"), and the issue date.
 **Review queue** — each payment is a standalone card (orange left border),
 oldest first. The card shows:
 
-- Reference no + status badge (ISSUED / PAID / REJECTED)
+- Reference no + status badge (ISSUED / SUBMITTED / PAID / REJECTED)
 - "Awaiting proof" red badge when slip and bank ref are both empty
 - Parcel link, tax year, district/village, area
 - Amount + method + payer + bank ref
 - Slip photo thumbnail (click to zoom)
 - Verified info (method + date) if already settled
 
-Each ISSUED card has action buttons on the right:
+**SUBMITTED** is the citizen app's "I paid, here is the receipt" state: the
+photo arrived, nothing is verified yet, and the obligation is still open.
+Those cards sort into the same queue and take the same Verify / Reject
+buttons as ISSUED ones.
+
+Each ISSUED or SUBMITTED card has action buttons on the right:
 
 - **Upload slip (ຂຶ້ນຮູບສະລິບ)** — shown only when no slip photo has been
   filed yet. The citizen paid at a bank counter and brings the paper slip
@@ -165,10 +171,10 @@ table for transparency. Nothing to do; a receipt can still be printed.
 
 ## 4. Tab: All payments
 
-- **Status cards**: Issued (to verify) / Paid / Rejected — across all
-  channels and methods.
-- **Filters**: Status (ອອກພັນທະແລ້ວ / ຈ່າຍແລ້ວ / ປະຕິເສດແລ້ວ /
-  ຄືນເງິນແລ້ວ), Method, Tax year.
+- **Status cards**: Issued (to verify) / Submitted (with proof) / Paid /
+  Rejected — across all channels and methods.
+- **Filters**: Status (ອອກພັນທະແລ້ວ / ສົ່ງຫຼັກຖານແລ້ວ / ຈ່າຍແລ້ວ /
+  ປະຕິເສດແລ້ວ / ຄືນເງິນແລ້ວ), Method, Tax year.
 - **The ledger** — one card per payment: reference no (LFE-…), parcel,
   year, district/village, area, amount, method, payer, obligation status,
   verified via, bank ref, slip photo, and the action buttons.
@@ -200,6 +206,9 @@ in a browser tab); the URL alone, without the session, is refused.
   slip with their own bank app or mobile-money app (no bank integration
   — the reference in the slip is what gets matched later), and their
   payments enter this same Mobile app queue.
+- The status path is ISSUED (slip issued, nothing arrived) → SUBMITTED
+  (proof uploaded from the app or by an officer) → PAID (verified) or
+  REJECTED. Only PAID settles the obligation; SUBMITTED is still open.
 - A rejected payment stays Rejected; the citizen resubmits. The officer
   can record a reason when rejecting (otherwise the default "Rejected by
   officer" is stored); the citizen can see the reason on the payment.

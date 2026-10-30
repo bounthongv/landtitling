@@ -39,13 +39,6 @@ class PaymentDetailScreen extends StatelessWidget {
     }
 
     final p = payment;
-    final status = p.isRejected
-        ? 'REJECTED'
-        : p.isPaid
-        ? 'PAID'
-        : p.isPendingReview
-        ? 'PENDING'
-        : 'ISSUED';
 
     return Scaffold(
       body: Column(
@@ -73,7 +66,7 @@ class PaymentDetailScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          StatusChip(status: status),
+                          StatusChip(status: p.status),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -81,6 +74,11 @@ class PaymentDetailScreen extends StatelessWidget {
                         label: Strings.t('reference'),
                         value: p.referenceNo,
                       ),
+                      if (p.mapRefNo != null)
+                        InfoRow(
+                          label: Strings.t('mapSheet'),
+                          value: p.mapRefNo!,
+                        ),
                       if (p.parcelNo != null)
                         InfoRow(
                           label: Strings.t('parcelNo'),
@@ -129,7 +127,7 @@ class PaymentDetailScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 16),
-                if (!p.isPaid && !p.isRejected)
+                if (p.isIssued || p.isSubmitted)
                   FilledButton.icon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -137,11 +135,7 @@ class PaymentDetailScreen extends StatelessWidget {
                       ),
                     ),
                     icon: const Icon(Icons.camera_alt_outlined),
-                    label: Text(
-                      p.hasReceipt
-                          ? Strings.t('uploadSlip')
-                          : Strings.t('uploadSlip'),
-                    ),
+                    label: Text(Strings.t('uploadSlip')),
                   ),
                 if (!p.isPaid) ...[
                   const SizedBox(height: 10),
@@ -160,13 +154,22 @@ class PaymentDetailScreen extends StatelessWidget {
   }
 
   Widget _timeline(Payment p) {
+    final sent = p.isSubmitted || p.isPaid || p.isRejected;
     final steps = <(String, bool, String)>[
-      ('ອໍານາການຊຳລະ', true, formatDateTime(p.createdAt)),
+      ('ອອກສະລິບ', true, formatDateTime(p.createdAt)),
       (
         'ອັບໂຫລດສະລິບເງິນ',
         p.hasReceipt,
         p.hasReceipt ? Strings.t('saved') : 'ລະວ່າງ',
       ),
+      if (sent)
+        (
+          Strings.t('sendToDistrict'),
+          true,
+          p.isSubmitted
+              ? Strings.t('statusSubmitted')
+              : formatDateTime(p.paidAt ?? p.createdAt),
+        ),
       if (p.isPaid) ('ຢືນຢັນໂດຍພະນັກງານ', true, formatDateTime(p.paidAt)),
       if (p.isRejected) ('ໄມ່ຮັບ', true, Strings.t('statusRejected')),
     ];

@@ -43,10 +43,12 @@ class PaymentsController extends ChangeNotifier {
 
   /// Issue the payment slip for a parcel and year.
   ///
-  /// The server prices the parcel (zone code -> rate -> amount) and caps the
-  /// amount at what is still outstanding.
+  /// The parcel is named by the id the lookup returned, so a number that
+  /// repeats on another map sheet cannot settle the wrong parcel. The server
+  /// prices it (zone code -> rate -> amount) and caps the amount at what is
+  /// still outstanding.
   Future<IssuedSlip> issueSlip({
-    required String parcelNo,
+    required int parcelId,
     required int feeYear,
     required String method,
     double? amount,
@@ -56,7 +58,7 @@ class PaymentsController extends ChangeNotifier {
     notifyListeners();
     try {
       final body = <String, dynamic>{
-        'parcel_no': parcelNo,
+        'parcel_id': parcelId,
         'fee_year': feeYear,
         'method': method,
       };

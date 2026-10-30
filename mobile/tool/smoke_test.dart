@@ -4,6 +4,9 @@
 // API, and checks the answers. It uses the app's own ApiClient, so a change
 // in either the app or the API that breaks the contract fails here.
 //
+// The payment path is ISSUED -> SUBMITTED (receipt uploaded) -> PAID (officer
+// verified); the parcel is identified by its map sheet + parcel number.
+//
 //   dart run tool/smoke_test.dart [apiBase]
 //
 // The citizen API the app needs (citizen_auth.php, parcel_fee.php,
@@ -98,17 +101,27 @@ Future<void> main(List<String> args) async {
   }
   check('an unusable phone number is refused', badPhone);
 
-  // ---- 2. Price a parcel by its number -----------------------------------
+  // ---- 2. Price a parcel by map sheet + parcel number --------------------
+  const mapRefNo = 'A250-038';
   const parcelNo = '1301.001.001.0001';
   final quoteData = await app.getData(
     'parcel_fee.php',
-    query: {'parcel_no': parcelNo, 'fee_year': '2026'},
+    query: {
+      'map_ref_no': mapRefNo,
+      'parcel_no': parcelNo,
+      'fee_year': '2026',
+    },
   );
   final quote = ParcelQuote.fromJson(quoteData);
   check(
     'the parcel is found by its number',
     quote.parcel.parcelNo == parcelNo,
     quote.parcel.parcelNo,
+  );
+  check(
+    'the parcel is identified by its map sheet',
+    quote.parcel.mapRefNo == mapRefNo,
+    quote.parcel.mapRefNo,
   );
   check(
     'the parcel carries its zone code',
@@ -123,8 +136,22 @@ Future<void> main(List<String> args) async {
   );
 
   // ---- 3. Issue a payment slip -------------------------------------------
+  // The app issues by the id the lookup returned: a number that repeats on
+  // another sheet can then never settle the wrong parcel.
+  var sheetRequired = false;
+  try {
+    await app.postData('citizen_payments.php', {
+      'parcel_no': parcelNo,
+      'fee_year': 2026,
+      'method': 'bank_transfer',
+    });
+  } on ApiException catch (e) {
+    sheetRequired = e.code == 'missing_map_sheet';
+  }
+  check('a payment without the map sheet is refused', sheetRequired);
+
   final issued = await app.postData('citizen_payments.php', {
-    'parcel_no': parcelNo,
+    'parcel_id': quote.parcel.id,
     'fee_year': 2026,
     'method': 'bank_transfer',
   });
@@ -161,6 +188,11 @@ Future<void> main(List<String> args) async {
       (uploaded['slip_path'] as String? ?? '').isNotEmpty,
       uploaded['slip_path'],
     );
+    check(
+      'the receipt upload marks the payment SUBMITTED',
+      uploaded['status'] == 'SUBMITTED',
+      uploaded['status']?.toString(),
+    );
   }
 
   // ---- 5. The payment shows up in the citizen's history -------------------
@@ -177,6 +209,11 @@ Future<void> main(List<String> args) async {
     '${payments.length} payment(s)',
   );
   check('the payment shows the receipt', mine != null && mine.hasReceipt);
+  check(
+    'the payment is waiting for the district',
+    mine?.isSubmitted == true,
+    mine?.status,
+  );
   check('the payment shows the reference', mine?.referenceNo == reference);
 
   // ---- 6. Another citizen must not see it --------------------------------
@@ -196,7 +233,7 @@ Future<void> main(List<String> args) async {
     '${otherList.length} payment(s)',
   );
 
-  // ---- 7. Close the loop: the officer verifies the payment ---------------
+  // ---- 7. Close the loop: the officer verifies the SUBMITTED payment -----
   final officerLogin = await officer.postData('auth.php', {
     'action': 'login',
     'username': 'sav_officer',

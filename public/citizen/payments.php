@@ -9,7 +9,7 @@ $err = citizen_error($d);
 ?>
 <div class="card">
   <h2>ການຊຳລະຂອງຂ້າຮ່າງ</h2>
-  <p class="sub">Track your land fee payments: ISSUED → PAID / REJECTED.</p>
+  <p class="sub">Track your land fee payments: ISSUED → SUBMITTED (proof sent) → PAID / REJECTED.</p>
 
   <?php if ($err): ?><div class="alert err"><?= e($err) ?></div><?php endif; ?>
 
@@ -19,7 +19,7 @@ $err = citizen_error($d);
     <ul class="list">
       <?php foreach ($payments as $p): ?>
         <?php
-        $pill = ['ISSUED' => 'pending', 'PAID' => 'paid', 'REJECTED' => 'rej', 'REFUNDED' => 'rej'][$p['status']] ?? 'pending';
+        $pill = ['ISSUED' => 'pending', 'SUBMITTED' => 'pending', 'PAID' => 'paid', 'REJECTED' => 'rej', 'REFUNDED' => 'rej'][$p['status']] ?? 'pending';
         ?>
         <li>
           <div class="row" style="justify-content:space-between; align-items:flex-start;">

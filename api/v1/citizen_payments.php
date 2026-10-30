@@ -18,11 +18,17 @@ $me     = require_auth(['citizen', 'officer', 'admin']);
 $method = $_SERVER['REQUEST_METHOD'];
 $meId   = (int)$me['sub'];
 
-/** The one parcel the citizen named — EXACT number match, never a lookup by prefix. */
-function citizen_parcel_by_no(PDO $pdo, string $parcelNo): array {
+/**
+ * The one parcel the citizen named — EXACT number match, never a lookup by
+ * prefix. The map sheet is part of the identity: a parcel number repeats on
+ * other sheets (uq_parcels_identity), so it is required alongside the number.
+ */
+function citizen_parcel_by_no(PDO $pdo, string $parcelNo, string $mapRefNo): array {
     $st = $pdo->prepare("SELECT id AS parcel_id, parcel_no FROM parcels
-        WHERE parcel_no = :pn ORDER BY id");
-    $st->execute([':pn' => $parcelNo]);
+        WHERE parcel_no = :pn
+          AND upper(btrim(map_ref_no)) = upper(btrim(:mr))
+        ORDER BY id");
+    $st->execute([':pn' => $parcelNo, ':mr' => $mapRefNo]);
     $rows = $st->fetchAll();
     if (!$rows) {
         json_error('No parcel with that number', 404, 'parcel_not_found');
@@ -49,7 +55,7 @@ if ($method === 'GET') {
     // parameter bound twice in the same statement.
     $st = $pdo->prepare("SELECT pay.id, pay.reference_no, pay.amount, pay.status, pay.method,
             pay.fee_year, pay.created_at, pay.paid_at, pay.slip_path, pay.verify_note,
-            p.parcel_no, d.name_lo AS district_name, v.name_lo AS village_name,
+            p.parcel_no, p.map_ref_no, d.name_lo AS district_name, v.name_lo AS village_name,
             o.status AS obligation_status
         FROM payments pay
         JOIN parcels p   ON p.id = pay.parcel_id
@@ -71,11 +77,14 @@ if ($method === 'GET') {
 // ---- POST ?id=N&receipt=1: attach the photo of the paid bank slip ----------
 if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
     $id = (int)$_GET['id'];
-    $st = $pdo->prepare("SELECT id, parcel_id, citizen_user_id FROM payments WHERE id = :id");
+    $st = $pdo->prepare("SELECT id, parcel_id, citizen_user_id, status FROM payments WHERE id = :id");
     $st->execute([':id' => $id]);
     $payment = $st->fetch();
     if (!$payment) {
         json_error('Payment not found', 404, 'not_found');
+    }
+    if (in_array($payment['status'], ['PAID', 'REJECTED', 'REFUNDED'], true)) {
+        json_error('This payment is already settled or closed', 409, 'bad_state');
     }
 
     // A citizen may only attach a receipt to a payment they made, or to one on
@@ -105,17 +114,21 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
         json_error('Failed to save slip', 500, 'upload_failed');
     }
 
+    // Attaching proof is what sends the payment to the district: ISSUED becomes
+    // SUBMITTED (waiting for an officer), and re-uploading while SUBMITTED just
+    // replaces the photo.
     $path = '/public/uploads/' . $filename;
-    $pdo->prepare("UPDATE payments SET slip_path = :p WHERE id = :id")
+    $pdo->prepare("UPDATE payments SET slip_path = :p, status = 'SUBMITTED' WHERE id = :id")
         ->execute([':p' => $path, ':id' => $id]);
-    fee_audit($pdo, $meId, 'payment_receipt', 'payment', $id, ['slip_path' => $path]);
-    json_ok(['id' => $id, 'slip_path' => $path]);
+    fee_audit($pdo, $meId, 'payment_receipt', 'payment', $id, ['slip_path' => $path, 'status' => 'SUBMITTED']);
+    json_ok(['id' => $id, 'slip_path' => $path, 'status' => 'SUBMITTED']);
 }
 
 // ---- POST: issue a payment slip -------------------------------------------
 if ($method === 'POST') {
     $body       = read_json_body();
     $parcelNo   = trim((string)($body['parcel_no'] ?? ''));
+    $mapRefNo   = trim((string)($body['map_ref_no'] ?? ''));
     $parcelIdIn = (int)($body['parcel_id'] ?? 0);
     $feeYear    = (int)($body['fee_year'] ?? 0) ?: (int)date('Y');
     $payMethod  = (string)($body['method'] ?? 'counter');
@@ -123,12 +136,15 @@ if ($method === 'POST') {
     if ($parcelNo === '' && $parcelIdIn <= 0) {
         json_error('parcel_no (or parcel_id) is required', 400, 'missing_parcel');
     }
+    if ($parcelNo !== '' && $mapRefNo === '') {
+        json_error('map_ref_no is required with parcel_no', 400, 'missing_map_sheet');
+    }
     if (!in_array($payMethod, ['counter', 'bank_transfer', 'mobile', 'cash'], true)) {
         json_error('Invalid payment method', 400, 'invalid_method');
     }
 
     if ($parcelNo !== '') {
-        $parcel = citizen_parcel_by_no($pdo, $parcelNo);
+        $parcel = citizen_parcel_by_no($pdo, $parcelNo, $mapRefNo);
     } else {
         $st = $pdo->prepare("SELECT id AS parcel_id, parcel_no FROM parcels WHERE id = :id");
         $st->execute([':id' => $parcelIdIn]);

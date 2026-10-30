@@ -98,7 +98,7 @@ class SlipScreen extends StatelessWidget {
                       _NextStep(no: '3', text: 'ອັບໂຫລດຮູບສະລິບເງິນໃນແອັບ'),
                       _NextStep(
                         no: '4',
-                        text: 'ພະນັກງານກວດສອບ ແລະ ຢືນຢັນການຊຳລະ',
+                        text: 'ພະນັກງານເມືອງກວດສອບ ແລະ ຢືນຢັນການຊຳລະ',
                       ),
                     ],
                   ),

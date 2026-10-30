@@ -61,7 +61,7 @@ class _QuoteScreenState extends State<QuoteScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final slip = await payments.issueSlip(
-        parcelNo: widget.quote.parcel.parcelNo,
+        parcelId: widget.quote.parcel.id,
         feeYear: widget.quote.feeYear,
         method: _method,
         amount: _payInFull ? null : _amount,
@@ -101,6 +101,10 @@ class _QuoteScreenState extends State<QuoteScreen> {
                   child: Column(
                     children: [
                       InfoRow(
+                        label: Strings.t('mapSheet'),
+                        value: quote.parcel.mapRefNo ?? '-',
+                      ),
+                      InfoRow(
                         label: Strings.t('area'),
                         value: formatArea(quote.parcel.areaSqm),
                       ),
@@ -118,6 +122,18 @@ class _QuoteScreenState extends State<QuoteScreen> {
                       InfoRow(
                         label: Strings.t('amountDue'),
                         value: formatKip(quote.amountDue),
+                        bold: true,
+                      ),
+                      if (quote.obligation != null &&
+                          quote.obligation!.penalty > 0)
+                        InfoRow(
+                          label: Strings.t('penalty'),
+                          value: formatKip(quote.obligation!.penalty),
+                          valueColor: GovColors.danger,
+                        ),
+                      InfoRow(
+                        label: Strings.t('outstanding'),
+                        value: formatKip(quote.outstanding),
                         valueColor: GovColors.danger,
                         bold: true,
                       ),

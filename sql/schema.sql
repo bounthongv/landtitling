@@ -436,7 +436,7 @@ CREATE TABLE payments (
   slip_qr VARCHAR(255),
   slip_path VARCHAR(255),                    -- uploaded slip photo
   status VARCHAR(20) NOT NULL DEFAULT 'ISSUED'
-    CHECK (status IN ('ISSUED','PAID','REJECTED','REFUNDED')),
+    CHECK (status IN ('ISSUED','SUBMITTED','PAID','REJECTED','REFUNDED')),
   paid_at TIMESTAMP,
   verified_by INT,
   verify_method VARCHAR(20)

@@ -49,7 +49,8 @@ $qrPayload = (string)($payment['slip_qr'] ?? '');
 $qrUrl = $qrPayload !== ''
     ? 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . urlencode($qrPayload)
     : '';
-$pill = ['ISSUED' => 'pending', 'PAID' => 'paid', 'REJECTED' => 'rej', 'REFUNDED' => 'rej'][$payment['status'] ?? ''] ?? 'pending';
+$pill = ['ISSUED' => 'pending', 'SUBMITTED' => 'pending', 'PAID' => 'paid', 'REJECTED' => 'rej', 'REFUNDED' => 'rej'][$payment['status'] ?? ''] ?? 'pending';
+$canUpload = !in_array($payment['status'] ?? '', ['PAID', 'REJECTED', 'REFUNDED'], true);
 ?>
 <!DOCTYPE html>
 <html lang="lo">
@@ -105,6 +106,13 @@ $pill = ['ISSUED' => 'pending', 'PAID' => 'paid', 'REJECTED' => 'rej', 'REFUNDED
             <span class="name">Slip created</span>
             <span style="color:var(--muted);font-size:12px;"><?= e($payment['created_at'] ?? '') ?></span>
           </li>
+          <?php if (($payment['status'] ?? '') === 'SUBMITTED'): ?>
+          <li>
+            <span class="pill pill-pending">SUBMITTED</span>
+            <span class="name">Proof sent to the district — waiting for an officer</span>
+            <span></span>
+          </li>
+          <?php endif; ?>
           <?php if (!empty($payment['paid_at'])): ?>
           <li>
             <span class="pill pill-paid">PAID</span>
@@ -135,7 +143,7 @@ $pill = ['ISSUED' => 'pending', 'PAID' => 'paid', 'REJECTED' => 'rej', 'REFUNDED
           <p class="sub" style="margin-top:0;">Receipt on file:</p>
           <img src="<?= e($payment['slip_path']) ?>" style="max-width:220px;border-radius:6px;background:#fff;" alt="receipt">
         <?php endif; ?>
-        <?php if ($payment['status'] !== 'PAID'): ?>
+        <?php if ($canUpload): ?>
         <form method="post" enctype="multipart/form-data">
           <input type="hidden" name="upload_receipt" value="1">
           <div class="form-group">

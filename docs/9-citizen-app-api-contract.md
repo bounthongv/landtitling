@@ -22,7 +22,7 @@ The design decisions behind them are in
 
 ---
 
-## 0. Schema change (one column)
+## 0. Schema changes
 
 ```sql
 -- sql/migrations/004_citizen_payments.sql
@@ -30,6 +30,12 @@ ALTER TABLE payments ADD COLUMN IF NOT EXISTS citizen_user_id INT
   REFERENCES users(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_payments_citizen ON payments(citizen_user_id);
 ```
+
+The payment status path is **`ISSUED` → `SUBMITTED` → `PAID` / `REJECTED`**.
+`SUBMITTED` (migration `015_payment_submitted_status.sql`) means the citizen
+has uploaded the receipt and the payment is waiting for an officer: something
+has been claimed, but nothing has been verified. It is not a settlement — the
+obligation only settles when a payment becomes `PAID`.
 
 **Why:** a citizen may pay for a parcel that is not linked to their account —
 they know the parcel number from their land title. The payment has to be
@@ -125,7 +131,7 @@ area and the zone code from the parcel and looks up the rate, so the amount is
 always the server's calculation — the app never computes a fee and the client
 cannot influence it.
 
-### `GET parcel_fee.php?parcel_no=1301.001.001.0001&fee_year=2026`
+### `GET parcel_fee.php?map_ref_no=A250-038&parcel_no=1301.001.001.0001&fee_year=2026`
 
 Bearer token required (`citizen`, `officer` or `admin`).
 
@@ -133,9 +139,13 @@ Bearer token required (`citizen`, `officer` or `admin`).
 
 - One parcel per call. No listing, no filters — the land registry cannot be
   walked.
-- **Exact** parcel number match. A substring match would let anyone page
-  through the registry one character at a time.
-- If the number matches more than one parcel → `ambiguous_parcel` (400).
+- The parcel's identity is **map sheet + parcel number**: a number can repeat on
+  another sheet (`uq_parcels_identity`). Give `map_ref_no` with `parcel_no`, or
+  give `parcel_id` alone.
+- **Exact** parcel number match (the sheet is compared case-insensitively,
+  trimmed). A substring match would let anyone page through the registry one
+  character at a time.
+- If the number still matches more than one parcel → `ambiguous_parcel` (400).
 - No parcel → `parcel_not_found` (404).
 - `fee_year` defaults to the current year.
 
@@ -145,6 +155,7 @@ Bearer token required (`citizen`, `officer` or `admin`).
 { "ok": true, "data": {
   "parcel": {
     "parcel_id": 4, "parcel_no": "1301.001.001.0001", "sub_parcel_no": null,
+    "map_ref_no": "A250-038",
     "area_sqm": 1250.50, "zone_code": "A7", "title_no": "0102/1301/00342",
     "status": "confirmed",
     "district_name": "ນະຄອນໄກສອນພົມວິຫານ", "village_name": "ທ່າຫົວຊ້າງ"
@@ -190,13 +201,13 @@ and is idempotent on (parcel_id, fee_year).
 ### `POST citizen_payments.php` — issue a payment slip
 
 ```json
-{ "parcel_no": "1301.001.001.0001", "fee_year": 2026,
+{ "parcel_id": 5, "fee_year": 2026,
   "method": "bank_transfer", "amount": 175070000 }
 ```
 
 | Field | Notes |
 |-------|-------|
-| `parcel_no` or `parcel_id` | Required. Exact match on the number. |
+| `parcel_id`, or `parcel_no` + `map_ref_no` | Required. The app sends the `parcel_id` from the lookup, so a number that repeats on another sheet cannot settle the wrong parcel. Sending `parcel_no` alone is refused (`missing_map_sheet`). |
 | `fee_year` | Defaults to the current year. |
 | `method` | `bank_transfer` \| `mobile` \| `counter` \| `cash`. |
 | `amount` | Optional. Defaults to the full outstanding balance, and is capped at it (partial payments are allowed). |
@@ -242,13 +253,17 @@ WHERE pay.citizen_user_id = :me
 ```
 
 Each row carries `reference_no, amount, status, method, fee_year, parcel_no,
-district_name, village_name, created_at, paid_at, slip_path, verify_note,
-obligation_status`.
+map_ref_no, district_name, village_name, created_at, paid_at, slip_path,
+verify_note, obligation_status`.
 
 ### `POST citizen_payments.php?id={id}&receipt=1` — upload the receipt
 
 Multipart, field name `slip` (jpg/jpeg/png/pdf/webp). Saves to the uploads
-directory and sets `payments.slip_path`.
+directory, sets `payments.slip_path` **and moves the payment to
+`status='SUBMITTED'`** — this is the "send it to the district" step. A payment
+that is already `PAID`, `REJECTED` or `REFUNDED` is refused (`bad_state`, 409);
+re-uploading while `SUBMITTED` replaces the photo. The response carries
+`{id, slip_path, status:"SUBMITTED"}`.
 
 **Authorisation matters here:** a citizen may only attach a receipt to a
 payment they made, or one on a parcel they own. Check both:
@@ -312,13 +327,14 @@ and will not work offline. The QR image should be generated locally.
 ## 5. What the app does with all this
 
 ```
-Sign in (phone + PIN)
+Sign in (phone number)
    └─ Home
-       ├─ "ຄົ້ນຫາຕອນດິນ"  enter the parcel number  → parcel_fee.php  → the fee
+       ├─ "ຄົ້ນຫາຕອນດິນ"  enter the map sheet + parcel no  → parcel_fee.php → the fee
        │                                              → pay  → citizen_payments.php
        │                                              → slip (reference + QR)
        │                                              → photograph the bank slip
        │                                              → citizen_payments.php?receipt=1
+       │                                                → SUBMITTED (with the district)
        ├─ "ຕອນດິນຂອງຂ້ອຍ"    the parcels an officer has linked to the account
        └─ "ການຊຳລະຂອງຂ້ອຍ"  the payments made, and their status
 ```

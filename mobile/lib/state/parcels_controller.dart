@@ -48,16 +48,34 @@ class ParcelsController extends ChangeNotifier {
     }
   }
 
-  /// Price one parcel by its number.
+  /// Price one parcel by the map sheet + parcel number printed on the title.
   ///
   /// The server reads the area and the zone code from the parcel and works
   /// out the rate, so the amount is never computed on the phone.
-  Future<ParcelQuote?> lookup(String parcelNo, {int? feeYear}) async {
+  Future<ParcelQuote?> lookup(
+    String parcelNo, {
+    String? mapRefNo,
+    int? feeYear,
+  }) {
+    final query = <String, String>{'parcel_no': parcelNo.trim()};
+    if (mapRefNo != null && mapRefNo.trim().isNotEmpty) {
+      query['map_ref_no'] = mapRefNo.trim();
+    }
+    return _fetchQuote(query, feeYear);
+  }
+
+  /// Price a parcel the citizen already owns, by the id the server gave us.
+  Future<ParcelQuote?> lookupById(int parcelId, {int? feeYear}) =>
+      _fetchQuote(<String, String>{'parcel_id': '$parcelId'}, feeYear);
+
+  Future<ParcelQuote?> _fetchQuote(
+    Map<String, String> query,
+    int? feeYear,
+  ) async {
     lookingUp = true;
     lookupError = null;
     notifyListeners();
     try {
-      final query = <String, String>{'parcel_no': parcelNo.trim()};
       if (feeYear != null) query['fee_year'] = '$feeYear';
       final data = await _api.getData('parcel_fee.php', query: query);
       final result = ParcelQuote.fromJson(data);

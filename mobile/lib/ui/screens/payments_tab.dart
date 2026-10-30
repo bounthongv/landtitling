@@ -68,13 +68,6 @@ class _PaymentsTabState extends State<PaymentsTab> {
   }
 
   Widget _card(Payment p) {
-    final status = p.isRejected
-        ? 'REJECTED'
-        : p.isPaid
-        ? 'PAID'
-        : p.isPendingReview
-        ? 'PENDING'
-        : 'ISSUED';
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Card(
@@ -102,7 +95,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
                         ),
                       ),
                     ),
-                    StatusChip(status: status),
+                    StatusChip(status: p.status),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -137,11 +130,18 @@ class _PaymentsTabState extends State<PaymentsTab> {
                     ),
                   ],
                 ),
-                if (!p.hasReceipt && !p.isPaid) ...[
+                if (!p.hasReceipt && !p.isPaid && !p.isRejected) ...[
                   const SizedBox(height: 8),
                   const Text(
                     'ຍັງບໍ່ໄດ້ອັບໂຫລດສະລິບເງິນ',
                     style: TextStyle(fontSize: 12, color: GovColors.danger),
+                  ),
+                ],
+                if (p.isSubmitted) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    Strings.t('submittedToDistrict'),
+                    style: const TextStyle(fontSize: 12, color: GovColors.gov),
                   ),
                 ],
               ],

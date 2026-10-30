@@ -27,8 +27,8 @@ INSERT INTO landfee.owners (full_name, phone, citizen_user_id, owner_type, distr
   VALUES ('ທົວງ ທົວງ', '+85620999999', :citizen_id, 'individual', 1, 1) RETURNING id \gset
 \set owner_id :id
 
-INSERT INTO landfee.parcels (parcel_no, district_id, village_id, area_sqm, zone_code, status, title_no)
-  VALUES ('1301.001.001.0001', 1, 1, 1250.50, 'A7', 'confirmed', '0102/1301/00342') RETURNING id \gset
+INSERT INTO landfee.parcels (parcel_no, map_ref_no, district_id, village_id, area_sqm, zone_code, status, title_no)
+  VALUES ('1301.001.001.0001', 'A250-038', 1, 1, 1250.50, 'A7', 'confirmed', '0102/1301/00342') RETURNING id \gset
 \set parcel_id :id
 
 INSERT INTO landfee.parcel_owners (parcel_id, owner_id, share_pct, role)

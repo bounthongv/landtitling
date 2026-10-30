@@ -10,8 +10,9 @@ import '../../state/payments_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/gov_header.dart';
 
-/// Photograph the paid bank slip and upload it, so an officer can verify the
-/// payment. Until then the payment sits in "awaiting payment".
+/// Photograph the paid bank slip and send it to the district. The upload moves
+/// the payment from ISSUED (nothing arrived yet) to SUBMITTED — proof is in and
+/// an officer has to verify it.
 class ReceiptScreen extends StatefulWidget {
   const ReceiptScreen({super.key, required this.paymentId});
 
@@ -61,11 +62,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('ອັບໂຫລດສະລິບເງິນແລ້ວ'),
+          content: Text(Strings.t('submittedToDistrict')),
           backgroundColor: GovColors.ok,
         ),
       );
-      Navigator.of(context).pop();
+      // The slip is the district's now: back to the start, not to the slip.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
       setState(() => _uploading = false);
@@ -159,7 +161,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                                           color: Colors.white,
                                         ),
                                       )
-                                    : Text(Strings.t('submit')),
+                                    : Text(Strings.t('sendToDistrict')),
                               ),
                             ),
                           ],

@@ -206,10 +206,13 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
     if (!isset($_FILES['slip']) || $_FILES['slip']['error'] !== UPLOAD_ERR_OK) {
         json_error('No slip file uploaded', 400, 'no_file');
     }
-    $st = $pdo->prepare("SELECT id, parcel_id, citizen_user_id FROM payments WHERE id = :id");
+    $st = $pdo->prepare("SELECT id, parcel_id, citizen_user_id, status FROM payments WHERE id = :id");
     $st->execute([':id' => $id]);
     $pRow = $st->fetch();
     if (!$pRow) { json_error('Payment not found', 404, 'not_found'); }
+    if (in_array($pRow['status'], ['PAID', 'REJECTED', 'REFUNDED'], true)) {
+        json_error('This payment is already settled or closed', 409, 'bad_state');
+    }
     if ($me['role'] !== 'citizen') {
         if (!payment_in_scope($me, payment_district($pdo, $pRow))) {
             json_error('Payment outside your district', 403, 'out_of_scope');
@@ -239,9 +242,11 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
     if (!move_uploaded_file($_FILES['slip']['tmp_name'], $uploadDir . $filename)) {
         json_error('Failed to save slip', 500, 'upload_failed');
     }
-    $pdo->prepare("UPDATE payments SET slip_path = :p WHERE id = :id")
-        ->execute([':p' => '/public/uploads/' . $filename, ':id' => $id]);
-    json_ok(['id' => $id, 'slip_path' => '/public/uploads/' . $filename]);
+    // Proof is in: the payment now waits for an officer, not for the citizen.
+    $slipPath = '/public/uploads/' . $filename;
+    $pdo->prepare("UPDATE payments SET slip_path = :p, status = 'SUBMITTED' WHERE id = :id")
+        ->execute([':p' => $slipPath, ':id' => $id]);
+    json_ok(['id' => $id, 'slip_path' => $slipPath, 'status' => 'SUBMITTED']);
 }
 
 // ---- VERIFY (officer) ----
@@ -259,6 +264,7 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['verify'])) {
     }
     if ($payment['status'] === 'PAID') { json_error('Already paid', 409, 'already_paid'); }
     if ($payment['status'] === 'REJECTED') { json_error('Payment was rejected', 409, 'rejected'); }
+    if ($payment['status'] === 'REFUNDED') { json_error('Payment was refunded', 409, 'refunded'); }
 
     // Amount actually received: defaults to the slip amount, but the officer may
     // record less (partial) or more (overpaid) — fee_settle_obligation derives
@@ -298,7 +304,11 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['reject'])) {
     if (!payment_in_scope($me, payment_district($pdo, $payment))) {
         json_error('Payment outside your district', 403, 'out_of_scope');
     }
-    if ($payment['status'] !== 'ISSUED') { json_error('Payment is not in ISSUED state', 409, 'bad_state'); }
+    // A citizen-submitted payment (proof uploaded) is rejected from the same
+    // queue an unsubmitted one is: proof that does not stand up is turned down.
+    if (!in_array($payment['status'], ['ISSUED', 'SUBMITTED'], true)) {
+        json_error('Payment is not awaiting review', 409, 'bad_state');
+    }
 
     $pdo->prepare("UPDATE payments SET status='REJECTED', verified_by=:v, verify_method='manual',
         verify_note=:n WHERE id=:id")
@@ -344,7 +354,23 @@ if ($method === 'GET') {
 
     $where = [];
     $params = [];
-    if ($status !== null && $status !== '') { $where[] = 'pay.status = :s'; $params[':s'] = $status; }
+    if ($status !== null && $status !== '') {
+        // A comma-separated list is accepted (e.g. ISSUED,SUBMITTED for every
+        // payment still awaiting an officer). Values are whitelisted.
+        $want = array_values(array_intersect(
+            ['ISSUED', 'SUBMITTED', 'PAID', 'REJECTED', 'REFUNDED'],
+            array_map('trim', explode(',', (string)$status))
+        ));
+        if (!$want) { json_error('Invalid status filter', 400, 'invalid_status'); }
+        if (count($want) === 1) {
+            $where[] = 'pay.status = :s';
+            $params[':s'] = $want[0];
+        } else {
+            $ph = [];
+            foreach ($want as $i => $s) { $ph[] = ':s' . $i; $params[':s' . $i] = $s; }
+            $where[] = 'pay.status IN (' . implode(',', $ph) . ')';
+        }
+    }
     if ($methodF !== '') { $where[] = 'pay.method = :m'; $params[':m'] = $methodF; }
     if ($feeYear)  { $where[] = 'pay.fee_year = :fy'; $params[':fy'] = $feeYear; }
     if ($paidAfter !== '') { $where[] = 'pay.paid_at >= :pa'; $params[':pa'] = $paidAfter; }

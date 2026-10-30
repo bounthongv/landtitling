@@ -8,7 +8,7 @@ class StatusChip extends StatelessWidget {
   const StatusChip({super.key, required this.status, this.label});
 
   /// `UNPAID`, `PARTIAL`, `PAID`, `OVERPAID`, `WAIVED` (obligation)
-  /// or `ISSUED`, `PAID`, `REJECTED` (payment).
+  /// or `ISSUED`, `SUBMITTED`, `PAID`, `REJECTED` (payment).
   final String status;
   final String? label;
 
@@ -48,8 +48,9 @@ class StatusChip extends StatelessWidget {
         return (GovColors.danger, Strings.t('statusRejected'));
       case 'ISSUED':
         return (GovColors.blue, Strings.t('statusIssued'));
+      case 'SUBMITTED':
+        return (GovColors.gov, Strings.t('statusSubmitted'));
       case 'UNPAID':
-      case 'PENDING':
       case 'DISPUTED':
       default:
         return (GovColors.danger, Strings.t('statusUnpaid'));

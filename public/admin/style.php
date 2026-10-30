@@ -211,6 +211,7 @@
 
   .pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 16px; font-weight: 600; letter-spacing: 0.3px; }
   .pill-issued { background: #fff8e1; color: #f57f17; }
+  .pill-submitted { background: #e8eaf6; color: #283593; }
   .pill-paid { background: #e8f5e9; color: #2e7d32; }
   .pill-rej { background: #fdecea; color: #c62828; }
   .pill-pending { background: #e3f2fd; color: #1565c0; }

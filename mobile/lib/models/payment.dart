@@ -10,6 +10,7 @@ class Payment {
     required this.method,
     required this.feeYear,
     this.parcelNo,
+    this.mapRefNo,
     this.districtName,
     this.villageName,
     this.createdAt,
@@ -27,6 +28,7 @@ class Payment {
     method: toStr(json['method'], 'counter'),
     feeYear: toInt(json['fee_year']),
     parcelNo: toStrOrNull(json['parcel_no']),
+    mapRefNo: toStrOrNull(json['map_ref_no']),
     districtName: toStrOrNull(json['district_name']),
     villageName: toStrOrNull(json['village_name']),
     createdAt: toStrOrNull(json['created_at']),
@@ -43,6 +45,7 @@ class Payment {
   final String method;
   final int feeYear;
   final String? parcelNo;
+  final String? mapRefNo;
   final String? districtName;
   final String? villageName;
   final String? createdAt;
@@ -58,8 +61,8 @@ class Payment {
   bool get isRejected => status == 'REJECTED';
   bool get isIssued => status == 'ISSUED';
 
-  /// Issued and a receipt uploaded: the officer has not decided yet.
-  bool get isPendingReview => isIssued && hasReceipt;
+  /// The receipt is with the district; an officer has not decided yet.
+  bool get isSubmitted => status == 'SUBMITTED';
 }
 
 /// The result of creating a payment: the slip the citizen must pay with.
