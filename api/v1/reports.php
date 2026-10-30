@@ -138,7 +138,7 @@ case 'arrears': {
     break;
 }
 
-// ---- Registration: parcels per district, scan backlog, OCR confidence ----
+// ---- Data entry progress: parcels per district, scan backlog, OCR confidence ----
 case 'registration': {
     $where = [];
     $params = [];

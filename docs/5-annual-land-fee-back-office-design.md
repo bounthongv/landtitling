@@ -363,7 +363,7 @@ different source of the credit event.
 |--------|----------|
 | Collection | kip collected by district / village / month / fee_year / road_category |
 | Arrears & aging | parcels `UNPAID`/`PARTIAL` for year N; how many years behind per parcel |
-| Registration | parcels registered per district; scans pending; OCR confidence distribution |
+| Data entry progress | parcels registered per district; scans pending; OCR confidence distribution |
 | Parcel & owner register | full export (CSV) of parcels + owners + title fields |
 | Bank reconciliation | matched / unmatched / duplicate statement rows; totals vs collected |
 | Rate schedule | current + historical `zones_rates` (valid_from) |

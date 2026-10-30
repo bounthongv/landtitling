@@ -636,5 +636,9 @@
   "Penalty update failed.": "ອັບເດດຄ່າປັບລົ້ມເຫຼວ.",
   "The surcharge is 10% of the land tax when payment is late. An officer may waive or reduce it with a reason; every change is audited.": "ຄ່າປັບແມ່ນ 10% ຂອງພາສີທີ່ດິນ ເມື່ອຊໍາລະຊ້າ. ເຈົ້າໜ້າທີ່ສາມາດຍົກເວັ້ນ ຫຼື ຫຼຸດໄດ້ ພ້ອມເຫດຜົນ; ທຸກການປ່ຽນແປງຖືກບັນທຶກ.",
   "Includes a late-payment surcharge of {pen} kip (10%).": "ລວມຄ່າປັບຊໍາລະຊ້າ {pen} ກີບ (10%).",
-  "Also outstanding:": "ຍັງຄ້າງຊຳລະອີກ:"
+  "Also outstanding:": "ຍັງຄ້າງຊຳລະອີກ:",
+  "Data entry progress": "ຄວາມຄືບໜ້າການບັນທຶກຂໍ້ມູນ",
+  "Money": "ການເງິນ",
+  "Registry": "ທະບຽນທີ່ດິນ",
+  "Controls": "ການກວດສອບ"
 }

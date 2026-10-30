@@ -66,15 +66,21 @@ foreach ($districts as $di) {
     $districtsByProvince[(int)($di['province_id'] ?? 0)][] = $di;
 }
 
-$reports = [
+$reportLabels = [
     'collection'  => t('Collection'),
     'arrears'     => t('Arrears & aging'),
-    'registration'=> t('Registration'),
+    'registration'=> t('Data entry progress'),
     'register'    => t('Parcel & owner register'),
     'bank'        => t('Bank reconciliation'),
     'rates'       => t('Rate schedule'),
     'audit'       => t('Audit trail'),
     'mof'         => t('MOF export (assessed/collected/outstanding)'),
+];
+// Picker grouping only; the flat map drives the heading and the CSV link.
+$reportGroups = [
+    t('Money')    => ['collection', 'arrears', 'mof'],
+    t('Registry') => ['registration', 'register'],
+    t('Controls') => ['bank', 'rates', 'audit'],
 ];
 ?>
 <!DOCTYPE html>
@@ -100,8 +106,12 @@ $reports = [
         <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px;">
         <div class="form-group"><label><?= te('Report') ?></label>
           <select name="report">
-            <?php foreach ($reports as $k => $label): ?>
-            <option value="<?= $k ?>" <?= $report === $k ? 'selected' : '' ?>><?= e($label) ?></option>
+            <?php foreach ($reportGroups as $group => $keys): ?>
+            <optgroup label="<?= e($group) ?>">
+              <?php foreach ($keys as $k): ?>
+              <option value="<?= $k ?>" <?= $report === $k ? 'selected' : '' ?>><?= e($reportLabels[$k]) ?></option>
+              <?php endforeach; ?>
+            </optgroup>
             <?php endforeach; ?>
           </select>
         </div>
@@ -173,7 +183,7 @@ $reports = [
     <?php if ($data): ?>
       <div class="form-box">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <h2 style="margin:0"><?= e($reports[$report] ?? $report) ?>
+          <h2 style="margin:0"><?= e($reportLabels[$report] ?? $report) ?>
             <span class="sub" style="margin-left:8px"><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span>
           </h2>
           <a class="btn btn-blue" href="<?= e($base) ?>/reports_export.php?<?= e($qs) ?>"><?= te('Download CSV') ?></a>
