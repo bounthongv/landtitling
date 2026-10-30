@@ -330,14 +330,6 @@ function render_payment_card(array $p, string $base): void
               <?php endforeach; ?>
             </select>
           </div>
-          <div class="form-group"><label><?= te('Method') ?></label>
-            <select id="counter-method">
-              <option value="cash"><?= e(payment_method_label('cash')) ?></option>
-              <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
-              <option value="bank_transfer"><?= e(payment_method_label('bank_transfer')) ?></option>
-              <option value="mobile"><?= e(payment_method_label('mobile')) ?></option>
-            </select>
-          </div>
           <div class="form-group"><label>&nbsp;</label><button id="counter-verify" class="btn btn-gold" type="button"><?= te('Search parcel') ?></button></div>
         </div>
         <div id="counter-verify-result" style="display:none; margin-top:10px; padding:10px 12px; border-radius:6px; font-size:14px;"></div>
@@ -351,10 +343,17 @@ function render_payment_card(array $p, string $base): void
             <input type="hidden" name="parcel_id">
             <input type="hidden" name="parcel_no">
             <input type="hidden" name="fee_year">
-            <input type="hidden" name="method">
             <div class="form-group"><label><?= te('Owner') ?></label>
               <select name="payer_owner_id" id="counter-owner">
                 <option value=""><?= te('-- select owner (payer) --') ?></option>
+              </select>
+            </div>
+            <div class="form-group"><label><?= te('Method') ?></label>
+              <select name="method" id="counter-method">
+                <option value="cash"><?= e(payment_method_label('cash')) ?></option>
+                <option value="cheque"><?= e(payment_method_label('cheque')) ?></option>
+                <option value="bank_transfer"><?= e(payment_method_label('bank_transfer')) ?></option>
+                <option value="mobile"><?= e(payment_method_label('mobile')) ?></option>
               </select>
             </div>
             <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
@@ -592,6 +591,8 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     loading:  <?= json_encode(t('-- loading --')) ?>,
     notfound: <?= json_encode(t('Parcel not found.')) ?>,
     noMatch:  <?= json_encode(t('No parcels match the filter.')) ?>,
+    alsoOutstanding: <?= json_encode(t('Also outstanding:')) ?>,
+    kip:      <?= json_encode(t('kip')) ?>,
     ownerPh:  <?= json_encode(t('-- select owner (payer) --')) ?>,
     assessed: <?= json_encode(t('Obligation for {year} ({status}) — due {due} kip, paid {paid} kip, balance {out} kip')) ?>,
     penaltyNote: <?= json_encode(t('Includes a late-payment surcharge of {pen} kip (10%).')) ?>,
@@ -652,6 +653,31 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     verifyRes.style.background = cls === 'ok' ? '#e8f5e9' : (cls === 'err' ? '#fdecea' : '#f6f2e7');
     verifyRes.innerHTML = html;
   }
+  // A parcel can owe earlier years too; link them so the officer does not have
+  // to hunt through the year dropdown to discover the arrears.
+  function arrearsNote(data, parcelId, parcelNo) {
+    var hist = (data && data.history) || [];
+    var items = [];
+    for (var i = 0; i < hist.length; i++) {
+      var h = hist[i];
+      if ((h.status === 'UNPAID' || h.status === 'PARTIAL') && Number(h.outstanding) > 0) {
+        items.push('<a href="#" data-arrears-year="' + Number(h.fee_year) + '">'
+          + Number(h.fee_year) + ' (' + fmtKip(h.outstanding) + ' ' + esc(MSG.kip) + ')</a>');
+      }
+    }
+    if (!items.length) { return; }
+    verifyRes.insertAdjacentHTML('beforeend',
+      '<div style="margin-top:6px; font-size:13px;">' + esc(MSG.alsoOutstanding) + ' '
+      + items.join(' &middot; ') + '</div>');
+    var links = verifyRes.querySelectorAll('a[data-arrears-year]');
+    for (var k = 0; k < links.length; k++) {
+      links[k].onclick = function (ev) {
+        ev.preventDefault();
+        if (yearSel) { yearSel.value = this.getAttribute('data-arrears-year'); }
+        openFee(parcelId, parcelNo);
+      };
+    }
+  }
   function resetRecord() {
     recordBox.style.display = 'none';
     recordNote.textContent = '';
@@ -668,12 +694,7 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
   }
 
   if (methodSel) {
-    methodSel.onchange = function() {
-      syncEvidence();
-      if (settleForm && settleForm.style.display !== 'none') {
-        settleForm.querySelector('input[name=method]').value = methodSel.value;
-      }
-    };
+    methodSel.onchange = syncEvidence;
     syncEvidence();
   }
   // Changing any search field after a result invalidates it — search again.
@@ -731,9 +752,11 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
               obHtml += '<br><span>' + esc(fillText(MSG.penaltyNote, { pen: fmtKip(ob.penalty) })) + '</span>';
             }
             showVerify(obHtml, 'warn');
+            arrearsNote(data, parcelId, parcelNo);
             payable = out;
           } else {
             showVerify('<b>' + esc(MSG.settled) + '</b>', 'ok');
+            arrearsNote(data, parcelId, parcelNo);
             return;
           }
         } else if (data.rate_found) {
@@ -743,15 +766,16 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
             zone: p.zone_code || '?',
             rate: fmtKip(data.rate_per_sqm)
           })) + '</b>', 'warn');
+          arrearsNote(data, parcelId, parcelNo);
           payable = Number(data.amount_due) || 0;
         } else {
           showVerify('<b>' + esc(MSG.norate) + '</b>', 'err');
+          arrearsNote(data, parcelId, parcelNo);
           return;
         }
         // Something to collect — open step 2, pre-filled with the expected amount.
         settleForm.querySelector('input[name=parcel_no]').value = parcelNo || '';
         settleForm.querySelector('input[name=fee_year]').value = yr;
-        settleForm.querySelector('input[name=method]').value = methodSel.value;
         var owners = data.owners || [];
         ownerSel.innerHTML = '<option value="">' + esc(MSG.ownerPh) + '</option>';
         var preselect = '';
