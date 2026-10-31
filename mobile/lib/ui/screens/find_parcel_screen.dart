@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/api_client.dart';
+import '../../core/api_exception.dart';
 import '../../core/money.dart';
 import '../../core/strings.dart';
 import '../../core/theme.dart';
+import '../../models/geo_option.dart';
 import '../../models/quote.dart';
 import '../../state/parcels_controller.dart';
 import '../widgets/common.dart';
@@ -11,12 +14,16 @@ import '../widgets/gov_header.dart';
 import '../widgets/status_chip.dart';
 import 'quote_screen.dart';
 
-/// Find a parcel on the land title and see what is owed on it.
+/// Find a parcel from the title and see what is owed on it.
 ///
-/// The identity on paper is two things: the map sheet and the parcel number on
-/// that sheet. A number can repeat on another sheet, so both are required. The
+/// The parcel is identified the way the district registry identifies it:
+/// province → district → village → map sheet → parcel number. A number (and a
+/// sheet) can repeat in another district, so the location is required too. The
 /// server works out the rate from the zone code on the parcel, so the citizen
 /// never has to know a rate.
+///
+/// Looking a parcel up does not link it to the account: the citizen adds it to
+/// "my parcels" with an explicit claim, which the server audits.
 class FindParcelScreen extends StatefulWidget {
   const FindParcelScreen({super.key});
 
@@ -30,12 +37,21 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
   final _sheetFocus = FocusNode();
   final _parcelNoFocus = FocusNode();
 
+  List<GeoOption> _provinces = const <GeoOption>[];
+  List<GeoOption> _districts = const <GeoOption>[];
+  List<GeoOption> _villages = const <GeoOption>[];
+  int? _provinceId;
+  int? _districtId;
+  int? _villageId;
+  bool _loadingProvinces = true;
+  bool _loadingDistricts = false;
+  bool _loadingVillages = false;
+  String? _geoError;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _sheetFocus.requestFocus();
-    });
+    _loadProvinces();
   }
 
   @override
@@ -47,14 +63,98 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
     super.dispose();
   }
 
+  Future<void> _loadProvinces() async {
+    try {
+      final data = await context.read<ApiClient>().getData(
+        'refdata.php',
+        query: {'table': 'provinces'},
+      );
+      if (!mounted) return;
+      setState(() {
+        _provinces = _options(data['items']);
+        _loadingProvinces = false;
+        _geoError = null;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingProvinces = false;
+        _geoError = e.message;
+      });
+    }
+  }
+
+  Future<void> _loadDistricts(int provinceId) async {
+    setState(() {
+      _districts = const <GeoOption>[];
+      _villages = const <GeoOption>[];
+      _districtId = null;
+      _villageId = null;
+      _loadingDistricts = true;
+    });
+    try {
+      final data = await context.read<ApiClient>().getData(
+        'districts.php',
+        query: {'province_id': '$provinceId'},
+      );
+      if (!mounted || _provinceId != provinceId) return;
+      setState(() {
+        _districts = _options(data['items']);
+        _loadingDistricts = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || _provinceId != provinceId) return;
+      setState(() {
+        _loadingDistricts = false;
+        _geoError = e.message;
+      });
+    }
+  }
+
+  Future<void> _loadVillages(int districtId) async {
+    setState(() {
+      _villages = const <GeoOption>[];
+      _villageId = null;
+      _loadingVillages = true;
+    });
+    try {
+      final data = await context.read<ApiClient>().getData(
+        'villages.php',
+        query: {'district_id': '$districtId'},
+      );
+      if (!mounted || _districtId != districtId) return;
+      setState(() {
+        _villages = _options(data['items']);
+        _loadingVillages = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || _districtId != districtId) return;
+      setState(() {
+        _loadingVillages = false;
+        _geoError = e.message;
+      });
+    }
+  }
+
+  List<GeoOption> _options(dynamic raw) => raw is List
+      ? raw
+            .whereType<Map<String, dynamic>>()
+            .map(GeoOption.fromJson)
+            .toList()
+      : const <GeoOption>[];
+
   bool get _ready =>
-      _sheet.text.trim().isNotEmpty && _parcelNo.text.trim().isNotEmpty;
+      _provinceId != null &&
+      _districtId != null &&
+      _villageId != null &&
+      _sheet.text.trim().isNotEmpty &&
+      _parcelNo.text.trim().isNotEmpty;
 
   Future<void> _search() async {
     if (!_ready) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(Strings.t('enterSheetAndParcel')),
+          content: Text(Strings.t('enterParcelIdentity')),
           backgroundColor: GovColors.danger,
         ),
       );
@@ -65,16 +165,30 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
     final quote = await controller.lookup(
       _parcelNo.text,
       mapRefNo: _sheet.text,
+      provinceId: _provinceId!,
+      districtId: _districtId!,
+      villageId: _villageId!,
     );
     if (!mounted) return;
     if (quote == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(controller.lookupError ?? 'ບໍ່ພົບຕອນດິນ'),
+          content: Text(controller.lookupError ?? Strings.t('noData')),
           backgroundColor: GovColors.danger,
         ),
       );
     }
+  }
+
+  Future<void> _claim(ParcelsController controller) async {
+    final ok = await controller.claim();
+    if (!mounted || ok) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(controller.claimError ?? Strings.t('noData')),
+        backgroundColor: GovColors.danger,
+      ),
+    );
   }
 
   @override
@@ -100,6 +214,91 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      DropdownButtonFormField<int>(
+                        initialValue: _provinceId,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: Strings.t('province'),
+                          prefixIcon: const Icon(Icons.account_balance_outlined),
+                          hintText: _loadingProvinces
+                              ? Strings.t('loading')
+                              : null,
+                        ),
+                        items: _provinces
+                            .map(
+                              (p) => DropdownMenuItem<int>(
+                                value: p.id,
+                                child: Text(p.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _loadingProvinces
+                            ? null
+                            : (value) {
+                                setState(() => _provinceId = value);
+                                if (value != null) _loadDistricts(value);
+                              },
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<int>(
+                        initialValue: _districtId,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: Strings.t('district'),
+                          prefixIcon: const Icon(Icons.location_city_outlined),
+                          hintText: _loadingDistricts
+                              ? Strings.t('loading')
+                              : null,
+                        ),
+                        items: _districts
+                            .map(
+                              (d) => DropdownMenuItem<int>(
+                                value: d.id,
+                                child: Text(d.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _provinceId == null || _loadingDistricts
+                            ? null
+                            : (value) {
+                                setState(() => _districtId = value);
+                                if (value != null) _loadVillages(value);
+                              },
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<int>(
+                        initialValue: _villageId,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: Strings.t('village'),
+                          prefixIcon: const Icon(Icons.holiday_village_outlined),
+                          hintText: _loadingVillages
+                              ? Strings.t('loading')
+                              : null,
+                        ),
+                        items: _villages
+                            .map(
+                              (v) => DropdownMenuItem<int>(
+                                value: v.id,
+                                child: Text(v.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _districtId == null || _loadingVillages
+                            ? null
+                            : (value) => setState(() => _villageId = value),
+                      ),
+                      if (_geoError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _geoError!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: GovColors.danger,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
                       TextField(
                         controller: _sheet,
                         focusNode: _sheetFocus,
@@ -150,7 +349,7 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
                 ),
                 if (quote != null) ...[
                   const SizedBox(height: 12),
-                  _quoteCard(quote),
+                  _quoteCard(quote, controller),
                 ],
               ],
             ),
@@ -160,7 +359,7 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
     );
   }
 
-  Widget _quoteCard(ParcelQuote quote) {
+  Widget _quoteCard(ParcelQuote quote, ParcelsController controller) {
     final parcel = quote.parcel;
     final settled = quote.isSettled;
     final obligation = quote.obligation;
@@ -258,6 +457,41 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
               icon: const Icon(Icons.payments_outlined),
               label: Text(Strings.t('payNow')),
             ),
+          const SizedBox(height: 8),
+          if (quote.claimed)
+            Row(
+              children: [
+                const Icon(Icons.verified_outlined, size: 18, color: GovColors.ok),
+                const SizedBox(width: 6),
+                Text(
+                  Strings.t('inMyParcels'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: GovColors.ok,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: controller.claiming ? null : () => _claim(controller),
+              icon: controller.claiming
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.playlist_add_check_outlined),
+              label: Text(Strings.t('addToMyParcels')),
+            ),
+          if (controller.claimError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              controller.claimError!,
+              style: const TextStyle(fontSize: 12, color: GovColors.danger),
+            ),
+          ],
         ],
       ),
     );

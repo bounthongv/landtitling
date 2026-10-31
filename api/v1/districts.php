@@ -9,8 +9,9 @@ require_once __DIR__ . '/../../lib/validate.php';
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Auth: all staff can read; writes are province-level only
-$me = require_auth(['admin', 'officer', 'manager']);
+// Auth: staff manage districts; citizens may read the list to pick one when
+// looking up a parcel (province → district → village).
+$me = require_auth(['citizen', 'admin', 'officer', 'manager']);
 $scope = staff_scope($me);
 
 // Geography is admin-maintained (Basic Data is an admin screen).

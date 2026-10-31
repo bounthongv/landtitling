@@ -24,8 +24,27 @@ $parcelId = (int)($_GET['parcel_id'] ?? 0);
 $parcelNo = trim((string)($_GET['parcel_no'] ?? ''));
 $titleNo  = trim((string)($_GET['title_no'] ?? ''));
 $mapRefNo = trim((string)($_GET['map_ref_no'] ?? ''));
-if ($parcelId <= 0 && $parcelNo === '' && $titleNo === '') {
-    json_error('parcel_id, parcel_no or title_no is required', 400, 'missing_parcel');
+$provinceId = (int)($_GET['province_id'] ?? 0);
+$districtId = (int)($_GET['district_id'] ?? 0);
+$villageId  = (int)($_GET['village_id'] ?? 0);
+if ($parcelId <= 0) {
+    // Looking a parcel up by the numbers on the title needs the whole registry
+    // identity, not just the number: the same parcel number exists in another
+    // village/sheet, and identifiers alone must never resolve a different parcel.
+    if ($provinceId <= 0 || $districtId <= 0 || $villageId <= 0) {
+        json_error('Province, district and village are required with the parcel number',
+            400, 'missing_location', [
+                'province_id' => 'province is required',
+                'district_id' => 'district is required',
+                'village_id'  => 'village is required',
+            ]);
+    }
+    if ($mapRefNo === '') {
+        json_error('Map sheet is required', 400, 'missing_map_sheet');
+    }
+    if ($parcelNo === '' && $titleNo === '') {
+        json_error('parcel_no or title_no is required', 400, 'missing_parcel');
+    }
 }
 $feeYear = (int)($_GET['fee_year'] ?? 0) ?: (int)date('Y');
 
@@ -50,6 +69,12 @@ if ($parcelId > 0) {
     $conds[] = 'p.id = :pid';
     $args[':pid'] = $parcelId;
 } else {
+    $conds[] = 'p.district_id = :did';
+    $conds[] = 'p.village_id = :vid';
+    $conds[] = 'd.province_id = :prv';
+    $args[':did'] = $districtId;
+    $args[':vid'] = $villageId;
+    $args[':prv'] = $provinceId;
     if ($parcelNo !== '') { $conds[] = 'p.parcel_no = :pn'; $args[':pn'] = $parcelNo; }
     if ($titleNo !== '')  { $conds[] = 'p.title_no = :tn';  $args[':tn'] = $titleNo; }
 }
@@ -121,6 +146,14 @@ $hst = $pdo->prepare("SELECT o.id, o.parcel_id, o.fee_year, o.zone_code, o.area_
     ORDER BY o.fee_year DESC");
 $hst->execute([':pid' => $parcelId, ':fy' => $feeYear]);
 
+// Whether this parcel is already linked to the signed-in citizen's account, so
+// the app only offers "add to my parcels" when there is something to add.
+$cst = $pdo->prepare("SELECT 1 FROM parcel_owners po
+    JOIN owners o ON o.id = po.owner_id
+    WHERE po.parcel_id = :pid AND o.citizen_user_id = :uid LIMIT 1");
+$cst->execute([':pid' => $parcelId, ':uid' => (int)$me['sub']]);
+$claimed = (bool)$cst->fetchColumn();
+
 json_ok([
     'parcel' => [
         'parcel_id'     => $parcelId,
@@ -138,6 +171,7 @@ json_ok([
         'village_name'  => $parcel['village_name'],
     ],
     'owners'       => $owners,
+    'claimed'      => $claimed,
     'fee_year'     => $feeYear,
     'rate_per_sqm' => (float)$fee['rate_per_sqm'],
     'rate_found'   => (bool)$fee['rate_found'],

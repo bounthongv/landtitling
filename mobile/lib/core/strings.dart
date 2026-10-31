@@ -33,7 +33,9 @@ class Strings {
     'about': 'ກ່ຽວກັບ',
     'parcelNo': 'ເລກຕອນດິນ',
     'mapSheet': 'ເລກແຜນທີ່',
-    'enterSheetAndParcel': 'ກະລຸນາປ້ອນເລກແຜນທີ່ ແລະ ເລກຕອນດິນ',
+    'province': 'ແຂວງ',
+    'enterParcelIdentity':
+        'ກະລຸນາເລືອກແຂວງ, ເມືອງ, ບ້ານ ແລະ ປ້ອນເລກແຜນທີ່ ແລະ ເລກຕອນດິນ',
     'district': 'ເຂົາງ',
     'village': 'ບ້ານ',
     'area': 'ເນື້ອທີ່',
@@ -49,12 +51,21 @@ class Strings {
     'status': 'ສະຖານະ',
     'viewFee': 'ເບິ່ງຄ່າຊຳລະ',
     'payNow': 'ຊຳລະເງິນ',
+    'addToMyParcels': 'ເພີ່ມໃສ່ຕອນດິນຂອງຂ້ອຍ',
+    'inMyParcels': 'ຢູ່ໃນຕອນດິນຂອງຂ້ອຍແລ້ວ',
+    'claimPhoneMismatch':
+        'ເບີໂທທີ່ບັນທຶກໄວ້ໃນຕອນດິນນີ້ ບໍ່ກົງກັບເບີໂທຂອງທ່ານ — ກະລຸນາຕິດຕໍ່ຫ້ອງການທີ່ດິນເມືອງ.',
+    'claimOwnedByOther':
+        'ຕອນດິນນີ້ ເຊື່ອມກັບບັນຊີອື່ນແລ້ວ — ກະລຸນາຕິດຕໍ່ຫ້ອງການທີ່ດິນເມືອງ.',
+    'claimNoOwner':
+        'ຕອນດິນນີ້ ຍັງບໍ່ມີຊື່ເຈົ້າຂອງໃນລະບົບ — ກະລຸນາຕິດຕໍ່ຫ້ອງການທີ່ດິນເມືອງ.',
     'paymentSlip': 'ສະລິບໄດ້ຊຳລະ',
     'reference': 'ລະຫັດອ້າງອີງ',
     'uploadSlip': 'ອັບໂຫລດສະລິບເງິນ',
     'uploadSlipHint': 'ຖ່າຍຮູບສະລິບເງິນທີ່ທ່ານໄດ້ຊຳລະໃນທະນາຄານ',
     'takePhoto': 'ຖ່າຍຮູບ',
     'chooseGallery': 'ເລື່ອກຈາກຄວາມລືມ',
+    'photoPermission': 'ບໍ່ສາມາດເປີດກ້ອງ ຫຼື ຮູບພາບໄດ້. ກະລຸນາອະນຸຍາດໃຫ້ແອັບເຂົ້າເຖິງກ້ອງ ແລ້ວລອງໃໝ່.',
     'submit': 'ສົ່ງ',
     'cancel': 'ຍົກເລີກ',
     'method': 'ວິທີຊຳລະ',
@@ -66,7 +77,7 @@ class Strings {
     'totalOutstanding': 'ຄົນລືມລວມ',
     'noParcels': 'ບໍ່ມີຕອນດິນໃນຊື່ທ່ານ',
     'noParcelsHint':
-        'ຕອນດິນຈະປະກຽດໃນຊື່ທ່ານຫຼັງແລ້ວໃຫ້ເຈົ້າຂອງທີ່ດິນຕິດຕໍ່ທ້າງຫຼັງການຊຳລະ',
+        'ຕອນດິນຈະປາກົດຢູ່ນີ້ ຫຼັງຈາກທ່ານຄົ້ນຫາ ແລະ ເພີ່ມໃສ່ຕອນດິນຂອງຂ້ອຍ.',
     'noPayments': 'ຍັງບໍ່ມີການຊຳລະ',
     'loading': 'ກຳລັງໂຫຼດ...',
     'retry': 'ລອງໃໝ່',
@@ -106,7 +117,9 @@ class Strings {
     'about': 'About',
     'parcelNo': 'Parcel no.',
     'mapSheet': 'Map sheet',
-    'enterSheetAndParcel': 'Enter both the map sheet and the parcel number',
+    'province': 'Province',
+    'enterParcelIdentity':
+        'Choose the province, district and village, then enter the map sheet and parcel number',
     'district': 'District',
     'village': 'Village',
     'area': 'Area',
@@ -122,12 +135,22 @@ class Strings {
     'status': 'Status',
     'viewFee': 'View fee',
     'payNow': 'Pay now',
+    'addToMyParcels': 'Add to my parcels',
+    'inMyParcels': 'In my parcels',
+    'claimPhoneMismatch':
+        'The phone number recorded on this parcel does not match yours — contact the district land office.',
+    'claimOwnedByOther':
+        'This parcel is already linked to another account — contact the district land office.',
+    'claimNoOwner':
+        'This parcel has no owner recorded — contact the district land office.',
     'paymentSlip': 'Payment slip',
     'reference': 'Reference',
     'uploadSlip': 'Upload payment slip',
     'uploadSlipHint': 'Photo of the bank slip you paid with',
     'takePhoto': 'Take photo',
     'chooseGallery': 'Choose from gallery',
+    'photoPermission':
+        'Could not open the camera or gallery. Allow photo access for the app and try again.',
     'submit': 'Submit',
     'cancel': 'Cancel',
     'method': 'Payment method',
@@ -139,7 +162,7 @@ class Strings {
     'totalOutstanding': 'Total outstanding',
     'noParcels': 'No parcels on your account',
     'noParcelsHint':
-        'Your parcel appears here once the land office has linked it to you.',
+        'Your parcels appear here after you look one up and add it to My parcels.',
     'noPayments': 'No payments yet',
     'loading': 'Loading...',
     'retry': 'Retry',

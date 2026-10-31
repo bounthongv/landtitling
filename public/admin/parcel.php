@@ -33,6 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
     }
     exit;
 }
+
+// Detach a citizen account from an owner (undo a claim made in the app).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlink_citizen') {
+    $ownerId = (int)($_POST['owner_id'] ?? 0);
+    $r = api_call('POST', 'owners.php', ['action' => 'unlink_citizen', 'owner_id' => $ownerId], $token);
+    header('Location: parcel.php?id=' . $parcel_id . '&msg=' . (!empty($r['ok']) ? 'unlinked' : 'unlink_error'));
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -51,6 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
   <main class="main">
     <?php if ($flash === 'recomputed'): ?><p class="flash ok"><?= te('Current-year obligation recomputed.') ?></p><?php endif; ?>
     <?php if ($flash === 'error'): ?><p class="flash err"><?= te('Recompute failed.') ?></p><?php endif; ?>
+    <?php if ($flash === 'unlinked'): ?><p class="flash ok"><?= te('Citizen account unlinked from this owner.') ?></p><?php endif; ?>
+    <?php if ($flash === 'unlink_error'): ?><p class="flash err"><?= te('Could not unlink the citizen account.') ?></p><?php endif; ?>
 
     <?php if (!$parcel): ?>
       <p class="empty"><?= te('Parcel not found.') ?></p>
@@ -82,10 +92,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recom
       <h2><?= te('Owners') ?></h2>
       <?php if (!$owners): ?><p class="empty"><?= te('No owners recorded.') ?></p><?php else: ?>
       <table>
-        <thead><tr><th><?= te('Name') ?></th><th><?= te('ID number') ?></th><th><?= te('Role') ?></th><th><?= te('Address') ?></th></tr></thead>
+        <thead><tr><th><?= te('Name') ?></th><th><?= te('ID number') ?></th><th><?= te('Role') ?></th><th><?= te('Address') ?></th><th><?= te('Citizen account') ?></th></tr></thead>
         <tbody>
         <?php foreach ($owners as $o): ?>
-          <tr><td><?= e($o['full_name']) ?></td><td><?= e($o['id_number'] ?? '—') ?></td><td><?= e(t($o['role'])) ?></td><td><?= e($o['address'] ?? '—') ?></td></tr>
+          <tr>
+            <td><?= e($o['full_name']) ?></td>
+            <td><?= e($o['id_number'] ?? '—') ?></td>
+            <td><?= e(t($o['role'])) ?></td>
+            <td><?= e($o['address'] ?? '—') ?></td>
+            <td>
+              <?php if (!empty($o['citizen_phone'])): ?>
+                <strong><?= e($o['citizen_phone']) ?></strong>
+                <form method="post" style="display:inline;margin-left:6px;"
+                      onsubmit="return confirm('<?= te('Unlink this citizen account from the owner?') ?>');">
+                  <input type="hidden" name="action" value="unlink_citizen">
+                  <input type="hidden" name="owner_id" value="<?= (int)$o['id'] ?>">
+                  <button class="btn" type="submit" style="padding:2px 8px;font-size:12px;"><?= te('Unlink') ?></button>
+                </form>
+              <?php else: ?>
+                <span style="color:#777;"><?= te('not linked') ?></span>
+              <?php endif; ?>
+            </td>
+          </tr>
         <?php endforeach; ?>
         </tbody>
       </table>

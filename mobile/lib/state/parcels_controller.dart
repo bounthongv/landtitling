@@ -2,11 +2,12 @@ import 'package:flutter/foundation.dart';
 
 import '../core/api_client.dart';
 import '../core/api_exception.dart';
+import '../core/strings.dart';
 import '../models/quote.dart';
 import '../models/parcel.dart';
 
-/// The citizen's own parcels (those an officer has linked to their account)
-/// and the lookup of any parcel by its number.
+/// The citizen's own parcels (those linked to their account) and the lookup of
+/// any parcel by its province → district → village → map sheet → parcel number.
 class ParcelsController extends ChangeNotifier {
   ParcelsController({required ApiClient api}) : _api = api;
 
@@ -23,6 +24,10 @@ class ParcelsController extends ChangeNotifier {
   ParcelQuote? quote;
   bool lookingUp = false;
   String? lookupError;
+
+  /// The explicit "add to my parcels" step after a lookup.
+  bool claiming = false;
+  String? claimError;
 
   Future<void> load({bool silent = false}) async {
     if (!silent) {
@@ -48,19 +53,25 @@ class ParcelsController extends ChangeNotifier {
     }
   }
 
-  /// Price one parcel by the map sheet + parcel number printed on the title.
+  /// Price one parcel using the five identity fields printed on the title.
   ///
   /// The server reads the area and the zone code from the parcel and works
   /// out the rate, so the amount is never computed on the phone.
   Future<ParcelQuote?> lookup(
     String parcelNo, {
-    String? mapRefNo,
+    required int provinceId,
+    required int districtId,
+    required int villageId,
+    required String mapRefNo,
     int? feeYear,
   }) {
-    final query = <String, String>{'parcel_no': parcelNo.trim()};
-    if (mapRefNo != null && mapRefNo.trim().isNotEmpty) {
-      query['map_ref_no'] = mapRefNo.trim();
-    }
+    final query = <String, String>{
+      'parcel_no': parcelNo.trim(),
+      'province_id': '$provinceId',
+      'district_id': '$districtId',
+      'village_id': '$villageId',
+      'map_ref_no': mapRefNo.trim(),
+    };
     return _fetchQuote(query, feeYear);
   }
 
@@ -95,7 +106,40 @@ class ParcelsController extends ChangeNotifier {
   void clearQuote() {
     quote = null;
     lookupError = null;
+    claimError = null;
     notifyListeners();
+  }
+
+  /// Link the looked-up parcel to the signed-in account ("add to my parcels").
+  ///
+  /// Looking a parcel up never links it; this is the explicit step. The server
+  /// refuses a parcel linked to another account or whose owner phone is not the
+  /// account phone, and audits every attempt.
+  Future<bool> claim() async {
+    final current = quote;
+    if (current == null || current.claimed) return false;
+    claiming = true;
+    claimError = null;
+    notifyListeners();
+    try {
+      await _api.postData('citizen_claim.php', {
+        'parcel_id': current.parcel.id,
+      });
+      quote = current.copyWith(claimed: true);
+      await load(silent: true);
+      return true;
+    } on ApiException catch (e) {
+      claimError = switch (e.code) {
+        'phone_mismatch' => Strings.t('claimPhoneMismatch'),
+        'claimed_by_other' => Strings.t('claimOwnedByOther'),
+        'no_owner' => Strings.t('claimNoOwner'),
+        _ => e.message,
+      };
+      return false;
+    } finally {
+      claiming = false;
+      notifyListeners();
+    }
   }
 
   /// Every year that appears on any of the citizen's parcels, newest first.

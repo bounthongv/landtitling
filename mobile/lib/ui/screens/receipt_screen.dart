@@ -41,8 +41,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           _error = null;
         });
       }
-    } catch (e) {
-      setState(() => _error = '$e');
+    } catch (_) {
+      // Camera/gallery refusals surface as PlatformException; the citizen needs
+      // an instruction, not the raw plugin error.
+      setState(() => _error = Strings.t('photoPermission'));
     }
   }
 

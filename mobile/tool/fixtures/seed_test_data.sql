@@ -19,12 +19,14 @@ DELETE FROM landfee.payments WHERE parcel_id IN (
   SELECT id FROM landfee.parcels WHERE parcel_no = '1301.001.001.0001');
 DELETE FROM landfee.parcels WHERE parcel_no = '1301.001.001.0001';
 
+-- phone is stored normalised (digits only, country code, no trunk zero), which
+-- is what citizen_auth.php looks up after normalising the typed number.
 INSERT INTO landfee.users (role, phone, email, is_active)
-  VALUES ('citizen', '+85620999999', 'citizen@test.la', TRUE) RETURNING id \gset
+  VALUES ('citizen', '856209999999', 'citizen@test.la', TRUE) RETURNING id \gset
 \set citizen_id :id
 
 INSERT INTO landfee.owners (full_name, phone, citizen_user_id, owner_type, district_id, village_id)
-  VALUES ('ທົວງ ທົວງ', '+85620999999', :citizen_id, 'individual', 1, 1) RETURNING id \gset
+  VALUES ('ທົວງ ທົວງ', '+856209999999', :citizen_id, 'individual', 1, 1) RETURNING id \gset
 \set owner_id :id
 
 INSERT INTO landfee.parcels (parcel_no, map_ref_no, district_id, village_id, area_sqm, zone_code, status, title_no)

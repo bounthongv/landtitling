@@ -39,6 +39,7 @@ class ParcelQuote {
     this.owners = const <Owner>[],
     this.obligation,
     this.history = const <Obligation>[],
+    this.claimed = false,
   });
 
   factory ParcelQuote.fromJson(Map<String, dynamic> json) {
@@ -68,6 +69,7 @@ class ParcelQuote {
                 .map(Obligation.fromJson)
                 .toList()
           : const <Obligation>[],
+      claimed: toBool(json['claimed']),
     );
   }
 
@@ -82,6 +84,21 @@ class ParcelQuote {
   final List<Owner> owners;
   final Obligation? obligation;
   final List<Obligation> history;
+
+  /// Whether this parcel is already linked to the signed-in citizen's account.
+  final bool claimed;
+
+  ParcelQuote copyWith({bool? claimed}) => ParcelQuote(
+    parcel: parcel,
+    feeYear: feeYear,
+    ratePerSqm: ratePerSqm,
+    rateFound: rateFound,
+    amountDue: amountDue,
+    owners: owners,
+    obligation: obligation,
+    history: history,
+    claimed: claimed ?? this.claimed,
+  );
 
   /// Nothing left to pay for this year.
   bool get isSettled => obligation != null && obligation!.isSettled;

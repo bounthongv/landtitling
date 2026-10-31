@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/validate.php';
 require_once __DIR__ . '/../../lib/fee.php';
+require_once __DIR__ . '/../../lib/phone.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_error('Method not allowed', 405, 'method_not_allowed');
@@ -28,36 +29,6 @@ if ($action !== 'phone/signin') {
 }
 
 $pdo = db_connect();
-
-/**
- * Normalise a Lao mobile number to digits + country code with no trunk zero:
- *   "020 555 1234"      -> 856205551234
- *   "+856 20 555 1234"  -> 856205551234
- *   "0205551234"        -> 856205551234
- * Returns null when the number is not a usable Lao mobile number.
- *
- * The trunk zero is the part that is easy to get wrong: the same citizen
- * writing their number three different ways must land on one account.
- */
-function citizen_normalise_phone($raw): ?string {
-    $digits = preg_replace('/\D+/', '', (string)$raw);
-    if ($digits === '' || $digits === null) {
-        return null;
-    }
-    // Country code already present: keep the national significant number.
-    if (strpos($digits, '856') === 0 && strlen($digits) > 3) {
-        $digits = substr($digits, 3);
-    }
-    // Drop the national trunk zero.
-    if (strlen($digits) > 1 && $digits[0] === '0') {
-        $digits = substr($digits, 1);
-    }
-    // Lao mobile: operator prefix 20/30/80 + 7 digits.
-    if (!preg_match('/^[238]0\d{7}$/', $digits)) {
-        return null;
-    }
-    return '856' . $digits;
-}
 
 $phoneIn = trim((string)($body['phone'] ?? ''));
 $phone   = citizen_normalise_phone($phoneIn);

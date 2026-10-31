@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/validate.php';
+require_once __DIR__ . '/../../lib/fee.php';
 
 $pdo = db_connect();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -39,8 +40,10 @@ if ($method === 'GET' && isset($_GET['parcel_id'])) {
             json_error('Parcel outside your district', 403, 'out_of_scope');
         }
     }
-    $st = $pdo->prepare("SELECT o.*, po.share_pct, po.role
-        FROM parcel_owners po JOIN owners o ON o.id = po.owner_id
+    $st = $pdo->prepare("SELECT o.*, po.share_pct, po.role, cu.phone AS citizen_phone
+        FROM parcel_owners po
+        JOIN owners o ON o.id = po.owner_id
+        LEFT JOIN users cu ON cu.id = o.citizen_user_id
         WHERE po.parcel_id = :pid ORDER BY o.full_name");
     $st->execute([':pid' => $pid]);
     $rows = $st->fetchAll();
@@ -70,6 +73,31 @@ if ($method === 'GET' && isset($_GET['id'])) {
 if ($method === 'POST' || $method === 'PUT') {
     require_staff_write($me);
     $in = read_json_body();
+
+    // Detach a citizen account from an owner (the district's side of a claim).
+    // The parcel and owner records stay; only the account link is cleared.
+    if ($method === 'POST' && ($in['action'] ?? '') === 'unlink_citizen') {
+        $ownerId = (int)($in['owner_id'] ?? 0);
+        if (!$ownerId) { json_error('owner_id is required', 400, 'missing_owner'); }
+        if ($scope['district_id'] !== null) {
+            $dst = $pdo->prepare("SELECT 1 FROM parcel_owners po
+                JOIN parcels p ON p.id = po.parcel_id
+                WHERE po.owner_id = :oid AND p.district_id = :did LIMIT 1");
+            $dst->execute([':oid' => $ownerId, ':did' => $scope['district_id']]);
+            if (!$dst->fetch()) { json_error('Owner outside your district', 403, 'out_of_scope'); }
+        }
+        $cur = $pdo->prepare("SELECT citizen_user_id FROM owners WHERE id = :id");
+        $cur->execute([':id' => $ownerId]);
+        $row = $cur->fetch();
+        if (!$row) { json_error('Owner not found', 404, 'not_found'); }
+        $previous = $row['citizen_user_id'] !== null ? (int)$row['citizen_user_id'] : null;
+        $pdo->prepare("UPDATE owners SET citizen_user_id = NULL, updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id")->execute([':id' => $ownerId]);
+        fee_audit($pdo, (int)($me['sub'] ?? 0), 'citizen_unlink', 'owner', $ownerId,
+            ['previous_citizen_user_id' => $previous]);
+        json_ok(['owner_id' => $ownerId, 'citizen_user_id' => null, 'previous_citizen_user_id' => $previous]);
+    }
+
     $f = owner_fields($in);
     if ($f['full_name'] === '') { json_error('Owner full name is required', 422, 'validation_failed', ['full_name' => 'owner full name is required']); }
     $ownerType = in_array($in['owner_type'] ?? '', $ownerTypes, true) ? $in['owner_type'] : 'individual';
