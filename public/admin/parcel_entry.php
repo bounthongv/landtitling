@@ -131,6 +131,31 @@ if ($editId > 0) {
     .cert-row .inline .ci { display: flex; align-items: center; gap: 6px; }
     .cert-row .inline .ci label { min-width: 0; font-weight: 500; font-size: 14px; color: #444; }
     .cert-row .inline .ci input, .cert-row .inline .ci select { width: 130px; }
+    /* Land location (#4–#6): three equal columns on a computer; on a phone the
+       three selects stack in one label column so none of them shifts sideways
+       when the row wraps. */
+    .cert-row.geo .inline {
+      flex: 1 1 300px;
+      display: grid;
+      /* Three columns when the row is wide enough; otherwise they wrap, but
+         always starting in the same column, so the selects stay aligned. */
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 6px 16px;
+    }
+    .cert-row.geo .inline .ci {
+      display: grid;
+      /* One fixed label track for all three, so a wrapped row keeps every
+         select on the same x — a max-content label would shift each one. */
+      grid-template-columns: 6em minmax(0, 1fr);
+      align-items: center;
+      gap: 6px;
+    }
+    .cert-row.geo .inline .ci select { width: 100%; min-width: 0; }
+    @media (max-width: 1024px) {
+      .cert-row.geo { display: block; }
+      .cert-row.geo > label { display: block; margin-bottom: 6px; }
+      .cert-row.geo .inline { flex: none; grid-template-columns: 1fr; gap: 8px; }
+    }
     .cert-row.wide { }
     @media (max-width: 768px) { .cert-row .val { min-width: 100%; } }
 
@@ -224,7 +249,7 @@ if ($editId > 0) {
               <div class="val req-field"><input type="text" name="ref_no" required></div>
             </div>
             <!-- #4-6: land location. #7 Unit moved into Optional details. -->
-            <div class="cert-row">
+            <div class="cert-row geo">
               <label><?= te('Parcel address') ?></label>
               <div class="inline">
                 <span class="ci req-field"><label><?= te('Province') ?></label><select name="province" id="prov-select" required><option value=""></option></select></span>
