@@ -40,7 +40,7 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 - **Root `api/*.php` stubs were deleted** (they called the removed `json_output()`); the live JSON API is `api/v1/*.php`. `public/index.html` is a stale "Phase 0 skeleton" page — ignore it.
 - **`zones_rates`** is the legacy district×road table name (not `zone_rates`); live fees use `zones` + `zone_rate_tiers`. The whole app runs under PostgreSQL schema `landfee` set via `search_path`.
 - **The seed creates no users.** `sav_officer` / `demo1234` exists only in the live DB; the local Docker DB has no officer (and historically a bad hash). Insert a user manually if you need local login.
-- **Same-origin URLs are path-based:** API base = `/api/v1`, officer UI = `/public/admin`, citizen UI = `/public/citizen`. `lib/config.php` derives the host from the request, so never hardcode `localhost` or the domain. Env overrides `API_BASE` and `UPLOADS` exist for local dev/testing (defaults unchanged in prod).
+- **Same-origin URLs are path-based:** API base = `/api/v1`, officer UI = `/admin`, citizen UI = `/citizen` (the web root is the repo's `public/`; `/public/admin/...` is a 404). `lib/config.php` derives the host from the request, so never hardcode `localhost` or the domain. Env overrides `API_BASE` and `UPLOADS` exist for local dev/testing (defaults unchanged in prod).
 - **`lib/auth.php` only reads the `Authorization` header.** Admin server pages decode the session JWT directly (see `admin/common.php::admin_user()`); the fallback header path is for CLI/cookie-less access.
 - **DB changes are manual on the server.** CI pull-only deploys code (git pull + chown + Apache restart); it never runs migrations/schema/seed. Migrations applied as `postgres` create tables/sequences owned by `postgres`; the web role (`landfee_web`) then needs explicit grants. Missing grants show up as empty admin tables plus empty-body 500s from the affected API endpoints.
 - **`.env` at repo root** is gitignored and loaded by `lib/config.php` for prod secrets. Don't commit credentials; don't hardcode them in `config.php`.
@@ -74,11 +74,11 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 - **Citizen:** email OTP — set `OTP_DEBUG=1` locally; the code is echoed in `data.debug_code`. `otp_send_email()` in `lib/otp.php` is the (currently MTA-dependent) email seam, so **no real email is sent without a mail server**.
 
 ## Verification (no automated tests exist)
-No test suite, composer, linter, or CI checks — verify manually: start the built-in server + Docker Postgres, exercise the API with curl/JSON, and click through `/public/admin/` and `/public/citizen/`. Phases/known open items are tracked in `docs/4-plan-land-fee-mvp.md` (§14).
+No test suite, composer, linter, or CI checks — verify manually: start the built-in server + Docker Postgres, exercise the API with curl/JSON, and click through `/admin/` and `/citizen/`. Phases/known open items are tracked in `docs/4-plan-land-fee-mvp.md` (§14).
 The one automated check is `mobile/tool/smoke_test.dart` (Dart) — it drives the Flutter app's own API client against a running API and asserts the citizen contract: map-sheet lookup, `ISSUED` → `SUBMITTED` after the receipt upload, cross-citizen isolation, and the officer verifying the submitted payment to `PAID`. It needs the citizen endpoints deployed (see `docs/9-citizen-app-api-contract.md`), migration 015 applied for `SUBMITTED`, and the fixture from `mobile/tool/fixtures/seed_test_data.sql`; it skips with exit code 2 when the endpoints are absent.
 
 ## Production
-- **Site:** `https://landtax.apis.com.la/public/admin/` (Apache, DocumentRoot `/var/www/html/landtax`, git checkout)
+- **Site:** `https://landtax.apis.com.la/admin/` (Apache, DocumentRoot `/var/www/html/landtax/public`, git checkout; `/` redirects to `/admin/index.php`)
 - **DB:** PostgreSQL `landfee` on apis.com.la, schema `landfee`
 - **Deploy:** GitHub Actions `deploy.yml` on push to `main` (needs `VPS_SSH_KEY`); restarts Apache to clear OPcache
 
