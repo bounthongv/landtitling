@@ -266,14 +266,103 @@
 
   .empty { color: var(--muted); text-align: center; padding: 40px 0; }
   .conf-badge { background: #e8f5e9; color: #2e7d32; border-radius: 999px; font-size: 11px; padding: 3px 10px; font-weight: 600; }
+  /* Scan review: parsed-field table with a per-field OCR confidence badge. */
+  .parsed-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  .parsed-table td { padding: 5px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .parsed-table td:first-child { width: 130px; color: #555; }
+  .conf { display: inline-block; min-width: 38px; text-align: center; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+  .conf-high { background: #c8e6c9; color: #1b5e20; }
+  .conf-mid  { background: #fff3c4; color: #7a5c00; }
+  .conf-low  { background: #ffcdd2; color: #b71c1c; }
+  .conf-none { background: #eee; color: #888; }
   .ocr-box { background: #f4f4f4; border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; white-space: pre-wrap; max-height: 260px; overflow: auto; }
 
+  /* Payment cards: details on the left, actions on the right; stacked on phones. */
+  .pay-split { display: grid; grid-template-columns: 1fr auto; gap: 12px 20px; align-items: start; }
+  .pay-split > * { min-width: 0; }
+  .pay-actions { display: flex; flex-direction: column; gap: 8px; align-self: start; }
+  /* Parcel entry: map/lookup column beside the entry form. */
+  .split-340 { display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+
   @media (max-width: 720px) {
-    .side { width: 70px; }
-    .side .brand, .side-nav a span, .side-foot { display: none; }
-    .side .lang-toggle a { padding: 6px 8px; font-size: 11px; }
-    .main { padding: 20px; }
-    .cards { grid-template-columns: 1fr; }
+    /* The sidebar becomes a sticky, horizontally scrolling top bar with labels:
+       icon-only rails are unusable for officers who do not know the screens. */
+    .app { flex-direction: column; }
+    .side {
+      width: 100%;
+      flex-direction: row;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    .side::before { display: none; }
+    .side .brand, .side-foot { display: none; }
+    .side .lang-toggle { flex: 0 0 auto; padding: 6px 8px; border-bottom: none; background: transparent; }
+    .side .lang-toggle a { padding: 5px 6px; font-size: 11px; }
+    .side-nav {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .side-nav::-webkit-scrollbar { display: none; }
+    .side-nav li { margin: 0; flex: 0 0 auto; }
+    .side-nav a { padding: 8px 10px; font-size: 13px; border-radius: 8px; white-space: nowrap; gap: 6px; }
+    .side-nav a:hover { transform: none; }
+    .side-nav .nav-icon { width: 18px; height: 18px; }
+    .side-nav .sub-nav {
+      display: flex; flex-direction: row; gap: 2px;
+      margin: 0; padding: 0; background: transparent; border: none;
+    }
+    .side-nav .sub-nav li { margin: 0; }
+    .side-nav .sub-nav a { padding: 8px; font-size: 12px; }
+    .side-nav .sub-nav a:hover { transform: none; }
+
+    .main { padding: 16px 12px 40px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 14px; margin-bottom: 16px; }
+    .cards { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .card { padding: 14px; }
     .grid { grid-template-columns: 1fr; }
+    .form-box { padding: 14px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .pay-split { grid-template-columns: 1fr; }
+    .pay-actions { flex-direction: row; flex-wrap: wrap; }
+    .split-340 { grid-template-columns: 1fr; }
+    .bank-strip { grid-template-columns: 1fr 1fr; }
+    .pay-tabs { gap: 6px; }
+    .pay-tabs a { padding: 10px 12px; font-size: 14px; flex: 1 1 auto; text-align: center; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    /* Wide registry tables scroll sideways instead of squashing their columns. */
+    table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+    th, td { padding: 10px 12px; font-size: 14px; }
+    .modal { width: 100%; max-width: 100%; max-height: 100dvh; border-radius: 0; padding: 18px; }
+    .modal-actions { flex-direction: column-reverse; }
+    .modal-actions .btn { width: 100%; }
+    .btn { min-height: 44px; }
+    .btn-sm { min-height: 36px; }
+    /* iOS zooms the whole page when a focused control is under 16px. */
+    input, select, textarea { font-size: 16px; }
   }
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#1b5e20">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Land Tax">
+<script>
+// Installable back-office. The worker caches only the manifest and icons; the
+// officer's authenticated pages are never stored on a shared phone (see sw.js).
+if ('serviceWorker' in navigator) {
+  addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>

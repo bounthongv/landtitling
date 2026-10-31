@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <title><?= te('Officer Login') ?> — Land Tax MVP</title>
 <style>
   body { font-family: 'Phetsarath OT', 'Noto Sans Lao', 'Segoe UI', sans-serif; background: #eef3ea; color: #1a2e1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-  .card { background: #1b5e20; padding: 36px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.2); width: 380px; color: #fff; font-family: 'Phetsarath OT', 'Noto Sans Lao', 'Segoe UI', sans-serif; }
+  .card { background: #1b5e20; padding: 36px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.2); width: 100%; max-width: 380px; margin: 16px; box-sizing: border-box; color: #fff; font-family: 'Phetsarath OT', 'Noto Sans Lao', 'Segoe UI', sans-serif; }
   .title-wrap { text-align: center; margin-bottom: 24px; }
   h1 { font-size: 26px; color: #fff; margin: 0 0 6px 0; }
   .sub { color: rgba(255,255,255,0.85); font-size: 15px; margin: 0; }
@@ -58,6 +58,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   .lang-switch a.active { background: rgba(255,255,255,0.25); color: #fff; font-weight: 700; }
   .lang-switch span { color: rgba(255,255,255,0.5); margin: 0 2px; }
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#1b5e20">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Land Tax">
+<script>
+if ('serviceWorker' in navigator) {
+  addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
 </head>
 <body>
 <div class="card">

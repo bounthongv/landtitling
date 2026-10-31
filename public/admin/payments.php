@@ -202,7 +202,7 @@ function render_payment_card(array $p, string $base): void
 {
     ?>
       <div class="form-box" style="padding:14px; border-left:4px solid #1b5e20;">
-        <div style="display:grid; grid-template-columns: 1fr auto; gap:8px 16px; align-items:start;">
+        <div class="pay-split">
           <div>
             <b><?= e($p['reference_no']) ?></b> — <?= te('Parcel') ?>
             <a href="<?= $base ?>/parcel.php?id=<?= (int)$p['parcel_id'] ?>"><?= e($p['parcel_no']) ?></a>
@@ -233,7 +233,7 @@ function render_payment_card(array $p, string $base): void
               <a href="<?= $base ?>/slip_print.php?id=<?= (int)$p['id'] ?>&slip=1" target="_blank" class="btn btn-blue btn-sm"><?= te('Print slip') ?></a>
             <?php endif; ?></p>
           </div>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <div class="pay-actions">
             <span class="pill pill-<?= e(strtolower($p['status'])) ?>"><?= e(t($p['status'])) ?></span>
             <?php if ($p['status'] === 'ISSUED' && in_array($p['method'], ['bank_transfer', 'mobile'], true) && empty($p['slip_path']) && empty($p['bank_ref'])): ?>
               <span class="pill pill-warn" style="background:#fdecea; border:1px solid #c62828; color:#b71c1c;"><?= te('Awaiting proof') ?></span>
@@ -439,7 +439,7 @@ function render_payment_card(array $p, string $base): void
         </p>
         <?php foreach ($bankQueue as $p): ?>
         <div id="card-<?= (int)$p['id'] ?>" class="form-box" style="border-left:4px solid #e6951a; margin-bottom:12px;">
-          <div style="display:grid; grid-template-columns:1fr auto; gap:12px 20px; align-items:start;">
+          <div class="pay-split">
             <div>
               <b style="font-size:16px;"><?= e($p['reference_no']) ?></b>
               <span class="pill pill-<?= e(strtolower($p['status'])) ?>" style="margin-left:8px;"><?= e(t($p['status'])) ?></span>
@@ -468,7 +468,7 @@ function render_payment_card(array $p, string $base): void
                 <p class="sub"><?= te('Verified via {method}', ['method' => e($p['verify_method'])]) ?><?php if ($p['paid_at']): ?> <?= te('on {date}', ['date' => e($p['paid_at'])]) ?><?php endif; ?></p>
               <?php endif; ?>
             </div>
-            <div style="display:flex; flex-direction:column; gap:8px; align-self:start;">
+            <div class="pay-actions">
               <?php if ($p['status'] === 'ISSUED' && empty($p['slip_path'])): ?>
                 <button class="js-upload-slip btn" type="button" data-payment-id="<?= (int)$p['id'] ?>"
                   style="border-color:#1565c0; color:#0d47a1; min-width:150px;">
