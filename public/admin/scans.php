@@ -242,7 +242,7 @@ $landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agric
         <?php endif; ?>
       </div>
     <?php else: ?>
-      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div class="grid" style="gap: 16px;">
         <div>
           <div class="form-box" style="border:2px solid #1b5e20;">
             <h3><?= te('Title scan #{id}', ['id' => (int)$scan['id']]) ?> &nbsp;<?= conf_badge($overallConf) ?></h3>
