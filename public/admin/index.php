@@ -2,7 +2,7 @@
 // public/admin/index.php — dashboard
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
-$role = $user['role'];
+if ($role === 'manager') { header('Location: monitor.php'); exit; }
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">

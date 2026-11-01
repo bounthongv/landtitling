@@ -55,7 +55,8 @@ if ($method === 'GET') {
     }
 
     if ($id) {
-        $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name
+        $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, d.province_id AS district_province_id,
+                v.name_lo AS village_name
             FROM parcels p JOIN districts d ON d.id = p.district_id JOIN villages v ON v.id = p.village_id
             WHERE p.id = :id");
         $stmt->execute([':id' => $id]);
@@ -71,6 +72,16 @@ if ($method === 'GET') {
             foreach ($rows as $row) {
                 if ((int)$row['district_id'] !== $scope['district_id']) {
                     json_error('Parcel outside your district', 403, 'out_of_scope');
+                }
+            }
+        }
+        if ($staff) {
+            $scopeProvince = staff_province_id($me, $pdo);
+            if ($scopeProvince) {
+                foreach ($rows as $row) {
+                    if ((int)$row['district_province_id'] !== $scopeProvince) {
+                        json_error('Parcel outside your province', 403, 'out_of_scope');
+                    }
                 }
             }
         }
@@ -106,9 +117,17 @@ if ($method === 'GET') {
     if ($title_no !== '') { $where[] = 'p.title_no ILIKE :title'; $params[':title'] = '%' . like_escape($title_no) . '%'; }
     if ($map_ref_no !== '') { $where[] = 'p.map_ref_no ILIKE :sheet'; $params[':sheet'] = '%' . like_escape($map_ref_no) . '%'; }
     if ($status) { $where[] = 'p.status = :status'; $params[':status'] = $status; }
-    if ($staff && $scope['district_id'] !== null) {
-        $where[] = 'p.district_id = :scope_district';
-        $params[':scope_district'] = $scope['district_id'];
+    // District staff see only their own district; province staff only their province.
+    if ($staff) {
+        if ($scope['district_id'] !== null) {
+            $where[] = 'p.district_id = :scope_district';
+            $params[':scope_district'] = $scope['district_id'];
+        }
+        $scopeProvince = staff_province_id($me, $pdo);
+        if ($scopeProvince) {
+            $where[] = 'd.province_id = :scope_province';
+            $params[':scope_province'] = $scopeProvince;
+        }
     }
 
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';

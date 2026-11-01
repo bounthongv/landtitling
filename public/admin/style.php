@@ -284,6 +284,114 @@
   /* Parcel entry: map/lookup column beside the entry form. */
   .split-340 { display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
 
+  /* ---- Manager monitoring overview (monitor.php) ------------------------ */
+  .monitor-head { margin-bottom: 16px; }
+  .monitor-year { display: flex; align-items: center; gap: 8px; }
+  .monitor-year label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .monitor-year select {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: #fff; font-size: 15px;
+  }
+  .monitor-filter-chip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; }
+  .monitor-filter-chip a { font-size: 14px; font-weight: 600; color: var(--green); text-decoration: none; }
+  .monitor-filter-chip a:hover { text-decoration: underline; }
+
+  .monitor-hero {
+    background: linear-gradient(135deg, #0d3b10 0%, #2e7d32 62%, #3c8a41 100%);
+    color: #fff; border-radius: 16px; padding: 22px 24px;
+    box-shadow: 0 10px 28px rgba(20,64,22,0.25); margin-bottom: 16px;
+  }
+  .monitor-hero .mh-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: rgba(255,255,255,0.75);
+  }
+  .monitor-hero .big {
+    font-size: clamp(32px, 7vw, 46px); font-weight: 700; letter-spacing: -1px;
+    line-height: 1.1; margin: 4px 0 2px; color: #fff;
+  }
+  .monitor-hero .mh-line { font-size: 15px; color: rgba(255,255,255,0.92); }
+  .monitor-hero .mh-line b { color: #ffe082; }
+  .monitor-hero .mh-sub {
+    display: block; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.6px; color: rgba(255,255,255,0.6); margin-top: 2px;
+  }
+  .mh-meta {
+    display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px;
+    font-size: 12.5px; color: rgba(255,255,255,0.8);
+  }
+  .mbar { height: 10px; border-radius: 999px; background: rgba(255,255,255,0.2); overflow: hidden; margin-top: 12px; }
+  .mbar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #f9a825, #ffd54f); }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi {
+    display: flex; flex-direction: column; gap: 3px;
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 4px solid var(--green-light); border-radius: 12px;
+    padding: 14px 16px; text-decoration: none; color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04); transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+  .kpi.alert { border-left-color: #c62828; }
+  .kpi .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
+  .kpi .value { font-size: 22px; font-weight: 700; color: var(--green); letter-spacing: -0.5px; line-height: 1.2; }
+  .kpi .value.sm { font-size: 18px; }
+  .kpi .value small { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+  .kpi .hint { font-size: 12.5px; color: var(--muted); }
+
+  .monitor-section {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  }
+  .monitor-section h2 { margin: 0 0 12px; font-size: 15px; font-weight: 700; }
+
+  .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .pc {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+    background: #fbfdfa; text-decoration: none; color: var(--text);
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .pc:hover { border-color: var(--green-light); background: #f3f8f1; }
+  .pc .n { font-size: 22px; font-weight: 700; color: var(--green); line-height: 1.1; }
+  .pc .hint { font-size: 12px; color: var(--muted); }
+
+  .breakdown-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+    padding: 10px 2px; border-bottom: 1px solid #eef1ec; text-decoration: none; color: var(--text);
+  }
+  .breakdown-row:last-of-type { border-bottom: none; }
+  a.breakdown-row:hover .name { color: var(--green); }
+  .breakdown-row .name { order: 1; flex: 1 1 auto; min-width: 90px; font-size: 14.5px; font-weight: 600; }
+  .breakdown-row .nums { order: 2; flex: 0 1 auto; text-align: right; font-size: 13px; color: var(--muted); }
+  .breakdown-row .nums b { color: var(--green); }
+  .breakdown-row .bar {
+    order: 3; flex: 1 1 100%; height: 7px; border-radius: 999px;
+    background: #e8efe5; overflow: hidden;
+  }
+  .breakdown-row .bar i { display: block; height: 100%; border-radius: 999px; background: var(--green-light); }
+  .nums-sub { display: block; font-size: 11.5px; color: var(--muted); }
+  .link-more { margin: 12px 0 0; font-size: 14px; }
+  .link-more a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .link-more a:hover { text-decoration: underline; }
+
+  .aging-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 2px; border-bottom: 1px solid #eef1ec; }
+  .aging-row:last-of-type { border-bottom: none; }
+  .aging-row .ar-label { flex: 0 0 92px; font-size: 13.5px; font-weight: 600; }
+  .aging-row .bar { flex: 1 1 60px; height: 7px; border-radius: 999px; background: #f5ecda; overflow: hidden; }
+  .aging-row .bar i { display: block; height: 100%; border-radius: 999px; background: #e6951a; }
+  .aging-row .ar-num { flex: 0 1 auto; text-align: right; font-size: 13px; color: var(--muted); }
+
+  .receipt-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px; padding: 10px 2px; border-bottom: 1px solid #eef1ec;
+  }
+  .receipt-row:last-of-type { border-bottom: none; }
+  .rr-left { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .rr-left a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .rr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; flex: 0 0 auto; }
+  .rr-right b { font-size: 14px; color: var(--green); }
+  .receipt-row .sub { margin: 0; font-size: 12px; }
+
   @media (max-width: 720px) {
     /* The sidebar becomes a sticky, horizontally scrolling top bar with labels:
        icon-only rails are unusable for officers who do not know the screens. */
@@ -340,6 +448,19 @@
     .pay-tabs { gap: 6px; }
     .pay-tabs a { padding: 10px 12px; font-size: 14px; flex: 1 1 auto; text-align: center; }
     .toolbar { flex-direction: column; align-items: stretch; }
+    /* Monitoring overview: two KPI columns, full-width year picker, tighter cards. */
+    .monitor-year { width: 100%; justify-content: space-between; }
+    .monitor-year select { flex: 1 1 auto; }
+    .monitor-hero { padding: 18px; border-radius: 14px; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi { padding: 12px; }
+    .kpi .value { font-size: 19px; }
+    .kpi .value.sm { font-size: 16px; }
+    .monitor-section { padding: 14px; }
+    .pipeline { grid-template-columns: 1fr 1fr; }
+    .breakdown-row .nums { flex: 1 1 100%; text-align: left; }
+    .receipt-row { flex-wrap: wrap; }
+    .rr-right { align-items: flex-start; text-align: left; }
     /* Wide registry tables scroll sideways instead of squashing their columns. */
     table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
     th, td { padding: 10px 12px; font-size: 14px; }

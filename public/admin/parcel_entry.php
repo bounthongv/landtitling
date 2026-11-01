@@ -40,8 +40,9 @@
 
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
+if ($is_manager) { header('Location: monitor.php'); exit; }   // data entry is not a manager screen
 $role = $user['role'];
-if (!in_array($role, ['officer','admin','manager'], true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
+if (!in_array($role, ['officer','admin'], true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
 
 // ---- Edit mode: fetch existing parcel if ?id= is provided ----

@@ -2,6 +2,7 @@
 // public/admin/bank_imports.php — import bank statements, review match results, override
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
+if ($is_manager) { header('Location: monitor.php'); exit; }   // statement import is a data-entry screen
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
 

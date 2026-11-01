@@ -3,6 +3,7 @@
 // and citizen accounts (read-only, plus linking a login to an owner record).
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
+if ($is_manager) { header('Location: monitor.php'); exit; }   // account management is not a manager screen
 $allowedRoles = ['admin', 'officer', 'manager'];
 if (!in_array($role, $allowedRoles, true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];

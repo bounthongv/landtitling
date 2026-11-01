@@ -5,6 +5,12 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
 
+// Managers are read-only: a parcel page is a view, never a data-entry form.
+if ($is_manager && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    http_response_code(403);
+    exit(t('Managers have read-only access.'));
+}
+
 $parcel_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($parcel_id <= 0) { header('Location: parcels.php'); exit; }
 
@@ -103,12 +109,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlin
             <td>
               <?php if (!empty($o['citizen_phone'])): ?>
                 <strong><?= e($o['citizen_phone']) ?></strong>
+                <?php if (!$is_manager): ?>
                 <form method="post" style="display:inline;margin-left:6px;"
                       onsubmit="return confirm('<?= te('Unlink this citizen account from the owner?') ?>');">
                   <input type="hidden" name="action" value="unlink_citizen">
                   <input type="hidden" name="owner_id" value="<?= (int)$o['id'] ?>">
                   <button class="btn" type="submit" style="padding:2px 8px;font-size:12px;"><?= te('Unlink') ?></button>
                 </form>
+                <?php endif; ?>
               <?php else: ?>
                 <span style="color:#777;"><?= te('not linked') ?></span>
               <?php endif; ?>
@@ -124,11 +132,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlin
       <h2><?= te('Obligation history') ?></h2>
       <?php if (!$obligations): ?>
         <p class="empty"><?= te('No obligations yet.') ?></p>
+        <?php if (!$is_manager): ?>
         <form method="post">
           <input type="hidden" name="action" value="recompute">
           <input type="hidden" name="fee_year" value="<?= $thisYear ?>">
           <button class="btn btn-green" type="submit"><?= te('Assess {year} obligation', ['year' => $thisYear]) ?></button>
         </form>
+        <?php endif; ?>
       <?php else: ?>
       <table>
         <thead><tr><th><?= te('Year') ?></th><th><?= te('Rate (kip/m²)') ?></th><th><?= te('Area (m²)') ?></th><th><?= te('Due') ?></th><th><?= te('Paid') ?></th><th><?= te('Penalty') ?></th><th><?= te('Status') ?></th><th><?= te('Due date') ?></th><th></th></tr></thead>
@@ -144,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlin
             <td><span class="pill pill-<?= e(strtolower($o['status'])) ?>"><?= e(t($o['status'])) ?></span></td>
             <td><?= e($o['due_date']) ?></td>
             <td>
-              <?php if ((float)$o['amount_paid'] <= 0): ?>
+              <?php if (!$is_manager && (float)$o['amount_paid'] <= 0): ?>
               <form method="post" style="display:inline">
                 <input type="hidden" name="action" value="recompute">
                 <input type="hidden" name="fee_year" value="<?= e($o['fee_year']) ?>">
@@ -158,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlin
       </table>
       <?php endif; ?>
     </div>
-    <?php if (in_array($parcel['status'] ?? '', ['draft', 'confirmed'], true)): ?>
+    <?php if (!$is_manager && in_array($parcel['status'] ?? '', ['draft', 'confirmed'], true)): ?>
     <div class="form-actions" style="margin-top:16px;">
       <a href="<?= $base ?>/parcel_entry.php?id=<?= (int)$parcel['id'] ?>" class="btn btn-gold"><?= te('Edit parcel') ?></a>
     </div>

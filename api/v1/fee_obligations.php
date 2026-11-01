@@ -23,8 +23,8 @@ if ($method === 'GET') {
     $params = [];
     if ($fee_year)    { $where[] = 'o.fee_year = :fy';       $params[':fy'] = $fee_year; }
     if ($province_id) {
-        $where[] = 'o.district_id IN (SELECT id FROM districts WHERE province_id = :pid)';
-        $params[':pid'] = $province_id;
+        $where[] = 'o.district_id IN (SELECT id FROM districts WHERE province_id = :prov_id)';
+        $params[':prov_id'] = $province_id;
     }
     if ($district_id) { $where[] = 'o.district_id = :did';   $params[':did'] = $district_id; }
     if ($parcel_id)   { $where[] = 'o.parcel_id = :pid';     $params[':pid'] = $parcel_id; }
@@ -41,6 +41,12 @@ if ($method === 'GET') {
     if ($scope['district_id'] !== null) {
         $where[] = 'o.district_id = :scope_did';
         $params[':scope_did'] = $scope['district_id'];
+    }
+    // Province-level staff see only their own province (no cross-province drill-down).
+    $scopeProvince = staff_province_id($me, $pdo);
+    if ($scopeProvince) {
+        $where[] = 'o.district_id IN (SELECT id FROM districts WHERE province_id = :scope_prov)';
+        $params[':scope_prov'] = $scopeProvince;
     }
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 

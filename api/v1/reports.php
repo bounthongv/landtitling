@@ -22,14 +22,12 @@ $to       = trim((string)($_GET['to'] ?? ''));
 $actor    = trim((string)($_GET['actor'] ?? ''));
 $action   = trim((string)($_GET['action'] ?? ''));
 
-// Province-level users are scoped to Savannakhet (id=1) until multi-province rollout.
-// Super admin sees all; district users are already district-scoped.
-$level = $me['level'] ?? 'district';
-$is_super = !empty($me['is_super']);
-if (!$is_super && $level === 'province') {
-    $province = 1; // Savannakhet
-} elseif (!$is_super) {
-    $province = 0; // district staff: the district scope filter already restricts them
+// Province-level staff are scoped to Savannakhet until the multi-province rollout;
+// district staff are already district-scoped. Super admins may still narrow by the
+// `province_id` filter parsed above.
+$scopeProvince = staff_province_id($me, $pdo);
+if ($scopeProvince || empty($me['is_super'])) {
+    $province = $scopeProvince;
 }
 
 /** Shared parcel-side filters (parcel join alias `par`). */

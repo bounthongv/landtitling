@@ -44,6 +44,10 @@ Level `province` (no district) — see all records in the province; only the adm
 | snnk_manager | demo1234 | manager | province | — | Read-only everything, no accounts |
 | snnk_officer | demo1234 | officer | province | — | Read-only everything, no accounts |
 
+## Manager landing page
+
+Manager accounts sign in to the read-only **Overview** (`/admin/monitor.php`) — collection progress, receipt status, land area and arrears, scoped to the manager's district (or the whole province for province managers). Data entry stays with district admin/officer accounts, and manager sessions are redirected away from the data-entry screens.
+
 ## Permission summary
 
 | Role | Level | Records | Accounts | Scope |

@@ -7,10 +7,17 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
 
+// Managers are read-only: the ledger is the only payments screen they see.
+if ($is_manager && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    http_response_code(403);
+    exit(t('Managers have read-only access.'));
+}
+
 // Active tab comes from the URL (POST forms post back to the same URL, so the
 // tab survives every action). Counter is the default — that is the daily action.
 $tab = $_GET['tab'] ?? 'counter';
 if (!in_array($tab, ['counter', 'bank', 'all'], true)) { $tab = 'counter'; }
+if ($is_manager) { $tab = 'all'; }
 
 $status = $_GET['status'] ?? 'ISSUED';
 $methodF = $_GET['method'] ?? '';
@@ -200,6 +207,7 @@ if ($tab === 'bank') {
 /** One payment card, shared by the bank review tab and the All ledger. */
 function render_payment_card(array $p, string $base): void
 {
+    $readOnly = (($GLOBALS['role'] ?? '') === 'manager');
     ?>
       <div class="form-box" style="padding:14px; border-left:4px solid #1b5e20;">
         <div class="pay-split">
@@ -238,6 +246,7 @@ function render_payment_card(array $p, string $base): void
             <?php if ($p['status'] === 'ISSUED' && in_array($p['method'], ['bank_transfer', 'mobile'], true) && empty($p['slip_path']) && empty($p['bank_ref'])): ?>
               <span class="pill pill-warn" style="background:#fdecea; border:1px solid #c62828; color:#b71c1c;"><?= te('Awaiting proof') ?></span>
             <?php endif; ?>
+            <?php if (!$readOnly): ?>
             <?php if (in_array($p['status'], ['ISSUED', 'SUBMITTED'], true)): ?>
               <form method="post" style="display:inline-flex; flex-wrap:wrap; gap:6px; align-items:flex-end;">
                 <input type="hidden" name="do_action" value="verify">
@@ -270,6 +279,7 @@ function render_payment_card(array $p, string $base): void
                 <button class="btn btn-gold btn-sm" type="submit"><?= te('Waive') ?></button>
               </form>
             <?php endif; ?>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -300,11 +310,13 @@ function render_payment_card(array $p, string $base): void
     <h1><?= te('Payments') ?></h1>
     <p class="sub"><?= te('Counter records every in-office payment (cash, cheque, bank, mobile). Slips issued by the citizen mobile app are reviewed on the Mobile app tab.') ?></p>
 
+    <?php if (!$is_manager): ?>
     <div class="pay-tabs">
       <a href="?tab=counter" class="<?= $tab === 'counter' ? 'active' : '' ?>"><?= te('Office counter') ?></a>
       <a href="?tab=bank" class="<?= $tab === 'bank' ? 'active' : '' ?>"><?= te('Mobile app') ?></a>
       <a href="?tab=all" class="<?= $tab === 'all' ? 'active' : '' ?>"><?= te('All payments') ?></a>
     </div>
+    <?php endif; ?>
 
     <?php if ($msg): ?>
       <p class="flash <?= $msgType === 'err' ? 'err' : 'ok' ?>"><?= e($msg) ?>

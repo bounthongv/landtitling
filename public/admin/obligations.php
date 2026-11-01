@@ -5,6 +5,12 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
 
+// Managers are read-only: they can filter and read, never generate or adjust.
+if ($is_manager && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    http_response_code(403);
+    exit(t('Managers have read-only access.'));
+}
+
 $fee_year    = isset($_GET['fee_year'])    ? (int)$_GET['fee_year']    : 0;
 $province_id = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
 $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
@@ -153,6 +159,7 @@ $msg = $_GET['msg'] ?? '';
       </form>
     </div>
 
+    <?php if (!$is_manager): ?>
     <div class="form-box">
       <h2><?= te('Generate obligations') ?></h2>
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
@@ -184,8 +191,9 @@ $msg = $_GET['msg'] ?? '';
       </form>
       <p class="sub"><?= te('Safe to re-run: existing unpaid obligations are updated to the current rate; paid ones are left alone.') ?></p>
     </div>
+    <?php endif; ?>
 
-    <?php if ($penaltyRow): ?>
+    <?php if (!$is_manager && $penaltyRow): ?>
     <div class="form-box">
       <h2><?= te('Adjust penalty') ?> — <?= te('Parcel') ?> <?= e($penaltyRow['parcel_no']) ?> (<?= (int)$penaltyRow['fee_year'] ?>)</h2>
       <p class="sub">
@@ -249,7 +257,7 @@ $msg = $_GET['msg'] ?? '';
             <?php if ($o['penalty_override'] !== null): ?>
               <span class="sub">(<?= (float)$o['penalty'] > 0 ? te('reduced') : te('waived') ?>)</span>
             <?php endif; ?>
-            <?php if (in_array($o['status'], ['UNPAID', 'PARTIAL'], true) && (int)$o['days_overdue'] > 0): ?>
+            <?php if (!$is_manager && in_array($o['status'], ['UNPAID', 'PARTIAL'], true) && (int)$o['days_overdue'] > 0): ?>
               <br><a href="obligations.php?<?= e(http_build_query(array_merge($qs, ['penalty' => (int)$o['id']]))) ?>"><?= te('Adjust') ?></a>
             <?php endif; ?>
           </td>

@@ -375,12 +375,17 @@ if ($method === 'GET') {
     if ($feeYear)  { $where[] = 'pay.fee_year = :fy'; $params[':fy'] = $feeYear; }
     if ($paidAfter !== '') { $where[] = 'pay.paid_at >= :pa'; $params[':pa'] = $paidAfter; }
     if ($district) { $where[] = 'par.district_id = :did'; $params[':did'] = $district; }
-    // District staff see only their own district's payments.
+    // District staff see only their own district's payments; province staff only their province.
     if ($me['role'] !== 'citizen') {
         $scope = staff_scope($me);
         if ($scope['district_id'] !== null) {
             $where[] = 'par.district_id = :scope_did';
             $params[':scope_did'] = $scope['district_id'];
+        }
+        $scopeProvince = staff_province_id($me, $pdo);
+        if ($scopeProvince) {
+            $where[] = 'par.district_id IN (SELECT id FROM districts WHERE province_id = :scope_province)';
+            $params[':scope_province'] = $scopeProvince;
         }
     }
     if ($me['role'] === 'citizen') {

@@ -134,6 +134,24 @@ function require_staff_write(array $payload) {
 }
 
 /**
+ * Province id a province-level staff member is pinned to (0 = no restriction).
+ *
+ * Province staff currently serve Savannakhet only. Its numeric id differs
+ * between the legacy single-province install (id 1) and the national geography
+ * seed (id 13), so resolve the official province code — never a raw id.
+ * District staff are already district-scoped and super admins see everything.
+ */
+function staff_province_id(array $payload, PDO $pdo): int
+{
+    $scope = staff_scope($payload);
+    if (!empty($payload['is_super']) || $scope['district_id'] !== null) {
+        return 0;
+    }
+    $pid = (int)($pdo->query("SELECT id FROM provinces WHERE code = '13'")->fetchColumn() ?: 0);
+    return $pid > 0 ? $pid : (int)$pdo->query("SELECT MIN(id) FROM provinces")->fetchColumn();
+}
+
+/**
  * District filter clause + params for a query on the given table alias.
  * Province-level staff (district_id null) get an empty clause (no filter).
  */
