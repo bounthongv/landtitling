@@ -1,10 +1,19 @@
-# Citizen App — API Contract (for the backend owner)
+# Citizen App — API Contract
 
-The citizen Flutter app (`mobile/`) needs three endpoints that do not exist
-yet. This document is the contract: exact requests, exact responses, and the
-one schema change needed. It is written so it can be implemented without
-touching `api/v1/auth.php`, `api/v1/payments.php` or any other file that
-already has an owner — the three endpoints below are **new files**.
+The citizen Flutter app (`mobile/`) talks to four citizen endpoints, all of
+which are implemented in `api/v1/`:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `citizen_auth.php` | Sign in by phone number (first use creates the account). |
+| `parcel_fee.php` | Price one parcel the citizen names by its full registry identity. |
+| `citizen_claim.php` | Explicitly add a looked-up parcel to "my parcels". |
+| `citizen_payments.php` | Issue a slip, upload the receipt, list the citizen's payments. |
+
+This document is the contract: exact requests, exact responses, and the schema
+changes needed. The endpoints are **new files** written so they do not touch
+`api/v1/auth.php`, `api/v1/payments.php` or any other file that already has an
+owner.
 
 The design decisions behind them are in
 [`8-citizen-flutter-app-plan.md`](8-citizen-flutter-app-plan.md).
@@ -15,7 +24,7 @@ The design decisions behind them are in
 
 | Existing file | Why not reuse it |
 |---------------|------------------|
-| `api/v1/auth.php` | Citizen email-OTP sign-in and the officer password login. The app signs in by **phone + PIN** now, and this file has another owner. |
+| `api/v1/auth.php` | Citizen email-OTP sign-in and the officer password login. The app signs in by **phone number only**, and this file has another owner. |
 | `api/v1/payments.php` | The officer queue and the web portal's endpoint. The app needs a citizen-scoped variant that also records **who made the payment**. |
 | `api/v1/fee_obligations.php` | The officer's obligation list. The app needs to price **one parcel** that a citizen names. |
 | `api/v1/parcels.php` | The citizen branch is fine, but the app wants the *price* with the parcel, in one call. |
@@ -25,7 +34,7 @@ The design decisions behind them are in
 ## 0. Schema changes
 
 ```sql
--- sql/migrations/004_citizen_payments.sql
+-- sql/migrations/009_citizen_payments.sql
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS citizen_user_id INT
   REFERENCES users(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_payments_citizen ON payments(citizen_user_id);
@@ -42,6 +51,9 @@ they know the parcel number from their land title. The payment has to be
 attributed to the citizen who made it, or it never appears in their own
 history. `payments.payer_owner_id` cannot do this: it points at `owners.id`,
 not `users.id`.
+
+Claiming needs no new table: `owners.citizen_user_id` already links an owner to
+a citizen, and `my_parcels.php` filters on it (§3).
 
 **Backfill** (so existing citizens keep their history):
 
@@ -131,7 +143,7 @@ area and the zone code from the parcel and looks up the rate, so the amount is
 always the server's calculation — the app never computes a fee and the client
 cannot influence it.
 
-### `GET parcel_fee.php?map_ref_no=A250-038&parcel_no=1301.001.001.0001&fee_year=2026`
+### `GET parcel_fee.php?province_id=1&district_id=1&village_id=1&map_ref_no=A250-038&parcel_no=1301.001.001.0001&fee_year=2026`
 
 Bearer token required (`citizen`, `officer` or `admin`).
 
@@ -139,15 +151,22 @@ Bearer token required (`citizen`, `officer` or `admin`).
 
 - One parcel per call. No listing, no filters — the land registry cannot be
   walked.
-- The parcel's identity is **map sheet + parcel number**: a number can repeat on
-  another sheet (`uq_parcels_identity`). Give `map_ref_no` with `parcel_no`, or
-  give `parcel_id` alone.
+- The parcel's identity is the one printed on the title: **province + district +
+  village + map sheet + parcel number**. A number (and a sheet) can repeat in
+  another village, so the location is required too. Give `parcel_id` alone only
+  when the app already has an id (e.g. re-opening a parcel from "my parcels" or
+  right after a lookup).
+- Without the location with a number → `missing_location` (400). Without the map
+  sheet → `missing_map_sheet` (400). Without a number and a `title_no` →
+  `missing_parcel` (400).
 - **Exact** parcel number match (the sheet is compared case-insensitively,
   trimmed). A substring match would let anyone page through the registry one
   character at a time.
 - If the number still matches more than one parcel → `ambiguous_parcel` (400).
 - No parcel → `parcel_not_found` (404).
 - `fee_year` defaults to the current year.
+- Looking a parcel up **links nothing**: `claimed` only reports whether the
+  parcel is already linked to the signed-in citizen (see §3).
 
 **Response**
 
@@ -156,12 +175,14 @@ Bearer token required (`citizen`, `officer` or `admin`).
   "parcel": {
     "parcel_id": 4, "parcel_no": "1301.001.001.0001", "sub_parcel_no": null,
     "map_ref_no": "A250-038",
-    "area_sqm": 1250.50, "zone_code": "A7", "title_no": "0102/1301/00342",
+    "area_sqm": 1250.50, "zone_code": "A7", "road_category": "branch",
+    "title_no": "0102/1301/00342", "title_type": "titled", "issued_date": null,
     "status": "confirmed",
     "district_name": "ນະຄອນໄກສອນພົມວິຫານ", "village_name": "ທ່າຫົວຊ້າງ"
   },
   "owners": [ { "id": 4, "full_name": "ທົວງ ທົວງ", "id_number": null,
                 "role": "owner", "share_pct": "100.00" } ],
+  "claimed": false,
   "fee_year": 2026,
   "rate_per_sqm": 140000,
   "rate_found": true,
@@ -172,6 +193,10 @@ Bearer token required (`citizen`, `officer` or `admin`).
   "history": [ { "fee_year": 2025, "status": "PAID", "outstanding": "0.00" } ]
 }}
 ```
+
+`claimed` is `true` when `owners.citizen_user_id` on one of the parcel's owners
+is the signed-in user. It is what the app uses to show "already in my parcels"
+instead of the claim button.
 
 `obligation` is `null` when the parcel has not been assessed for that year
 yet — the amount is still returned, from the zone rate.
@@ -196,7 +221,59 @@ and is idempotent on (parcel_id, fee_year).
 
 ---
 
-## 3. `api/v1/citizen_payments.php` — the citizen's own payments
+## 3. `api/v1/citizen_claim.php` — add a parcel to my parcels
+
+Looking a parcel up does not link it to the account (a citizen may price and pay
+for any parcel, see §4). This endpoint is the explicit "add to my parcels"
+step: the app offers it after a lookup when `claimed` is `false`.
+
+### `POST citizen_claim.php`
+
+```json
+{ "parcel_id": 4 }
+```
+
+Bearer token required (`citizen`). Only `parcel_id` is accepted — the parcel
+must have been looked up first, so a claim can never be made against a number
+typed straight into this endpoint.
+
+**Behaviour**
+
+1. Lock the parcel's owner links (`FOR UPDATE OF o`), so two sign-ins cannot
+   claim at once.
+2. No owner recorded → `no_owner` (409).
+3. Any owner already linked to *this* citizen → success (`claimed: true`); the
+   call is idempotent.
+4. Any owner linked to *another* citizen → `claimed_by_other` (409).
+5. Prefer an owner whose recorded phone normalises to the citizen's own number
+   (`lib/phone.php`). If owners carry phones and none matches → `phone_mismatch`
+   (409), so knowing the certificate alone does not take over a record.
+6. If no owner has a phone recorded, link the principal owner (role `owner` with
+   the largest share).
+7. Link by setting `owners.citizen_user_id` — the parcel row is untouched, and
+   `my_parcels.php` filters on that column. Every new link and every refusal is
+   audited.
+
+**Response** (201 on a new link, 200 when it was already linked)
+
+```json
+{ "ok": true, "data": { "parcel_id": 4, "owner_id": 4, "claimed": true } }
+```
+
+| Code | HTTP | When |
+|------|------|------|
+| `missing_parcel` | 400 | `parcel_id` is absent or 0. |
+| `no_owner` | 409 | The parcel has no owner recorded. |
+| `claimed_by_other` | 409 | An owner is already linked to a different citizen. |
+| `phone_mismatch` | 409 | Every owner has a phone, and none is the citizen's. |
+
+**Unlinking** is an officer action, not a citizen one: `public/admin/parcel.php`
+offers it (`owners.php action=unlink_citizen`, audited). That is why the
+`phone_mismatch` message tells the citizen to contact the district land office.
+
+---
+
+## 4. `api/v1/citizen_payments.php` — the citizen's own payments
 
 ### `POST citizen_payments.php` — issue a payment slip
 
@@ -275,14 +352,14 @@ if (!$owns && !$made) { json_error('Forbidden', 403, 'forbidden'); }
 ```
 
 The "owns" part is only about *whose* payment record is being touched — it
-does not restrict who may **pay**: anyone may pay for any parcel (see §3).
+does not restrict who may **pay**: anyone may pay for any parcel (see §4).
 
 `api/v1/payments.php` has no check like this on its receipt branch — worth
 adding there too.
 
 ---
 
-## 4. The bank QR
+## 5. The bank QR
 
 The citizen is meant to scan the QR **with their banking app** (BCEL One or
 any other Lao bank app; the banks are interlinked, so a payment made in one
@@ -324,18 +401,21 @@ and will not work offline. The QR image should be generated locally.
 
 ---
 
-## 5. What the app does with all this
+## 6. What the app does with all this
 
 ```
 Sign in (phone number)
    └─ Home
-       ├─ "ຄົ້ນຫາຕອນດິນ"  enter the map sheet + parcel no  → parcel_fee.php → the fee
+       ├─ "ຄົ້ນຫາຕອນດິນ"  province → district → village → map sheet → parcel no
+       │                                              → parcel_fee.php → the fee
+       │                                              → "add to my parcels"
+       │                                                → citizen_claim.php
        │                                              → pay  → citizen_payments.php
        │                                              → slip (reference + QR)
        │                                              → photograph the bank slip
        │                                              → citizen_payments.php?receipt=1
        │                                                → SUBMITTED (with the district)
-       ├─ "ຕອນດິນຂອງຂ້ອຍ"    the parcels an officer has linked to the account
+       ├─ "ຕອນດິນຂອງຂ້ອຍ"    the parcels the citizen has claimed
        └─ "ການຊຳລະຂອງຂ້ອຍ"  the payments made, and their status
 ```
 

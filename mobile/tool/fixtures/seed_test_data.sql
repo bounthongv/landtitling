@@ -1,22 +1,33 @@
 -- Test data for the citizen app smoke test (`dart run tool/smoke_test.dart`).
 --
--- Creates: a citizen user, an owner linked to them, a parcel, the parcel-owner
--- link, the fee years, an unpaid 2026 obligation and a settled 2025 one.
+-- Creates: a citizen user, an owner (NOT linked to that user yet), a parcel,
+-- the parcel-owner link, the fee years, an unpaid 2026 obligation and a settled
+-- 2025 one. The smoke test exercises the claim itself: it looks the parcel up,
+-- claims it as this citizen (the owner's phone matches the account's), and then
+-- pays the 2026 tax. Re-run this file before every smoke test, because the test
+-- links the owner and settles the obligation.
 -- Safe to re-run: it removes the previous fixture first.
 --
---   psql -d landfee_a2test -f tool/fixtures/seed_test_data.sql
+--   psql -d landfee -f tool/fixtures/seed_test_data.sql
 --
 \set ON_ERROR_STOP on
 SET search_path TO landfee;
 
--- Remove the previous fixture (owners first: they reference the user).
+-- Remove the previous fixture (payments first: they reference the parcel and
+-- the citizen, and nothing cascades to them).
+DELETE FROM landfee.payments
+  WHERE parcel_id IN (
+      SELECT id FROM landfee.parcels WHERE parcel_no = '1301.001.001.0001')
+     OR citizen_user_id IN (
+      SELECT id FROM landfee.users
+       WHERE email IN ('citizen@test.la', 'stranger@test.la'));
 DELETE FROM landfee.owners
-  WHERE citizen_user_id IN (SELECT id FROM landfee.users WHERE email = 'citizen@test.la');
+  WHERE phone = '+856209999999'
+     OR citizen_user_id IN (
+      SELECT id FROM landfee.users WHERE email = 'citizen@test.la');
 DELETE FROM landfee.users WHERE email IN ('citizen@test.la', 'stranger@test.la');
 -- The parcel is unique on (district, village, parcel_no); drop the old one
--- (payments first: they reference the parcel).
-DELETE FROM landfee.payments WHERE parcel_id IN (
-  SELECT id FROM landfee.parcels WHERE parcel_no = '1301.001.001.0001');
+-- (its obligations and owner links cascade with it).
 DELETE FROM landfee.parcels WHERE parcel_no = '1301.001.001.0001';
 
 -- phone is stored normalised (digits only, country code, no trunk zero), which
@@ -25,8 +36,10 @@ INSERT INTO landfee.users (role, phone, email, is_active)
   VALUES ('citizen', '856209999999', 'citizen@test.la', TRUE) RETURNING id \gset
 \set citizen_id :id
 
-INSERT INTO landfee.owners (full_name, phone, citizen_user_id, owner_type, district_id, village_id)
-  VALUES ('ທົວງ ທົວງ', '+856209999999', :citizen_id, 'individual', 1, 1) RETURNING id \gset
+-- Deliberately NOT linked: the smoke test claims the parcel through
+-- citizen_claim.php, which matches the owner's phone with the account's phone.
+INSERT INTO landfee.owners (full_name, phone, owner_type, district_id, village_id)
+  VALUES ('ທົວງ ທົວງ', '+856209999999', 'individual', 1, 1) RETURNING id \gset
 \set owner_id :id
 
 INSERT INTO landfee.parcels (parcel_no, map_ref_no, district_id, village_id, area_sqm, zone_code, status, title_no)

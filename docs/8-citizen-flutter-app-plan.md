@@ -3,14 +3,14 @@
 Plan for a native Flutter app that lets a citizen pay the annual land tax from a
 phone, on top of the **existing** Land Fee JSON API (`api/v1/*`).
 
-Status: plan approved in principle; **M1–M7 implemented** in `mobile/`. The app
-now signs in by **phone number** (no OTP, no PIN) and prices a parcel the
-citizen names (see §2.2 and the decisions in §10). The three API endpoints the
-app needs are **specified in
-[`9-citizen-app-api-contract.md`](9-citizen-app-api-contract.md)**
-and are not in the repository yet — the backend is being worked on by someone
-else, so the app is built against the contract and the endpoints are added
-separately. M8 (harden + release) not started.
+Status: plan approved in principle; **M1–M7 implemented and verified** in
+`mobile/`. The app signs in by **phone number** (no OTP, no PIN), identifies a
+parcel by province → district → village → map sheet → parcel number, and claims
+it into "my parcels" explicitly (see §2.2 and the decisions in §10). The four
+citizen endpoints the app needs are implemented in `api/v1/` and specified in
+[`9-citizen-app-api-contract.md`](9-citizen-app-api-contract.md); the app's
+contract is checked by `mobile/tool/smoke_test.dart`. M8 (harden + release) not
+started.
 
 ---
 
@@ -19,12 +19,14 @@ separately. M8 (harden + release) not started.
 **In scope (MVP)**
 
 1. Sign in (phone number) → JWT.
-2. See **my parcels** and the **annual land tax** assessed on each, per year.
-3. See the outstanding amount, penalty, due date, and status.
-4. **Issue a payment slip** (reference `LFE-{year}-{seq6}` + QR payload).
-5. **Pay**: photograph the bank slip and upload it as the receipt.
-6. **Track** the payment status (`ISSUED` → `SUBMITTED` → `PAID` / `REJECTED`) and the slip itself.
-7. Read the receipt photo back, and open the printable A4 slip.
+2. Look a parcel up by **province → district → village → map sheet → parcel
+   number**, and **claim** it into my parcels.
+3. See **my parcels** and the **annual land tax** assessed on each, per year.
+4. See the outstanding amount, penalty, due date, and status.
+5. **Issue a payment slip** (reference `LFE-{year}-{seq6}` + QR payload).
+6. **Pay**: photograph the bank slip and upload it as the receipt.
+7. **Track** the payment status (`ISSUED` → `SUBMITTED` → `PAID` / `REJECTED`) and the slip itself.
+8. Read the receipt photo back, and open the printable A4 slip.
 
 **Out of scope for the MVP** (legacy citizen-portal features that need back-office
 work that another team member owns):
@@ -81,10 +83,12 @@ supports (slip upload → officer verify/reject, or bank-CSV auto-match).
 > "Citizen enters **national ID + OTP SMS** (no password). System auto-links to
 > the holder record."
 
-The live system differs: **email OTP**, because no SMS gateway was available
-(SMS was dropped — see `AGENTS.md`). The national-ID auto-link is **not**
-implemented; a citizen is linked to land only when an officer sets
-`owners.citizen_user_id` (`public/admin/users.php` → "link owner").
+The live system differs: **email OTP** for the PWA, because no SMS gateway was
+available (SMS was dropped — see `AGENTS.md`). There is no national-ID
+auto-link. A parcel is linked to a citizen when the citizen **claims** it in the
+app — the owner's recorded phone must match the account's number, and the claim
+is audited — or when an officer links it in the back-office. An officer can
+unlink it again from the parcel screen.
 
 > **Resolved (user decision): sign in by phone number, no OTP and no PIN.**
 > Almost everyone has a mobile phone and most do not use email, so the phone
@@ -105,9 +109,10 @@ implemented; a citizen is linked to land only when an officer sets
 > and tell how much to pay."
 
 This is the **primary** flow of the app, and it does not require the citizen's
-land to be linked to their account first — they know the parcel number from
-their title. The server reads the area and the zone code from the parcel and
-resolves the rate itself, so the amount is always the server's calculation.
+land to be linked to their account first — they know the parcel number and its
+location from their title. The server reads the area and the zone code from the
+parcel and resolves the rate itself, so the amount is always the server's
+calculation. Claiming the parcel is a separate, optional step for "my parcels".
 
 The zone code comes from the land title (recorded by the officer when the scan
 is confirmed), and the rate per zone is maintained in Basic Data → Zone rates.
@@ -119,20 +124,23 @@ The rates are placeholders until the province sets the real ones.
 
 | Need | Endpoint | Notes |
 |------|----------|-------|
-| Sign in | `POST api/v1/citizen_auth.php` `{action:"phone/signin", phone}` | **New endpoint** (specified in `9-citizen-app-api-contract.md`). Returns JWT `token` + `user{id,role}` + the phone + `created`. |
-| Change the PIN | `POST api/v1/citizen_auth.php` `{action:"phone/setpin", phone, current_pin, new_pin}` | Optional hardening — **not used**. The province decided against a PIN. |
-| Price a parcel | `GET api/v1/parcel_fee.php?map_ref_no=...&parcel_no=...&fee_year=...` | **New endpoint.** Map sheet + parcel number identify the parcel (a number repeats on other sheets). Returns the parcel, its zone code, the rate and the amount — all computed by the server. |
-| Issue a payment slip | `POST api/v1/citizen_payments.php` `{parcel_id, fee_year, method, amount?}` | **New endpoint.** The app issues by the `parcel_id` the lookup returned. `{parcel_no, map_ref_no}` also works (the sheet is required with the number). Returns `id, reference_no, amount, slip_qr, status:"ISSUED", due_date`; `amount` defaults to the outstanding balance, capped to it. |
-| List payments | `GET api/v1/citizen_payments.php` | **New endpoint.** Citizen-scoped: the payments they made, plus the ones on the parcels they own. |
-| Upload the receipt photo | `POST api/v1/citizen_payments.php?id={id}&receipt=1` multipart `slip` | **New endpoint.** jpg/jpeg/png/pdf/webp → sets `payments.slip_path` and moves the payment to `SUBMITTED` (proof is with the district). |
+| Sign in | `POST api/v1/citizen_auth.php` `{action:"phone/signin", phone}` | **Implemented** (§1 of `9-citizen-app-api-contract.md`). Returns JWT `token` + `user{id,role}` + the phone + `created`. |
+| Change the PIN | `POST api/v1/citizen_auth.php` `{action:"phone/setpin", ...}` | Optional hardening — **not implemented, not used**. The province decided against a PIN. |
+| Price a parcel | `GET api/v1/parcel_fee.php?province_id=...&district_id=...&village_id=...&map_ref_no=...&parcel_no=...&fee_year=...` | **Implemented** (§2). The five identity fields printed on the title identify the parcel; location and sheet are required so a repeated number cannot resolve another parcel. Returns the parcel, its zone code, the rate, the amount and `claimed` — all computed by the server. |
+| Claim a parcel | `POST api/v1/citizen_claim.php` `{parcel_id}` | **Implemented** (§3). The explicit "add to my parcels" step after a lookup. The owner's recorded phone must match the account's; a parcel linked to another citizen is refused; every attempt is audited. |
+| Issue a payment slip | `POST api/v1/citizen_payments.php` `{parcel_id, fee_year, method, amount?}` | **Implemented** (§4). The app issues by the `parcel_id` the lookup returned. `{parcel_no, map_ref_no}` also works (the sheet is required with the number). Returns `id, reference_no, amount, slip_qr, status:"ISSUED", due_date`; `amount` defaults to the outstanding balance, capped to it. |
+| List payments | `GET api/v1/citizen_payments.php` | **Implemented** (§4). Citizen-scoped: the payments they made, plus the ones on the parcels they own. |
+| Upload the receipt photo | `POST api/v1/citizen_payments.php?id={id}&receipt=1` multipart `slip` | **Implemented** (§4). jpg/jpeg/png/pdf/webp → sets `payments.slip_path` and moves the payment to `SUBMITTED` (proof is with the district). |
 | My parcels + obligations | `GET api/v1/my_parcels.php` | Exists. Scoped by `owners.citizen_user_id`. Each parcel carries `obligations[]`: `fee_year, amount_due, amount_paid, penalty, status, due_date, outstanding`. |
 | Printable A4 slip | `GET api/v1/payments.php?id={id}&slip=1` | Exists, but **returns HTML** and renders its QR through `api.qrserver.com` (a third party). The app renders its own slip and QR. |
 
-The three citizen endpoints were built to the written contract
-(`9-citizen-app-api-contract.md`) and are now in the repository. The contract
-also covers the two schema changes the app needs: `payments.citizen_user_id`
-(so a payment made for a parcel that is not linked to the citizen still shows
-up in their own history) and the `SUBMITTED` status (migration 015).
+The four citizen endpoints were built to the written contract
+(`9-citizen-app-api-contract.md`) and are in the repository. The contract also
+covers the two schema changes the app needs: `payments.citizen_user_id` (so a
+payment made for a parcel that is not linked to the citizen still shows up in
+their own history) and the `SUBMITTED` status (migration 015). Linking a parcel
+to an account reuses the existing `owners.citizen_user_id` column; there is no
+extra table for claims.
 
 **Rule for the app: never recompute the fee.** The amount comes from
 `fee_obligations` snapshots (`rate_per_sqm`, `area_sqm`, `amount_due`) computed
@@ -261,7 +269,7 @@ Lao as the default and an in-app toggle.
 | **M0** | Plan (this doc) | agreed ✅ |
 | **M1** | Flutter scaffold + theme + assets | app runs on an Android emulator showing the legacy-style header ✅ |
 | **M2** | Core: API client, models, secure token store | unit-testable client; token survives restart ✅ |
-| **M3** | Auth: phone → JWT → home | sign-in works against the API; session persists across restarts ✅ (endpoint specified, not yet deployed) |
+| **M3** | Auth: phone → JWT → home | sign-in works against the API; session persists across restarts ✅ |
 | **M4** | Home + parcel detail with obligations | parcel list matches `my_parcels.php` output; outstanding maths matches the server ✅ |
 | **M5** | Pay → issue slip → receipt upload | slip created server-side (reference + QR); receipt photo uploaded; officer sees it in the back-office queue ✅ |
 | **M6** | Payments history + status refresh | status transitions visible; rejected reason shown ✅ (the reason itself needs B-3) |
@@ -274,27 +282,43 @@ system loops. Both are done and verified.
 ### 7.1 What the smoke test proves
 
 `mobile/tool/smoke_test.dart` drives the app's own `ApiClient` against a
-running API:
+running API. It needs the fixture (`mobile/tool/fixtures/seed_test_data.sql`,
+owner **not** linked) applied first, and a fresh copy before each run — the run
+claims the fixture parcel and settles its obligation.
 
 1. the citizen signs in with a phone number, the account is created on first
    use, the same number signs in again, and a malformed number is refused;
-2. `parcel_fee.php` prices a parcel the citizen names — zone code, area, rate
-   and amount, all from the server;
-3. a slip is issued and its reference matches `LFE-{year}-{seq6}`, with the QR
-   payload;
-4. the receipt photo uploads and appears in the payment history;
-5. **a second citizen sees none of it** — the payment list is empty for them;
-6. an officer verifies the payment, and the citizen then sees it as paid.
+2. the location cascade loads: provinces → districts of a province → villages
+   of a district;
+3. `parcel_fee.php` refuses a lookup without the location or the map sheet, and
+   prices the parcel the citizen names — zone code, area, rate and amount, all
+   from the server;
+4. looking the parcel up links nothing; the fixture citizen claims it (the
+   owner's phone matches), it then reads as `claimed` and appears in
+   `my_parcels.php`, and **another citizen's claim is refused** with
+   `claimed_by_other`;
+5. a slip is issued by a citizen who does not own the parcel (anyone may pay) and
+   its reference matches `LFE-{year}-{seq6}`, with the QR payload;
+6. the receipt photo uploads and the payment becomes `SUBMITTED`; it appears in
+   the payer's history and in the owner's history, and the other citizen sees
+   none of it;
+7. an officer verifies the payment, and the citizen then sees it as paid.
 
 The test **skips with exit code 2** when the citizen API is not deployed yet,
 so it never fails in a confusing way.
 
+Run it with:
+
+```
+cd mobile
+dart run tool/smoke_test.dart http://localhost:8091/api/v1
+```
+
 ### 7.2 What is left for M8
 
-- **The three citizen endpoints are not in the repository yet** — they are
-  specified in `9-citizen-app-api-contract.md` and have to be implemented on
-  the backend (by its owner, or by us once the backend work settles). Until
-  then the app cannot talk to a server.
+- **Migration 015 must be applied on the live database** before the receipt
+  upload works — `SUBMITTED` is a `CHECK`-constraint change, and CI never runs
+  migrations (see `AGENTS.md`).
 - No Android SDK on the dev machine, so **no APK has been built** and the app
   has never run on a device. Everything above is verified at the API level and
   by the static analyser, not on a handset.
@@ -306,8 +330,9 @@ so it never fails in a confusing way.
 
 ## 8. Risks / things that will bite
 
-1. **The app is ahead of the backend.** The app is built to a contract; the
-   endpoints are not written. Nothing works end to end until they are.
+1. **The backend is live, but migrations are applied by hand.** The four
+   citizen endpoints are deployed; the live database still needs migration 015
+   (`SUBMITTED`) applied before a receipt upload can pass the CHECK constraint.
 2. **A phone number is guessable.** With no PIN, anyone who knows or guesses
    a citizen's number can sign in as them and read their land record and
    payment history. Accepted for now — the endpoint should be rate-limited and
@@ -315,17 +340,18 @@ so it never fails in a confusing way.
 3. **Paying for a parcel you do not own is allowed** (the province's
    decision). A citizen may name any parcel number and pay the tax on it. It
    discloses that parcel's area and rate, but the payment itself is the point.
-4. **Zone rates are placeholders** (85k–180k kip/m²). Amounts shown to citizens
-   will be wrong until the province sets real rates. The app shows the
-   server's numbers and never its own, so fixing the rates in Basic Data
+4. **Zone rates follow decree 385/2009** (3.5–250 kip/m²/yr; construction and
+   agricultural rates are converted in the seed). A newer Cabinet table may be
+   in force — confirm the currently valid rates with the province. The app shows
+   the server's numbers and never its own, so fixing the rates in Basic Data
    fixes the app with no release.
 5. **The bank QR is a placeholder.** The land office's receiving account and
    the bank's QR format are not known yet, so the app shows the reference in
    large, copyable type instead of a scannable code, and the citizen types it
    into their banking app. When the bank details arrive, the real QR replaces
    the placeholder — the payload is already in `slip.slipQr`, and the format
-   is specified in `9-citizen-app-api-contract.md` §4.
-6. **Two `003` migrations** exist; the live DB may be on a different migration
+   is specified in `9-citizen-app-api-contract.md` §5.
+6. **Four `003_*` migrations** exist; the live DB may be on a different migration
    state than the app expects. The app should degrade gracefully (show the
    server's numbers, never its own).
 7. **Windows dev environment**: the PHP built-in server is single-threaded, so
