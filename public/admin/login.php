@@ -76,7 +76,7 @@ if ('serviceWorker' in navigator) {
   <?= lang_switch('login.php') ?>
   <div class="title-wrap">
     <h1><?= te('Officer Login') ?></h1>
-    <p class="sub"><?= te('Land Tax Payment — Savannakhet Province') ?></p>
+    <p class="sub"><?= te('Land Tax Payment') ?></p>
   </div>
   <?php if ($error): ?><div class="msg"><?= e($error) ?></div><?php endif; ?>
   <form method="post">
