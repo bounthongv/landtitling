@@ -336,7 +336,7 @@ function render_payment_card(array $p, string $base): void
           <div class="form-group"><label><?= te('Map sheet') ?></label><input id="counter-sheet" placeholder="A250-038"></div>
           <div class="form-group"><label><?= te('Title no') ?></label><input id="counter-title"></div>
           <div class="form-group"><label><?= te('Owner name') ?></label><input id="counter-owner-name"></div>
-          <div class="form-group"><label><?= te('Telephone') ?></label><input id="counter-phone" inputmode="tel" placeholder="020 555 1234"></div>
+          <div class="form-group"><label><?= te('Telephone') ?></label><input id="counter-phone" inputmode="tel" placeholder="020 5555 1234"></div>
           <div class="form-group"><label><?= te('Tax year') ?></label>
             <select id="counter-year">
               <?php foreach ($counterYears as $y): ?>

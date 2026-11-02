@@ -78,12 +78,12 @@ created. Sign-up and sign-in are the same call.
 ### `POST citizen_auth.php`
 
 ```json
-{ "action": "phone/signin", "phone": "020 555 1234" }
+{ "action": "phone/signin", "phone": "020 5555 1234" }
 ```
 
 | Field | Notes |
 |-------|-------|
-| `phone` | Any Lao format: `020 555 1234`, `0205551234`, `+856 20 555 1234`. Normalise to digits + country code, no leading zero: `856205551234`. |
+| `phone` | Any Lao format: `020 5555 1234`, `02055551234`, `+856 20 5555 1234`, or the bare subscriber part `55551234`. Normalise to digits + country code, no leading zero: `8562055551234`. |
 
 **Behaviour**
 
@@ -100,7 +100,7 @@ created. Sign-up and sign-in are the same call.
 { "ok": true, "data": {
   "token": "<jwt>",
   "user": { "id": 12, "role": "citizen" },
-  "phone": "020 555 1234",
+  "phone": "020 5555 1234",
   "created": true
 }}
 ```
@@ -111,16 +111,22 @@ created. Sign-up and sign-in are the same call.
 
 | Code | HTTP | When |
 |------|------|------|
-| `invalid_phone` | 400 | The number is not a usable Lao number (not 10 digits, or not a 020/030/080 prefix). |
+| `invalid_phone` | 400 | The number is not a usable Lao number (not a 020/030/080 prefix, or the wrong number of digits for it). |
 | `inactive` | 403 | The account is deactivated. |
 
 **Phone normalisation** (the part that is easy to get wrong):
 
 ```
-"020 555 1234"      -> digits 0205551234    -> drop leading 0 -> 205551234 (9) -> 856205551234
-"+856 20 555 1234"  -> digits 856205551234  -> drop 856      -> 205551234 (9) -> 856205551234
-"0205551234"        -> 856205551234
+"020 5555 1234"      -> digits 02055551234   -> drop leading 0 -> 2055551234 (10) -> 8562055551234
+"+856 20 5555 1234"  -> digits 8562055551234 -> drop 856      -> 2055551234 (10) -> 8562055551234
+"55551234"           -> bare subscriber part -> prefix 20     -> 2055551234 (10) -> 8562055551234
 ```
+
+Lao mobile numbers are **020 + 8 digits** (10-digit national number). Numbers
+issued before the 2011 migration (**020 + 7**) and 030/080 wireless numbers
+(**7 digits**) are still accepted — they are working SIMs and must be able to
+sign in. Only 020 numbers have an 8-digit subscriber part, so a bare 8-digit
+number is read as one.
 
 **Two consequences of phone-only sign-in** (accepted by the province, so they
 are stated here rather than hidden):

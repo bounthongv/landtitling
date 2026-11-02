@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   onSubmitted: (_) => _submit(),
                   decoration: const InputDecoration(
                     labelText: 'ເບີໂທ',
-                    hintText: '020 555 1234',
+                    hintText: '020 5555 1234',
                     prefixIcon: Icon(Icons.phone_iphone),
                   ),
                 ),
@@ -142,7 +142,7 @@ class _HowItWorks extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
-          _Step(no: '1', text: 'ປ້ອນເບີໂທຂອງທ່ານ (ເຊັ່ນ 020 555 1234)'),
+          _Step(no: '1', text: 'ປ້ອນເບີໂທຂອງທ່ານ (ເຊັ່ນ 020 5555 1234)'),
           _Step(no: '2', text: 'ຄັ້ງຄຳທີ່ໃຊ້ເບີໂທນີ້ ລະບົບຈະສ້າງບັນຊີໃຫ້ທັນທີ'),
           _Step(no: '3', text: 'ຄົ້ນຫາຕອນດິນ ແລ້ວ ຊຳລະຄ່າທີ່ດິນ'),
         ],

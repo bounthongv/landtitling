@@ -7,13 +7,19 @@
 
 /**
  * Normalise a Lao mobile number to digits + country code with no trunk zero:
- *   "020 555 1234"      -> 856205551234
- *   "+856 20 555 1234"  -> 856205551234
- *   "0205551234"        -> 856205551234
+ *   "020 5555 1234"     -> 8562055551234
+ *   "+856 20 5555 1234" -> 8562055551234
+ *   "02055551234"       -> 8562055551234
+ *   "55551234"          -> 8562055551234 (bare subscriber part)
  * Returns null when the number is not a usable Lao mobile number.
  *
  * The trunk zero is the part that is easy to get wrong: the same citizen
  * writing their number three different ways must land on one account.
+ *
+ * Lengths follow the plan in force since the 2011 migration to 10-digit
+ * mobile numbers: 020 + 8 digits. Numbers issued before it (020 + 7) are
+ * still accepted, as are 030/080 wireless numbers (7 digits) — rejecting
+ * those would lock out working SIMs.
  */
 function citizen_normalise_phone($raw): ?string
 {
@@ -25,13 +31,19 @@ function citizen_normalise_phone($raw): ?string
     if (strpos($digits, '856') === 0 && strlen($digits) > 3) {
         $digits = substr($digits, 3);
     }
-    // Drop the national trunk zero.
-    if (strlen($digits) > 1 && $digits[0] === '0') {
-        $digits = substr($digits, 1);
-    }
-    // Lao mobile: operator prefix 20/30/80 + 7 digits.
-    if (!preg_match('/^[238]0\d{7}$/', $digits)) {
+    // Drop the national trunk zero (tolerates "+856 0…" and "00 20…").
+    $digits = ltrim($digits, '0');
+    if ($digits === '') {
         return null;
     }
-    return '856' . $digits;
+    // 020 mobile: current plan 8 digits, legacy 7. 030/080 wireless: 7.
+    if (preg_match('/^20\d{7,8}$/', $digits) || preg_match('/^[38]0\d{7}$/', $digits)) {
+        return '856' . $digits;
+    }
+    // A bare subscriber part ("55551234"): only 020 numbers have 8 digits, so
+    // read it as one. Citizens routinely write their number without the prefix.
+    if (preg_match('/^[1-9]\d{7}$/', $digits)) {
+        return '85620' . $digits;
+    }
+    return null;
 }

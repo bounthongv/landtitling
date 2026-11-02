@@ -267,7 +267,7 @@ if ($editId > 0) {
                  (citizen sign-in is by phone number), so it stays visible. -->
             <div class="cert-row">
               <label><?= te('Phone') ?></label>
-              <div class="val"><input type="text" name="owner_phone" placeholder="020 555 1234"></div>
+              <div class="val"><input type="text" name="owner_phone" placeholder="020 5555 1234"></div>
             </div>
             <!-- #26 then #27: the map sheet + parcel number on that sheet are the
                  parcel's identity on paper — a number can repeat on other sheets. -->

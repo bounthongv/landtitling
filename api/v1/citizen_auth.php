@@ -33,7 +33,7 @@ $pdo = db_connect();
 $phoneIn = trim((string)($body['phone'] ?? ''));
 $phone   = citizen_normalise_phone($phoneIn);
 if ($phone === null) {
-    json_error('That is not a usable Lao mobile number', 400, 'invalid_phone');
+    json_error('Enter a usable Lao mobile number, e.g. 020 5555 1234', 400, 'invalid_phone');
 }
 
 $stmt = $pdo->prepare("SELECT id, role, level, district_id, is_super, is_active
