@@ -553,7 +553,7 @@ function title_parse_text($text, PDO $pdo, array $ctx = []) {
     }
     if ($v = $first('/ມາດຕາສ່ວນ\s*[:：]?\s*1\s*[\/.]\s*(\d{2,6})/u', $flat)) $set('map_scale', '1/' . $v, 50);
 
-    // --- #30-#33 issued at / date ---
+    // --- #30 issued at, #31-#33 date ---
     if ($v = $first('/ອອກໃຫ້ທີ່\s*[:：]?\s*([\x{0E80}-\x{0EFF} ]{2,30})/u', $flat)) {
         $set('issued_place', title_trim_value($v), 45);
     }

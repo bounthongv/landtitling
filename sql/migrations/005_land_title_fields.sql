@@ -3,31 +3,39 @@
 -- (ໃບຕາດິນ) to the parcels + owners tables, based on the officer's marked-up
 -- standard form. All new columns are nullable — nothing existing changes.
 --
--- Field map (marked certificate number -> column):
+-- Field map (numbered certificate fields, from the marked standard form):
 --   parcels:
---     #2  Issued order no.            -> order_no
---     #30 Parcel location code        -> location_code   (e.g. 10.002.0027)
---     #6  Unit                        -> unit_no
---     #20 How the parcel was acquired -> acquisition_method  (transfer / inheritance / granted ...)
---     #21 Status of ownership         -> ownership_status    (e.g. original asset-husband/wife)
---     #23 Zone (descriptive)          -> zone_text           (e.g. plain land-country side)
---     #24 Registration book no.       -> book_no     (existing)
---     #25 Leaf no. in the book        -> page_no     (existing)
---     #26 Map reference no.           -> map_ref_no    (e.g. A250-038)
---     #27 Parcel no. on the map       -> map_parcel_no
---     #29 Map scale                   -> map_scale     (e.g. 1/8000)
---     footer Issued at (province)     -> issued_place
---   (existing: #1 parcel_no, #3 province, #4 district_id, #5 village_id,
---    #22 land_use_class, #28 area_sqm, issued_date)
+--     #1  Title no. (ເລກທີ)               -> title_no (existing)
+--     #2  Issued order no.               -> order_no
+--     #3  Parcel location code           -> location_code   (e.g. 10.002.0027)
+--     #4  Province                       -> province        (existing)
+--     #5  District                       -> district_id     (existing)
+--     #6  Village                        -> village_id      (existing)
+--     #7  Unit                           -> unit_no
+--     #20 How the parcel was acquired    -> acquisition_method  (transfer / inheritance / granted ...)
+--     #21 Status of ownership            -> ownership_status    (e.g. original asset-husband/wife)
+--     #22 Land use class                 -> land_use_class   (existing)
+--     #23 Zone (descriptive)             -> zone_text           (e.g. plain land-country side)
+--     #24 Registration book no.          -> book_no     (existing)
+--     #25 Leaf no. in the book           -> page_no     (existing)
+--     #26 Map reference no.              -> map_ref_no    (e.g. A250-038)
+--     #27 Parcel no.                     -> parcel_no    (existing; OCR writes here)
+--     #27 Parcel no. on the map          -> map_parcel_no (optional duplicate, not OCR-filled)
+--     #28 Area                           -> area_sqm    (existing)
+--     #29 Map scale                      -> map_scale     (e.g. 1/8000)
+--     #30 Issued at (province)           -> issued_place
+--     #31-#33 Issued date                -> issued_date   (existing)
 --
 --   owners (spouse #16-#19 is stored as a co-owner row with owner_type='spouse'):
---     #8/#17 date of birth           -> date_of_birth
+--     #8  Owner name                -> full_name
+--     #9/#17 date of birth           -> date_of_birth
 --     #10/#18 nationality            -> nationality
 --     #11/#19 occupation             -> occupation
 --     #12 address village            -> address_village
 --     #13 address unit               -> address_unit
 --     #14 address district           -> address_district
 --     #15 address province           -> address_province
+--     #16 spouse name                -> spouse row's full_name
 --
 -- APPLY MANUALLY on the server:  psql -f 005_land_title_fields.sql
 -- Additive + idempotent: safe to re-run.
@@ -49,13 +57,13 @@ ALTER TABLE parcels ADD COLUMN IF NOT EXISTS map_parcel_no      VARCHAR(40);
 ALTER TABLE parcels ADD COLUMN IF NOT EXISTS map_scale          VARCHAR(20);
 ALTER TABLE parcels ADD COLUMN IF NOT EXISTS issued_place       VARCHAR(120);
 
-COMMENT ON COLUMN parcels.location_code      IS '#30 parcel location code, e.g. 10.002.0027';
+COMMENT ON COLUMN parcels.location_code      IS '#3 parcel location code, e.g. 10.002.0027';
 COMMENT ON COLUMN parcels.order_no          IS '#2 issued order number';
 COMMENT ON COLUMN parcels.acquisition_method IS '#20 how the parcel was acquired (transfer/inheritance/...)';
 COMMENT ON COLUMN parcels.ownership_status   IS '#21 status of ownership (e.g. original asset-wife before marriage)';
 COMMENT ON COLUMN parcels.zone_text         IS '#23 descriptive zone from the title (e.g. plain land-country side); distinct from zone_code (LLR7 valuation code)';
 COMMENT ON COLUMN parcels.map_ref_no        IS '#26 map reference no., e.g. A250-038';
-COMMENT ON COLUMN parcels.map_parcel_no     IS '#27 parcel number on the map';
+COMMENT ON COLUMN parcels.map_parcel_no     IS '#27 parcel number on the map (optional; OCR writes parcel_no)';
 COMMENT ON COLUMN parcels.map_scale         IS '#29 map scale, e.g. 1/8000';
 COMMENT ON COLUMN parcels.issued_place      IS 'footer: province/office where the title was issued';
 
