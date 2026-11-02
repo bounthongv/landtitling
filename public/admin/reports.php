@@ -189,7 +189,11 @@ $reportGroups = [
           <h2 style="margin:0"><?= e($reportLabels[$report] ?? $report) ?>
             <span class="sub" style="margin-left:8px"><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span>
           </h2>
-          <a class="btn btn-blue" href="<?= e($base) ?>/reports_export.php?<?= e($qs) ?>"><?= te('Download CSV') ?></a>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a class="btn btn-gold" href="<?= e($base) ?>/reports_print.php?<?= e($qs) ?>" target="_blank" rel="noopener"><?= te('Preview & Print') ?></a>
+            <a class="btn btn-green" href="<?= e($base) ?>/reports_print.php?<?= e($qs) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
+            <a class="btn btn-blue" href="<?= e($base) ?>/reports_export.php?<?= e($qs) ?>"><?= te('Download CSV') ?></a>
+          </div>
         </div>
 
         <?php if (!empty($data['summary'])): ?>
