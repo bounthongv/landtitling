@@ -17,7 +17,7 @@ SET search_path TO landfee;
 -- the citizen, and nothing cascades to them).
 DELETE FROM landfee.payments
   WHERE parcel_id IN (
-      SELECT id FROM landfee.parcels WHERE parcel_no = '1301.001.001.0001')
+      SELECT id FROM landfee.parcels WHERE parcel_no = '123456')
      OR citizen_user_id IN (
       SELECT id FROM landfee.users
        WHERE email IN ('citizen@test.la', 'stranger@test.la'));
@@ -28,7 +28,7 @@ DELETE FROM landfee.owners
 DELETE FROM landfee.users WHERE email IN ('citizen@test.la', 'stranger@test.la');
 -- The parcel is unique on (district, village, parcel_no); drop the old one
 -- (its obligations and owner links cascade with it).
-DELETE FROM landfee.parcels WHERE parcel_no = '1301.001.001.0001';
+DELETE FROM landfee.parcels WHERE parcel_no = '123456';
 
 -- phone is stored normalised (digits only, country code, no trunk zero), which
 -- is what citizen_auth.php looks up after normalising the typed number.
@@ -43,7 +43,7 @@ INSERT INTO landfee.owners (full_name, phone, owner_type, district_id, village_i
 \set owner_id :id
 
 INSERT INTO landfee.parcels (parcel_no, map_ref_no, district_id, village_id, area_sqm, zone_code, status, title_no)
-  VALUES ('1301.001.001.0001', 'A250-038', 1, 1, 1250.50, 'A7', 'confirmed', '0102/1301/00342') RETURNING id \gset
+  VALUES ('123456', 'A250-038', 1, 1, 1250.50, 'A7', 'confirmed', '0102/1301/00342') RETURNING id \gset
 \set parcel_id :id
 
 INSERT INTO landfee.parcel_owners (parcel_id, owner_id, share_pct, role)

@@ -203,7 +203,7 @@ class ParcelDetailScreen extends StatelessWidget {
               label: Strings.t('dueDate'),
               value: o.dueDate == null
                   ? '-'
-                  : '${formatDate(o.dueDate)}${days != null && days < 0 ? '  (ຫຼາຍເກີນ)' : ''}',
+                  : '${formatDate(o.dueDate)}${days != null && days < 0 ? '  (ເກີນກຳນົດ)' : ''}',
               valueColor: o.isOverdue ? GovColors.danger : null,
             ),
           ],

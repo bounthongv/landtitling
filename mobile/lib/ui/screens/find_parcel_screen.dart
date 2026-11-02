@@ -323,7 +323,7 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
                         onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
                           labelText: Strings.t('parcelNo'),
-                          hintText: '1301.001.001.0001',
+                          hintText: '6',
                           prefixIcon: const Icon(Icons.tag),
                         ),
                       ),
@@ -398,12 +398,12 @@ class _FindParcelScreenState extends State<FindParcelScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
-                'ບໍ່ພົບອັດຕາຂອງເຂດນີ້ ກະລຸນາຕິດຕໍ່ຫຼັງການດິນ',
+                'ບໍ່ພົບອັດຕາຂອງເຂດນີ້ ກະລຸນາຕິດຕໍ່ຫ້ອງການທີ່ດິນ',
                 style: TextStyle(fontSize: 12.5, color: GovColors.danger),
               ),
             ),
           InfoRow(
-            label: 'ຄ່າຕ້ອງເມົາ',
+            label: 'ອັດຕາຕໍ່ ຕລ.ມ.',
             value:
                 '${formatKipPlain(quote.ratePerSqm)} × ${formatArea(parcel.areaSqm)}',
           ),

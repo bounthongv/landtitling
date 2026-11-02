@@ -114,7 +114,7 @@ class PaymentDetailScreen extends StatelessWidget {
                 if (p.isRejected && p.verifyNote != null) ...[
                   const SizedBox(height: 12),
                   SectionCard(
-                    title: 'ເຫດຜົນການປະດົວມ',
+                    title: 'ເຫດຜົນການປະຕິເສດ',
                     icon: Icons.error_outline,
                     child: Text(
                       p.verifyNote!,
@@ -160,7 +160,7 @@ class PaymentDetailScreen extends StatelessWidget {
       (
         'ອັບໂຫລດສະລິບເງິນ',
         p.hasReceipt,
-        p.hasReceipt ? Strings.t('saved') : 'ລະວ່າງ',
+        p.hasReceipt ? Strings.t('saved') : 'ວ່າງເປົ່າ',
       ),
       if (sent)
         (
@@ -171,7 +171,7 @@ class PaymentDetailScreen extends StatelessWidget {
               : formatDateTime(p.paidAt ?? p.createdAt),
         ),
       if (p.isPaid) ('ຢືນຢັນໂດຍພະນັກງານ', true, formatDateTime(p.paidAt)),
-      if (p.isRejected) ('ໄມ່ຮັບ', true, Strings.t('statusRejected')),
+      if (p.isRejected) ('ຖືກປະຕິເສດ', true, Strings.t('statusRejected')),
     ];
 
     return Column(

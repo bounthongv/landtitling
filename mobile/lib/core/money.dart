@@ -11,8 +11,8 @@ String formatKip(num? value) {
 String formatKipPlain(num? value) =>
     NumberFormat.decimalPattern('en_US').format((value ?? 0).round());
 
-/// Area in square metres: `1,250.5 ມາຄ` (or `m²` in English).
-String formatArea(num? sqm, {String unit = 'ມາຄ'}) {
+/// Area in square metres: `1,250.5 ຕລ.ມ.` (or `m²` in English).
+String formatArea(num? sqm, {String unit = 'ຕລ.ມ.'}) {
   final v = (sqm ?? 0).toDouble();
   final text = v == v.roundToDouble()
       ? NumberFormat.decimalPattern('en_US').format(v.toInt())

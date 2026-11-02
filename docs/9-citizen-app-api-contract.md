@@ -149,7 +149,7 @@ area and the zone code from the parcel and looks up the rate, so the amount is
 always the server's calculation — the app never computes a fee and the client
 cannot influence it.
 
-### `GET parcel_fee.php?province_id=1&district_id=1&village_id=1&map_ref_no=A250-038&parcel_no=1301.001.001.0001&fee_year=2026`
+### `GET parcel_fee.php?province_id=1&district_id=1&village_id=1&map_ref_no=A250-038&parcel_no=123456&fee_year=2026`
 
 Bearer token required (`citizen`, `officer` or `admin`).
 
@@ -179,7 +179,7 @@ Bearer token required (`citizen`, `officer` or `admin`).
 ```json
 { "ok": true, "data": {
   "parcel": {
-    "parcel_id": 4, "parcel_no": "1301.001.001.0001", "sub_parcel_no": null,
+    "parcel_id": 4, "parcel_no": "123456", "sub_parcel_no": null,
     "map_ref_no": "A250-038",
     "area_sqm": 1250.50, "zone_code": "A7", "road_category": "branch",
     "title_no": "0102/1301/00342", "title_type": "titled", "issued_date": null,
@@ -317,7 +317,7 @@ in the payer's own history.
 ```json
 { "ok": true, "data": {
   "id": 4, "reference_no": "LFE-2026-000004", "amount": 88000000,
-  "slip_qr": "SLIP:LFE-2026-000004|AMT:88000000.00|PARCEL:1301.001.001.0001",
+  "slip_qr": "SLIP:LFE-2026-000004|AMT:88000000.00|PARCEL:123456",
   "status": "ISSUED", "due_date": "2026-06-30",
   "parcel_id": 5, "fee_year": 2026, "outstanding": 88000000
 }}
@@ -382,7 +382,7 @@ reference in large type with a copy button, so the citizen can type it into
 their banking app:
 
 ```
-SLIP:LFE-2026-000004|AMT:88000000.00|PARCEL:1301.001.001.0001
+SLIP:LFE-2026-000004|AMT:88000000.00|PARCEL:123456
 ```
 
 The payload builder should be config-driven so the format can be switched

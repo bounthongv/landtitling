@@ -23,7 +23,7 @@ class _AccountTabState extends State<AccountTab> {
 
     return Column(
       children: [
-        const GovHeader(title: 'ບ້ານຂ້ອຍ', subtitle: 'My account'),
+        const GovHeader(title: 'ບັນຊີຂອງຂ້ອຍ', subtitle: 'My account'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 26),
@@ -34,7 +34,7 @@ class _AccountTabState extends State<AccountTab> {
                 child: Column(
                   children: [
                     InfoRow(label: 'ເບີໂທ', value: auth.phone ?? '-'),
-                    InfoRow(label: 'ບົບທີ່', value: auth.session?.role ?? '-'),
+                    InfoRow(label: 'ປະເພດບັນຊີ', value: auth.session?.role ?? '-'),
                   ],
                 ),
               ),

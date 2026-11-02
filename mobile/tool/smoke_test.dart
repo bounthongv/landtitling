@@ -34,7 +34,7 @@ import 'package:landfee_citizen/models/quote.dart';
 const _districtId = 1;
 const _villageId = 1;
 const _mapRefNo = 'A250-038';
-const _parcelNo = '1301.001.001.0001';
+const _parcelNo = '123456';
 const _feeYear = 2026;
 const _citizenPhone = '020 999 9999';
 const _otherPhone = '020 777 8888';

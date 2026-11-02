@@ -96,7 +96,7 @@ class _QuoteScreenState extends State<QuoteScreen> {
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 26),
               children: [
                 SectionCard(
-                  title: 'ຄົນລືມຕ້ອງຊຳລະ',
+                  title: 'ລາຍລະອຽດຄ່າທີ່ດິນ',
                   icon: Icons.receipt_long_outlined,
                   child: Column(
                     children: [
@@ -113,7 +113,7 @@ class _QuoteScreenState extends State<QuoteScreen> {
                         value: quote.parcel.zoneCode ?? '-',
                       ),
                       InfoRow(
-                        label: 'ຄ່າຕ້ອງເມົາ',
+                        label: 'ອັດຕາຕໍ່ ຕລ.ມ.',
                         value:
                             '${formatKipPlain(quote.ratePerSqm)} × '
                             '${formatArea(quote.parcel.areaSqm)}',
@@ -254,7 +254,7 @@ class _QuoteScreenState extends State<QuoteScreen> {
         );
       case 'counter':
         return const Text(
-          'ມາຊຳລະທີ່ຫຼັງການ ແລະ ແຈ້ງງົນແລ້ວ',
+          'ມາຊຳລະທີ່ຫ້ອງການ ແລ້ວແຈ້ງຫຼັກຖານ',
           style: TextStyle(fontSize: 11.5, color: GovColors.muted),
         );
       default:

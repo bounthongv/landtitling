@@ -34,7 +34,7 @@ class SlipScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          const GovHeader(title: 'ສະລິບໄດ້ຊຳລະ', subtitle: 'Payment slip'),
+          const GovHeader(title: 'ໃບສະລິບຊຳລະເງິນ', subtitle: 'Payment slip'),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 26),

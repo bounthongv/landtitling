@@ -143,7 +143,7 @@ class _HowItWorks extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
           _Step(no: '1', text: 'ປ້ອນເບີໂທຂອງທ່ານ (ເຊັ່ນ 020 5555 1234)'),
-          _Step(no: '2', text: 'ຄັ້ງຄຳທີ່ໃຊ້ເບີໂທນີ້ ລະບົບຈະສ້າງບັນຊີໃຫ້ທັນທີ'),
+          _Step(no: '2', text: 'ຄັ້ງທຳອິດທີ່ໃຊ້ເບີໂທນີ້ ລະບົບຈະສ້າງບັນຊີໃຫ້ທັນທີ'),
           _Step(no: '3', text: 'ຄົ້ນຫາຕອນດິນ ແລ້ວ ຊຳລະຄ່າທີ່ດິນ'),
         ],
       ),

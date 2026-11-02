@@ -96,7 +96,11 @@ class ParcelsController extends ChangeNotifier {
       return result;
     } on ApiException catch (e) {
       lookingUp = false;
-      lookupError = e.message;
+      lookupError = switch (e.code) {
+        'parcel_not_found' => Strings.t('parcelNotFound'),
+        'ambiguous_parcel' => Strings.t('ambiguousParcel'),
+        _ => e.message,
+      };
       quote = null;
       notifyListeners();
       return null;
