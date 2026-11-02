@@ -85,6 +85,7 @@ if ($method === 'POST') {
     if ($action === 'generate') {
         require_staff_write($me);   // only district admin/officer assess fees
         $year       = (int)($body['fee_year'] ?? date('Y'));
+        $provinceId = (int)($body['province_id'] ?? 0);
         $districtId = (int)($body['district_id'] ?? 0);
         $parcelId   = (int)($body['parcel_id'] ?? 0);
 
@@ -95,10 +96,20 @@ if ($method === 'POST') {
             }
             $districtId = $scope['district_id'];
         }
+        // Province staff may only assess their own province (a district they
+        // name still has to fall inside it; the two clauses AND).
+        $scopeProvince = staff_province_id($me, $pdo);
+        if ($scopeProvince) {
+            $provinceId = $scopeProvince;
+        }
 
         [$billableWhere, $params] = fee_billable_sql('parcels');
         $sql    = 'SELECT id FROM parcels WHERE ' . $billableWhere;
         if ($districtId) { $sql .= ' AND district_id = :did'; $params[':did'] = $districtId; }
+        if ($provinceId) {
+            $sql .= ' AND district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
+            $params[':prov'] = $provinceId;
+        }
         if ($parcelId)   { $sql .= ' AND id = :pid';         $params[':pid'] = $parcelId; }
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -113,6 +124,7 @@ if ($method === 'POST') {
             $total += (float)$ob['amount_due'];
         }
         fee_audit($pdo, $me['sub'] ?? null, 'generate', 'fee_year', $year, [
+            'province_id' => $provinceId ?: null,
             'district_id' => $districtId ?: null,
             'parcel_id'   => $parcelId ?: null,
             'assessed'    => $assessed,

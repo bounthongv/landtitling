@@ -40,20 +40,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'penal
     exit;
 }
 
-// ---- POST: generate obligations (all / by district) ----
+// ---- POST: generate obligations (all / by province / by district) ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'generate') {
     $year = (int)($_POST['fee_year'] ?? date('Y'));
-    $did  = (int)($_POST['district_id'] ?? 0);
+    $gpid = (int)($_POST['province_id'] ?? 0);
+    $gdid = (int)($_POST['district_id'] ?? 0);
     $r = api_call('POST', 'fee_obligations.php', [
         'action' => 'generate',
         'fee_year' => $year,
-        'district_id' => $did ?: null,
+        'province_id' => $gpid ?: null,
+        'district_id' => $gdid ?: null,
     ], $token);
+    // Stay on the scope that was just assessed instead of resetting the page.
+    $back = ['fee_year' => $year];
+    if ($gpid) { $back['province_id'] = $gpid; }
+    if ($gdid) { $back['district_id'] = $gdid; }
     if (!empty($r['ok'])) {
-        header('Location: obligations.php?fee_year=' . $year . '&msg=generated&n=' . (int)($r['data']['assessed'] ?? 0));
+        $back['msg'] = 'generated';
+        $back['n'] = (int)($r['data']['assessed'] ?? 0);
     } else {
-        header('Location: obligations.php?msg=error');
+        $back['msg'] = 'error';
     }
+    header('Location: obligations.php?' . http_build_query($back));
     exit;
 }
 
@@ -98,6 +106,15 @@ foreach ($obligations as $o) {
     if ($penalty_id && (int)$o['id'] === $penalty_id) { $penaltyRow = $o; }
 }
 $msg = $_GET['msg'] ?? '';
+// Generate-box year choices: every fee year on record plus this year and next,
+// with the year currently being viewed preselected.
+$genYears = [];
+foreach ($years as $y) { $genYears[] = (int)$y['year']; }
+$genYears[] = (int)date('Y');
+$genYears[] = (int)date('Y') + 1;
+$genYears = array_values(array_unique($genYears));
+rsort($genYears);
+$genYear = $fee_year ?: (int)date('Y');
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -166,24 +183,22 @@ $msg = $_GET['msg'] ?? '';
         <input type="hidden" name="action" value="generate">
         <div class="form-group"><label><?= te('Tax year') ?></label>
           <select name="fee_year">
-            <?php
-            $thisYear = (int)date('Y');
-            foreach (range($thisYear, $thisYear + 1) as $yy): ?>
-            <option value="<?= $yy ?>"><?= $yy ?></option>
+            <?php foreach ($genYears as $yy): ?>
+            <option value="<?= $yy ?>" <?= $genYear === $yy ? 'selected' : '' ?>><?= $yy ?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="form-group"><label><?= te('Province (optional)') ?></label>
           <select name="province_id" id="obl-gen-province"><option value=""><?= te('-- all --') ?></option>
             <?php foreach ($provinces as $pid => $pname): ?>
-            <option value="<?= $pid ?>"><?= e($pname) ?></option>
+            <option value="<?= $pid ?>" <?= $province_id == $pid ? 'selected' : '' ?>><?= e($pname) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="form-group"><label><?= te('District (optional)') ?></label>
-          <select name="district_id" id="obl-gen-district"><option value=""><?= te('-- all confirmed parcels --') ?></option>
+          <select name="district_id" id="obl-gen-district" data-all-label="<?= te('-- all confirmed parcels --') ?>"><option value=""><?= te('-- all confirmed parcels --') ?></option>
             <?php foreach ($districts as $d): ?>
-            <option value="<?= $d['id'] ?>"><?= e($d['name_lo']) ?></option>
+            <option value="<?= $d['id'] ?>" <?= $district_id == $d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -280,7 +295,8 @@ var allDistricts = <?= json_encode($districts, JSON_UNESCAPED_UNICODE) ?>;
 
   // Rebuild a district dropdown to only the selected province's districts.
   function rebuildDistricts(provinceId, districtSel) {
-    var opts = '<option value="">-- all --</option>';
+    var allLabel = districtSel.getAttribute('data-all-label') || '-- all --';
+    var opts = '<option value="">' + esc(allLabel) + '</option>';
     for (var i = 0; i < allDistricts.length; i++) {
       var d = allDistricts[i];
       if (!provinceId || Number(d.province_id) === Number(provinceId)) {
@@ -302,11 +318,15 @@ var allDistricts = <?= json_encode($districts, JSON_UNESCAPED_UNICODE) ?>;
     if (initDistrict)    { fDistrict.value = initDistrict; }
   }
 
-  // Generate-form cascade (no URL state; starts with all districts).
+  // Generate-form cascade: prefilled from the filters above, so what you see
+  // filtered is what a Generate run assesses.
   var gProvince = document.getElementById('obl-gen-province');
   var gDistrict = document.getElementById('obl-gen-district');
   if (gProvince && gDistrict) {
     gProvince.onchange = function() { rebuildDistricts(this.value || '', gDistrict); };
+    var genDistrict = gDistrict.value;
+    if (gProvince.value) { rebuildDistricts(gProvince.value, gDistrict); }
+    if (genDistrict)     { gDistrict.value = genDistrict; }
   }
 })();
 </script>
