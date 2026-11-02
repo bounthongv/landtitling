@@ -41,7 +41,7 @@ sub-area into its own zone code instead (`A6.1`, `A6.2` or the next number).
 | `api/v1/rates.php` | flat CRUD | admin cannot maintain 4 rates per zone |
 | Admin UI | one rate field | same |
 | `parcel_entry.php` | `zone_text` only | cannot set the valuation zone/road |
-| `scans.php` | zone select only | no road-access select |
+| `parcel_entry.php` Scan tab | zone select only | no road-access select |
 | `rates.php` (admin) | legacy district×road editor | stale; duplicates `basic_data.php` |
 
 The legacy `zones_rates` table (district × road_category) is already unused by
@@ -125,7 +125,7 @@ confirm or parcel entry) until a mapping table is populated.
 | `api/v1/reports.php` | rate schedule reports 4 tiers |
 | `api/v1/parcels.php`, `api/v1/scans/confirm.php` | validate zone belongs to district; validate road category |
 | `public/admin/basic_data.php` | zone table with 4 rate columns + modal; district letter field |
-| `public/admin/scans.php` | road-access select + district-filtered zone list |
+| `public/admin/parcel_entry.php` (Scan tab) | road-access select + district-filtered zone list |
 | `public/admin/parcel_entry.php` | valuation-zone + road-access selects |
 | `public/admin/rates.php` | redirect to `basic_data.php?tab=zones` |
 

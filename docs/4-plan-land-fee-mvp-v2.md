@@ -48,7 +48,7 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 |------|------|-----|--------|
 | **Login** | `public/admin/login.php` | `/public/admin/login.php` | ✅ exists |
 | **Dashboard** | `public/admin/index.php` | `/public/admin/` | ✅ exists |
-| **Scan Review Queue** | `public/admin/scans.php` | `/public/admin/scans.php` | ✅ exists |
+| **Scan Review Queue** | `public/admin/parcel_entry.php` | `/public/admin/parcel_entry.php?tab=scan` | ✅ exists |
 | **Parcel Registry** | `public/admin/parcels.php` | `/public/admin/parcels.php` | ✅ exists |
 | **Zone Rate Editor** | `public/admin/rates.php` | `/public/admin/rates.php` | ✅ exists |
 | **Payment Verify Queue** | `public/admin/payments.php` | `/public/admin/payments.php` | ✅ exists |
@@ -85,7 +85,7 @@ A **Land Fee Payment MVP** for Savannakhet Province (Lao). Two front-ends over *
 - [ ] Navigation sidebar works (links to all pages)
 - [ ] Logout works
 
-### Page 3: Scan Review Queue (`/public/admin/scans.php`)
+### Page 3: Scan Review Queue (Parcel Entry → Scan tab, `/public/admin/parcel_entry.php?tab=scan`)
 - [ ] List shows pending scans (or "no scans" message)
 - [ ] **Upload scan**: choose image → submit → shows in queue
 - [ ] **Review scan**: click scan → shows image + OCR extracted fields side by side

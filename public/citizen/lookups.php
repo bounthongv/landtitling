@@ -35,7 +35,7 @@ function parcel_focus_obligations(array $obligations): array {
       ຍັງບໍ່ມີພື້ນທີ່ຜູກລູກກັບເບີໂທຂອງທ່ານ — ກະລຸນາຕິດຕໍ່ກັບຫ້ອງການອາກອນ.
     </p>
     <p class="sub" style="margin-bottom:0;">No parcel number yet? An officer registers it from the land title in
-      <a href="/public/admin/scans.php" style="color:var(--green);">Officer Review</a>.</p>
+      <a href="../admin/parcel_entry.php?tab=scan" style="color:var(--green);">Officer Parcel Entry</a>.</p>
   <?php else: ?>
     <ul class="list">
       <?php foreach ($parcels as $p): ?>

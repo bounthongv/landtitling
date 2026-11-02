@@ -51,7 +51,8 @@ $road     = strtolower(trim((string)($parcel['road_category'] ?? 'none')));
 $village  = $parcel['village_id'] ?? '';
 $district = $parcel['district_id'] ?? '';
 $status   = $parcel['status'] ?? 'confirmed';
-$subPar   = trim((string)($parcel['sub_parcel_no'] ?? '')) ?: null;
+$hasSubPar = array_key_exists('sub_parcel_no', $parcel);
+$subPar    = $hasSubPar ? (trim((string)$parcel['sub_parcel_no']) ?: null) : null;
 
 $errors = collect_errors([
     'parcel_no'     => validate_required($parcelNo, 'parcel no'),
@@ -86,6 +87,7 @@ if ($zoneRow['district_id'] !== null && (int)$zoneRow['district_id'] !== $distri
 
 // Optional title metadata (blank -> NULL). Reference codes are FK-checked.
 $province  = trim((string)($parcel['province'] ?? '')) ?: 'Savannakhet';
+$mapRefNo  = trim((string)($parcel['map_ref_no'] ?? '')) ?: null;
 $titleNo   = trim((string)($parcel['title_no'] ?? '')) ?: null;
 $titleType = ref_code_exists($pdo, 'title_types', trim((string)($parcel['title_type'] ?? '')))
     ? trim((string)$parcel['title_type']) : null;
@@ -101,16 +103,19 @@ if (($d = trim((string)($parcel['issued_date'] ?? ''))) !== '') {
 }
 
 $cols = [
-    ':pn'  => $parcelNo, ':spn' => $subPar, ':prov' => $province, ':vid' => $villageId,
+    ':pn'  => $parcelNo, ':prov' => $province, ':mr' => $mapRefNo, ':vid' => $villageId,
     ':did' => $districtId, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road, ':tn' => $titleNo,
     ':tt'  => $titleType, ':bn' => $bookNo, ':von' => $volumeNo, ':pg' => $pageNo,
     ':lu'  => $landUse, ':idate' => $issuedDate, ':st' => $status,
 ];
+if ($hasSubPar) $cols[':spn'] = $subPar;
+$insertCols = $cols + [':spn' => $subPar];
 
 try {
     if (!empty($scan['parcel_id'])) {
         $cols[':id'] = (int)$scan['parcel_id'];
-        $sql = "UPDATE parcels SET parcel_no=:pn, sub_parcel_no=:spn, province=:prov, village_id=:vid,
+        $subSet = $hasSubPar ? ', sub_parcel_no=:spn' : '';
+        $sql = "UPDATE parcels SET parcel_no=:pn$subSet, province=:prov, map_ref_no=:mr, village_id=:vid,
                 district_id=:did, area_sqm=:a, zone_code=:zc, road_category=:rc, title_no=:tn, title_type=:tt,
                 book_no=:bn, volume_no=:von, page_no=:pg, land_use_class=:lu, issued_date=:idate,
                 status=:st, scanned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP, ocr_confidence=0
@@ -118,13 +123,13 @@ try {
         $pdo->prepare($sql)->execute($cols);
         $parcelId = (int)$scan['parcel_id'];
     } else {
-        $sql = "INSERT INTO parcels (parcel_no, sub_parcel_no, province, village_id, district_id, area_sqm,
+        $sql = "INSERT INTO parcels (parcel_no, sub_parcel_no, province, map_ref_no, village_id, district_id, area_sqm,
                 zone_code, road_category, title_no, title_type, book_no, volume_no, page_no, land_use_class, issued_date,
                 status, scanned_at, ocr_confidence)
-                VALUES (:pn, :spn, :prov, :vid, :did, :a, :zc, :rc, :tn, :tt, :bn, :von, :pg, :lu, :idate,
+                VALUES (:pn, :spn, :prov, :mr, :vid, :did, :a, :zc, :rc, :tn, :tt, :bn, :von, :pg, :lu, :idate,
                 :st, CURRENT_TIMESTAMP, 0) RETURNING id";
         $st = $pdo->prepare($sql);
-        $st->execute($cols);
+        $st->execute($insertCols);
         $parcelId = (int)$st->fetch()['id'];
     }
 } catch (PDOException $e) {

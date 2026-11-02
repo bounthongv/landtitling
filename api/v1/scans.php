@@ -66,7 +66,7 @@ function normalize_land_use_class(string $raw): string {
 // ---- GET: single scan (for the review form) ----//
 if ($method === 'GET' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
-    $sql = "SELECT ts.*, p.parcel_no, p.sub_parcel_no, p.area_sqm, p.road_category,
+    $sql = "SELECT ts.*, p.parcel_no, p.sub_parcel_no, p.map_ref_no, p.area_sqm, p.road_category,
                p.village_id, p.district_id, p.status AS parcel_status,
                (SELECT username FROM users WHERE id = ts.created_by) AS created_by_name
         FROM title_scans ts
@@ -89,6 +89,7 @@ if ($method === 'GET' && isset($_GET['id'])) {
             'id' => (int)$row['parcel_id'],
             'parcel_no' => $row['parcel_no'],
             'sub_parcel_no' => $row['sub_parcel_no'],
+            'map_ref_no' => $row['map_ref_no'],
             'area_sqm' => $row['area_sqm'],
             'road_category' => $row['road_category'],
             'village_id' => $row['village_id'],

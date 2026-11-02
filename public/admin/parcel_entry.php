@@ -45,6 +45,165 @@ $role = $user['role'];
 if (!in_array($role, ['officer','admin'], true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
 
+// ---- Scan review (the single scan → parcel workflow) ----
+// Upload, OCR review, confirm and discard all live in the Scan tab below.
+// scans.php is only a redirect here, so there is one confirm path and every
+// scan that becomes a parcel gets its fee obligation assessed.
+$canWrite = !empty($user['is_super'])
+    || (($user['level'] ?? '') === 'district' && in_array($role, ['admin', 'officer'], true));
+$canDiscardScan = function (array $s) use ($user, $canWrite) {
+    if (!$canWrite) return false;
+    if ($user['role'] === 'admin') return true;
+    return (int)($s['created_by'] ?? 0) === (int)($user['sub'] ?? 0);
+};
+
+$scanId = isset($_GET['scan_id']) ? (int)$_GET['scan_id'] : 0;
+$scan = null; $scanParcel = []; $scanDistrictId = 0; $scanVillageId = 0;
+$scanParsed = []; $scanFieldConf = []; $scanOverallConf = null; $scanOwners = [];
+$scanErrors = []; $scanSuccess = '';
+
+// --- POST: upload a new scan ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+    $ocrMethod = $_POST['ocr_method'] ?? 'tesseract';
+    $data = api_upload('scans.php', $_FILES['image']['tmp_name'], $_FILES['image']['name'], $_FILES['image']['type'], $token, 'image', ['ocr_method' => $ocrMethod]);
+    if (!empty($data['ok']) && !empty($data['data']['id'])) {
+        header('Location: parcel_entry.php?tab=scan&scan_id=' . (int)$data['data']['id']);
+        exit;
+    }
+    $scanErrors[] = $data['error']['message'] ?? t('Upload failed');
+}
+
+// --- POST: confirm/edit → create or update parcel (+ owners) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel']) && $scanId > 0) {
+    $owners = [];
+    foreach (($_POST['owners'] ?? []) as $o) {
+        if (trim($o['full_name'] ?? '') === '') continue;
+        $owners[] = [
+            'id'        => ($o['id'] ?? '') !== '' ? (int)$o['id'] : null,
+            'full_name' => $o['full_name'],
+            'id_number' => $o['id_number'] ?? '',
+            'address'   => $o['address'] ?? '',
+            'role'      => $o['role'] ?? 'owner',
+        ];
+    }
+    $body = [
+        'parcel' => [
+            'parcel_no'      => $_POST['parcel_no'] ?? '',
+            'map_ref_no'     => $_POST['map_ref_no'] ?? '',
+            'area_sqm'       => $_POST['area_sqm'] ?? '',
+            'road_category'  => $_POST['road_category'] ?? '',
+            'zone_code'      => $_POST['zone_code'] ?? '',
+            'village_id'     => $_POST['village_id'] ?? '',
+            'district_id'    => $_POST['district_id'] ?? '',
+            'status'         => $_POST['status'] ?? 'confirmed',
+            'title_no'       => $_POST['title_no'] ?? '',
+            'title_type'     => $_POST['title_type'] ?? '',
+            'book_no'        => $_POST['book_no'] ?? '',
+            'volume_no'      => $_POST['volume_no'] ?? '',
+            'page_no'        => $_POST['page_no'] ?? '',
+            'land_use_class' => $_POST['land_use_class'] ?? '',
+            'issued_date'    => $_POST['issued_date'] ?? '',
+        ],
+        'owners' => $owners,
+    ];
+    $data = api_call('POST', 'scans/confirm.php?id=' . $scanId, $body, $token);
+    if (!empty($data['ok'])) {
+        $scanSuccess = t('Parcel confirmed — ID {id} ({n} owner(s))', [
+            'id' => $data['data']['parcel_id'],
+            'n'  => count($data['data']['owner_ids'] ?? []),
+        ]);
+        $scanId = 0;
+    } else {
+        $scanErrors = $data['error']['fields'] ?? [$data['error']['message'] ?? t('Failed to confirm')];
+        if (!is_array($scanErrors)) $scanErrors = [$scanErrors];
+    }
+}
+
+// --- POST: discard → permanently delete the scan (no parcel) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['discard_scan_id'])) {
+    $discardId = (int)$_POST['discard_scan_id'];
+    $data = api_call('POST', 'scans/delete.php?id=' . $discardId, [], $token);
+    if (!empty($data['ok'])) {
+        $scanSuccess = t('Scan discarded.');
+        if ($discardId === $scanId) $scanId = 0;
+    } else {
+        $scanErrors[] = $data['error']['message'] ?? t('Discard failed');
+    }
+}
+
+// --- Load the scan for review ---
+if ($scanId > 0) {
+    $data = api_call('GET', 'scans.php?id=' . $scanId, null, $token);
+    if (!empty($data['ok'])) {
+        $scan = $data['data']['scan'];
+        $scanParcel = $data['data']['parcel'] ?? [];
+        $scanDistrictId = (int)($data['data']['district_id'] ?? 0);
+        $scanVillageId = (int)($data['data']['village_id'] ?? 0);
+        $scanParsed = !empty($scan['parsed_fields']) ? (json_decode($scan['parsed_fields'], true) ?: []) : [];
+        $scanFieldConf = !empty($scan['field_confidence']) ? (json_decode($scan['field_confidence'], true) ?: []) : [];
+        $scanOverallConf = $scan['overall_confidence'];
+        if (!$scanDistrictId && !empty($scanParsed['district_id'])) $scanDistrictId = (int)$scanParsed['district_id'];
+        if (!$scanVillageId && !empty($scanParsed['village_id'])) $scanVillageId = (int)$scanParsed['village_id'];
+
+        if (!empty($scanParcel['id'])) {
+            $scanOwners = api_call('GET', 'owners.php?parcel_id=' . (int)$scanParcel['id'], null, $token)['data']['owners'] ?? [];
+        }
+        if (!$scanOwners) {
+            $names = $scanParsed['owner_names'] ?? (!empty($scanParsed['owner_name']) ? [$scanParsed['owner_name']] : []);
+            foreach ($names as $n) {
+                $scanOwners[] = ['full_name' => $n, 'id_number' => $scanParsed['owner_id_number'] ?? '', 'address' => $scanParsed['owner_address'] ?? ''];
+            }
+        }
+    } else {
+        $scanErrors[] = $data['error']['message'] ?? t('Scan not found');
+        $scanId = 0;
+    }
+}
+
+// Prefer an already-saved parcel value, else fall back to the parsed field.
+$val = function ($key) use ($scanParcel, $scanParsed) {
+    if (isset($scanParcel[$key]) && $scanParcel[$key] !== '' && $scanParcel[$key] !== null) return $scanParcel[$key];
+    return $scanParsed[$key] ?? '';
+};
+function scan_conf_badge($c) {
+    if ($c === null || $c === '' || $c === false) return '<span class="conf conf-none">—</span>';
+    $c = (int)$c;
+    $cls = $c >= 80 ? 'conf-high' : ($c >= 50 ? 'conf-mid' : 'conf-low');
+    return '<span class="conf ' . $cls . '">' . $c . '%</span>';
+}
+
+// --- Data for the Scan tab ---
+$scanProvinces = api_call('GET', 'refdata.php?table=provinces')['data'] ?? [];
+$allDistricts = api_call('GET', 'districts.php')['data'] ?? [];
+$scanProvinceId = 0;
+if ($scanDistrictId) {
+    foreach ($allDistricts as $d) {
+        if ((int)$d['id'] === $scanDistrictId) { $scanProvinceId = (int)$d['province_id']; break; }
+    }
+}
+$scanDistricts = $scanProvinceId
+    ? array_values(array_filter($allDistricts, fn($d) => (int)$d['province_id'] === $scanProvinceId))
+    : [];
+$scanVillages = $scanDistrictId ? (api_call('GET', 'villages.php?district_id=' . $scanDistrictId)['data'] ?? []) : [];
+$scanZones = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
+$pendingScans = api_call('GET', 'scans.php?status=pending', null, $token)['data']['scans'] ?? [];
+
+$parsedLabels = [
+    'parcel_no' => t('Parcel no'), 'map_ref_no' => t('Map sheet'), 'area_sqm' => t('Area (m²)'),
+    'title_no' => t('Title no'), 'title_type' => t('Title type'), 'book_no' => t('Book'),
+    'volume_no' => t('Volume'), 'page_no' => t('Page'), 'land_use_class' => t('Land use'),
+    'issued_date' => t('Issued date'), 'province' => t('Province'),
+    'district_name' => t('District (text)'), 'village_name' => t('Village (text)'),
+    'district_id' => t('District id'), 'village_id' => t('Village id'),
+    'owner_name' => t('Owner name'), 'owner_id_number' => t('Owner ID'), 'owner_address' => t('Owner address'),
+];
+$titleTypes = ['land_title' => t('Land title'), 'survey_cert' => t('Survey certificate'), 'concession' => t('Concession'), 'other' => t('Other')];
+$landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agricultural'), 'commercial' => t('Commercial'), 'other' => t('Other')];
+
+$initialTab = $_GET['tab'] ?? 'manual';
+if ($scanId > 0) $initialTab = 'scan';
+if (!in_array($initialTab, ['manual', 'scan', 'import'], true)) $initialTab = 'manual';
+
 // ---- Edit mode: fetch existing parcel if ?id= is provided ----
 $editParcel = null;
 $editId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -70,6 +229,10 @@ if ($editId > 0) {
   .entry-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .entry-tabs button { padding: 9px 18px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; font-size: 16px; }
   .entry-tabs button.active { background: #4a7c59; color: #fff; border-color: #4a7c59; }
+  .ocr-method { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .ocr-method label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .owner-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+  @media (max-width: 720px) { .owner-row { grid-template-columns: 1fr; } }
 
   /* Flat certificate form — mirrors the Lao Land Title Certificate layout:
        a single-column document where each field is a "label: value" row in
@@ -228,13 +391,13 @@ if ($editId > 0) {
 
     <div class="entry-page">
       <div class="entry-tabs">
-        <button class="active" data-tab="manual"><?= te('Manual') ?></button>
-        <button data-tab="scan"><?= te('Scan') ?></button>
-        <button data-tab="import"><?= te('Import') ?></button>
+        <button class="<?= $initialTab === 'manual' ? 'active' : '' ?>" data-tab="manual"><?= te('Manual') ?></button>
+        <button class="<?= $initialTab === 'scan' ? 'active' : '' ?>" data-tab="scan"><?= te('Scan') ?></button>
+        <button class="<?= $initialTab === 'import' ? 'active' : '' ?>" data-tab="import"><?= te('Import') ?></button>
       </div>
 
       <!-- ========== MANUAL TAB ========== -->
-      <div data-content="manual">
+      <div data-content="manual"<?= $initialTab === 'manual' ? '' : ' style="display:none;"' ?>>
         <form id="parcel-form">
           <div class="cert-grid">
             <!-- Certificate header -->
@@ -409,32 +572,232 @@ if ($editId > 0) {
       </div>
 
       <!-- ========== SCAN TAB ========== -->
-      <!-- A shortcut only: the upload is handled by Scan Review, the single
-           scan → parcel screen, so there is one confirm path and every scan
-           that reaches a parcel gets its fee obligation assessed. -->
-      <div data-content="scan" style="display:none;">
-        <div class="form-box">
-          <h3><?= te('Upload a Land Title Scan') ?></h3>
-          <form method="post" enctype="multipart/form-data" action="scans.php">
-            <div class="form-group">
-              <label><?= te('Land title image (JPG/PNG)') ?></label>
-              <input type="file" name="image" accept="image/*" required>
-              <p class="sub" style="font-size:13px;"><?= te('Upload a land title scan → OCR → review the parsed fields → confirm or correct') ?></p>
-            </div>
-            <div class="form-group">
-              <label><?= te('OCR Method') ?></label>
-              <div class="ocr-method">
-                <label><input type="radio" name="ocr_method" value="tesseract" checked> <?= te('Tesseract (local, free, fast)') ?></label>
-                <label><input type="radio" name="ocr_method" value="gemini"> <?= te('Gemini 2.5 Flash (AI, higher accuracy, requires API key)') ?></label>
+      <!-- The only scan → parcel workflow: upload + OCR, review the parsed
+           fields, confirm/correct, or discard. It used to be scans.php; that
+           URL now redirects here so there is one confirm path. -->
+      <div data-content="scan"<?= $initialTab === 'scan' ? '' : ' style="display:none;"' ?>>
+        <?php if ($scanSuccess): ?><div class="form-box" style="border-color:#2e7d32; background:#eaf4ea;"><?= e($scanSuccess) ?></div><?php endif; ?>
+        <?php foreach ($scanErrors as $err): ?><div class="form-box" style="border-color:#c62828; background:#fdecea;"><?= e(is_array($err) ? implode('; ', $err) : $err) ?></div><?php endforeach; ?>
+
+        <?php if (!$scan): ?>
+          <div class="form-box">
+            <h3><?= te('Upload a Land Title Scan') ?></h3>
+            <form method="post" enctype="multipart/form-data" action="parcel_entry.php?tab=scan">
+              <div class="form-group">
+                <label><?= te('Land title image (JPG/PNG)') ?></label>
+                <input type="file" name="image" accept="image/*" required>
+                <p class="sub" style="font-size:12px;"><?= te('OCR reads the title text and pre-fills the fields below. You confirm and correct everything.') ?></p>
+              </div>
+              <div class="form-group">
+                <label><?= te('OCR Method') ?></label>
+                <div class="ocr-method">
+                  <label><input type="radio" name="ocr_method" value="tesseract" checked> <?= te('Tesseract (local, free, fast)') ?></label>
+                  <label><input type="radio" name="ocr_method" value="gemini"> <?= te('Gemini 2.5 Flash (AI, higher accuracy, requires API key)') ?></label>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-green"><?= te('Upload & Process') ?></button>
+            </form>
+          </div>
+
+          <div class="form-box">
+            <h3><?= te('Pending in queue ({n})', ['n' => count($pendingScans)]) ?></h3>
+            <?php if (empty($pendingScans)): ?>
+              <p class="empty"><?= te('No scans waiting for review.') ?></p>
+            <?php else: ?>
+            <table>
+              <thead><tr><th>#</th><th><?= te('Uploaded') ?></th><th><?= te('Uploaded by') ?></th><th><?= te('Status') ?></th><th><?= te('Conf.') ?></th><th><?= te('Parcel') ?></th><th></th></tr></thead>
+              <tbody>
+                <?php foreach ($pendingScans as $s): ?>
+                <tr>
+                  <td><?= (int)$s['id'] ?></td>
+                  <td><?= e($s['created_at']) ?></td>
+                  <td><?= e($s['created_by_name'] ?: '—') ?></td>
+                  <td><span class="pill pill-pending"><?= e(t($s['status'])) ?></span></td>
+                  <td><?= scan_conf_badge($s['overall_confidence'] ?? null) ?></td>
+                  <td><?= e($s['parcel_no'] ?: '—') ?></td>
+                  <td style="white-space:nowrap;">
+                    <a class="btn btn-gold btn-sm" href="parcel_entry.php?tab=scan&scan_id=<?= (int)$s['id'] ?>"><?= te('Review →') ?></a>
+                    <?php if ($canDiscardScan($s)): ?>
+                    <form method="post" action="parcel_entry.php?tab=scan" style="display:inline;" onsubmit="return confirm(<?= e(json_encode(t('Discard this scan? The scan and its image will be deleted permanently.'), JSON_UNESCAPED_UNICODE)) ?>);">
+                      <input type="hidden" name="discard_scan_id" value="<?= (int)$s['id'] ?>">
+                      <button type="submit" class="btn btn-red btn-sm"><?= te('Discard') ?></button>
+                    </form>
+                    <?php endif; ?>
+                  </td>
+                </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+            <?php endif; ?>
+          </div>
+        <?php else: ?>
+          <div class="grid" style="gap: 16px;">
+            <div>
+              <div class="form-box" style="border:2px solid #1b5e20;">
+                <h3><?= te('Title scan #{id}', ['id' => (int)$scan['id']]) ?> &nbsp;<?= scan_conf_badge($scanOverallConf) ?></h3>
+                <p class="sub"><?= e(t('Uploaded by {name}', ['name' => $scan['created_by_name'] ?: '—'])) ?></p>
+                <img src="<?= e($scan['image_path']) ?>" style="width:100%; max-height:340px; object-fit:contain; border-radius:4px; background:#fff;" alt="<?= te('Scan') ?>">
+              </div>
+              <div class="form-box">
+                <h3><?= te('OCR extracted text') ?></h3>
+                <div class="ocr-box"><?= e($scan['ocr_raw'] ?? t('No text extracted.')) ?></div>
               </div>
             </div>
-            <button type="submit" class="btn btn-green"><?= te('Upload & Process') ?></button>
-          </form>
-        </div>
+            <div>
+              <div class="form-box">
+                <h3><?= te('Parsed fields') ?></h3>
+                <?php
+                $shown = 0;
+                ob_start(); ?>
+                <table class="parsed-table"><tbody>
+                <?php foreach ($parsedLabels as $k => $lbl):
+                    if (!array_key_exists($k, $scanParsed) && !array_key_exists($k, $scanFieldConf)) continue;
+                    $shown++;
+                    $pv = $scanParsed[$k] ?? ''; ?>
+                  <tr>
+                    <td><?= e($lbl) ?></td>
+                    <td><?= e(is_array($pv) ? implode(', ', $pv) : ($pv === '' ? '—' : $pv)) ?></td>
+                    <td><?= scan_conf_badge($scanFieldConf[$k] ?? null) ?></td>
+                  </tr>
+                <?php endforeach; ?>
+                </tbody></table>
+                <?php
+                $tableHtml = ob_get_clean();
+                echo $shown ? $tableHtml : '<p class="empty">' . te('No fields parsed from this scan — fill them in below.') . '</p>';
+                ?>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-box">
+            <h3><?= te('Confirm / Edit Parcel Data') ?></h3>
+            <form method="post" action="parcel_entry.php?tab=scan&amp;scan_id=<?= (int)$scan['id'] ?>">
+              <input type="hidden" name="confirm_parcel" value="1">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label><?= te('Parcel number') ?></label>
+                  <input name="parcel_no" value="<?= e($val('parcel_no')) ?>">
+                </div>
+                <div class="form-group">
+                  <label><?= te('Map sheet') ?></label>
+                  <input name="map_ref_no" value="<?= e($val('map_ref_no')) ?>" placeholder="e.g. A250-038" required>
+                </div>
+                <div class="form-group">
+                  <label><?= te('Area (m²)') ?></label>
+                  <input name="area_sqm" type="number" step="0.01" value="<?= e($val('area_sqm')) ?>">
+                </div>
+                <div class="form-group">
+                  <label><?= te('Zone (fee rate)') ?></label>
+                  <select name="zone_code" required>
+                    <option value=""><?= te('-- select --') ?></option>
+                    <?php foreach ($scanZones as $z): ?>
+                    <option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?> — <?= e($z['district_name'] ?? te('unassigned')) ?><?= $z['plan_zone'] ? ' / ' . e($z['plan_zone']) : '' ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label><?= te('Road access') ?></label>
+                  <select name="road_category" required>
+                    <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
+                    <option value="<?= $rc ?>" <?= ($val('road_category') ?: 'none') === $rc ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label><?= te('Province') ?></label>
+                  <select id="province-select">
+                    <option value=""><?= te('-- select province --') ?></option>
+                    <?php foreach ($scanProvinces as $p): ?>
+                    <option value="<?= (int)$p['id'] ?>" <?= $scanProvinceId === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?> <?= e($p['name_en'] ?: '') ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label><?= te('District') ?></label>
+                  <select name="district_id" id="district-select">
+                    <option value=""><?= te('-- select --') ?></option>
+                    <?php foreach ($scanDistricts as $d): ?>
+                    <option value="<?= (int)$d['id'] ?>" <?= $scanDistrictId === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?> <?= e($d['name_en'] ?: '') ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label><?= te('Village') ?></label>
+                  <select name="village_id" id="village-select">
+                    <option value=""><?= te('-- select --') ?></option>
+                    <?php foreach ($scanVillages as $v): ?>
+                    <option value="<?= (int)$v['id'] ?>" <?= $scanVillageId === (int)$v['id'] ? 'selected' : '' ?>><?= e($v['name_lo']) ?> <?= e($v['name_en'] ?: '') ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label><?= te('Title number') ?></label>
+                  <input name="title_no" value="<?= e($val('title_no')) ?>">
+                </div>
+                <div class="form-group">
+                  <label><?= te('Title type') ?></label>
+                  <select name="title_type">
+                    <option value=""><?= te('-- select --') ?></option>
+                    <?php foreach ($titleTypes as $v => $lbl): ?>
+                    <option value="<?= $v ?>" <?= $val('title_type') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label><?= te('Book') ?></label>
+                  <input name="book_no" value="<?= e($val('book_no')) ?>">
+                </div>
+                <div class="form-group">
+                  <label><?= te('Volume') ?></label>
+                  <input name="volume_no" value="<?= e($val('volume_no')) ?>">
+                </div>
+                <div class="form-group">
+                  <label><?= te('Page') ?></label>
+                  <input name="page_no" value="<?= e($val('page_no')) ?>">
+                </div>
+                <div class="form-group">
+                  <label><?= te('Land use') ?></label>
+                  <select name="land_use_class">
+                    <option value=""><?= te('-- select --') ?></option>
+                    <?php foreach ($landUseClasses as $v => $lbl): ?>
+                    <option value="<?= $v ?>" <?= $val('land_use_class') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label><?= te('Issued date') ?></label>
+                  <input name="issued_date" type="date" value="<?= e($val('issued_date')) ?>">
+                </div>
+                <div class="form-group">
+                  <label><?= te('Status') ?></label>
+                  <select name="status">
+                    <option value="confirmed" <?= ($val('status') ?: 'confirmed') === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option>
+                    <option value="active" <?= $val('status') === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option>
+                  </select>
+                </div>
+              </div>
+
+              <h3 style="margin-top:20px;"><?= te('Owner(s)') ?></h3>
+              <div id="owners"></div>
+              <button type="button" class="btn btn-blue btn-sm" onclick="addOwner()"><?= te('+ Add owner') ?></button>
+
+              <div class="modal-actions" style="justify-content:flex-start;">
+                <button type="submit" class="btn btn-green"><?= te('Confirm & Create Parcel') ?></button>
+                <a href="parcel_entry.php?tab=scan" class="btn btn-gold"><?= te('New scan') ?></a>
+              </div>
+            </form>
+            <?php if ($canDiscardScan($scan)): ?>
+            <form method="post" action="parcel_entry.php?tab=scan&amp;scan_id=<?= (int)$scan['id'] ?>" style="margin-top:10px;" onsubmit="return confirm(<?= e(json_encode(t('Discard this scan? The scan and its image will be deleted permanently.'), JSON_UNESCAPED_UNICODE)) ?>);">
+              <input type="hidden" name="discard_scan_id" value="<?= (int)$scan['id'] ?>">
+              <button type="submit" class="btn btn-red"><?= te('Discard') ?></button>
+            </form>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
       </div>
 
       <!-- ========== IMPORT TAB ========== -->
-      <div data-content="import" style="display:none;">
+      <div data-content="import"<?= $initialTab === 'import' ? '' : ' style="display:none;"' ?>>
         <div class="entry-tools">
           <button type="button" class="btn btn-gold" id="download-template"><?= te('Download Template') ?></button>
           <input type="file" id="import-file" accept=".csv,text/csv" class="grow">
@@ -455,9 +818,12 @@ const I18N = <?= json_encode([
   'saveFailed'    => t('Save failed'),
   'importFailed'  => t('Import failed'),
   'chooseFile'    => t('Choose a file first.'),
-    'taxEstimate'   => t('Estimated tax'),
-    'kip'           => t('kip'),
-    ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+  'taxEstimate'   => t('Estimated tax'),
+  'kip'           => t('kip'),
+  'fullName'      => t('Full name'),
+  'idNumber'      => t('ID number'),
+  'address'       => t('Address / residence'),
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
 // Edit parcel data passed from PHP
 const EDIT_PARCEL = <?php echo json_encode($editParcel ?? null, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -492,6 +858,7 @@ function switchTab(name) {
   document.querySelectorAll('.entry-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('[data-content]').forEach(p => p.style.display = (p.dataset.content === name) ? '' : 'none');
 }
+switchTab(<?= json_encode($initialTab) ?>);
 
 /* ---------- load districts + villages + provinces ---------- */
 let allDistricts = [];
@@ -918,6 +1285,69 @@ function prefillEditParcel() {
       updateTaxPreview();
     })();
   }
+
+/* ---------- SCAN TAB: owner rows + province → district → village ---------- */
+let scanOwnerIndex = 0;
+function scanEscJs(s) { return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function scanOwnerRow(i, o) {
+  o = o || {};
+  return '<div class="owner-row">'
+    + '<input type="hidden" name="owners[' + i + '][id]" value="' + scanEscJs(o.id) + '">'
+    + '<div class="form-group"><label>' + I18N.fullName + '</label><input name="owners[' + i + '][full_name]" value="' + scanEscJs(o.full_name) + '"></div>'
+    + '<div class="form-group"><label>' + I18N.idNumber + '</label><input name="owners[' + i + '][id_number]" value="' + scanEscJs(o.id_number) + '"></div>'
+    + '<div class="form-group"><label>' + I18N.address + '</label><input name="owners[' + i + '][address]" value="' + scanEscJs(o.address) + '"></div>'
+    + '<button type="button" class="btn btn-red btn-sm" onclick="this.parentNode.remove()">&times;</button>'
+    + '</div>';
+}
+function addOwner() { document.getElementById('owners').insertAdjacentHTML('beforeend', scanOwnerRow(scanOwnerIndex++)); }
+
+const scanOwnersEl = document.getElementById('owners');
+if (scanOwnersEl) {
+  const existingOwners = <?= json_encode(array_values($scanOwners), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+  if (existingOwners.length === 0) addOwner();
+  else existingOwners.forEach(o => scanOwnersEl.insertAdjacentHTML('beforeend', scanOwnerRow(scanOwnerIndex++, o)));
+}
+
+const scanProvinceSelect = document.getElementById('province-select');
+const scanDistrictSelect = document.getElementById('district-select');
+const scanVillageSelect = document.getElementById('village-select');
+
+function scanFillSelect(sel, rows) {
+  sel.innerHTML = '<option value="">' + I18N.select + '</option>';
+  (rows || []).forEach(r => {
+    const o = document.createElement('option');
+    o.value = r.id;
+    o.textContent = r.name_lo + (r.name_en ? ' (' + r.name_en + ')' : '');
+    sel.appendChild(o);
+  });
+}
+
+// Districts are national (148), so they load after a province is picked.
+if (scanProvinceSelect && scanDistrictSelect && scanVillageSelect) {
+  scanProvinceSelect.addEventListener('change', async () => {
+    scanVillageSelect.innerHTML = '<option value="">' + I18N.select + '</option>';
+    scanDistrictSelect.innerHTML = '<option value="">' + I18N.select + '</option>';
+    if (!scanProvinceSelect.value) return;
+    const r = await fetch('/api/v1/districts.php?province_id=' + encodeURIComponent(scanProvinceSelect.value), {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    const j = await r.json();
+    scanFillSelect(scanDistrictSelect, j.data);
+  });
+}
+
+if (scanDistrictSelect && scanVillageSelect) {
+  scanDistrictSelect.addEventListener('change', async () => {
+    const val = scanDistrictSelect.value;
+    scanVillageSelect.innerHTML = '<option value="">' + I18N.select + '</option>';
+    if (!val) return;
+    const r = await fetch('/api/v1/villages.php?district_id=' + encodeURIComponent(val), {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    const j = await r.json();
+    scanFillSelect(scanVillageSelect, j.data);
+  });
+}
 
   // Geo data first, then the edit prefill: the prefill walks the province →
   // district → village cascade, which only exists once the lists are loaded.
