@@ -174,7 +174,7 @@ function scan_conf_badge($c) {
 
 // --- Data for the Scan tab ---
 $scanProvinces = api_call('GET', 'refdata.php?table=provinces')['data'] ?? [];
-$allDistricts = api_call('GET', 'districts.php')['data'] ?? [];
+$allDistricts = api_call('GET', 'districts.php', null, $token)['data'] ?? [];
 $scanProvinceId = 0;
 if ($scanDistrictId) {
     foreach ($allDistricts as $d) {
@@ -186,6 +186,33 @@ $scanDistricts = $scanProvinceId
     : [];
 $scanVillages = $scanDistrictId ? (api_call('GET', 'villages.php?district_id=' . $scanDistrictId)['data'] ?? []) : [];
 $scanZones = api_call('GET', 'rates.php', null, $token)['data']['zones'] ?? [];
+// The scan review mirrors the entry form: the zone list stays empty until a
+// district *and* village are known, then offers only the village's own zone —
+// and only once that zone has rate rows. An existing parcel keeps its saved
+// zone visible even if it predates the mapping, so the officer can correct it.
+$scanZoneOpts = [];
+if ($scanDistrictId && $scanVillageId) {
+    $scanVillageRow = null;
+    foreach ($scanVillages as $sv) {
+        if ((int)$sv['id'] === $scanVillageId) { $scanVillageRow = $sv; break; }
+    }
+    $scanVillageZone = $scanVillageRow && !empty($scanVillageRow['zone_id'])
+        ? strtoupper(trim((string)$scanVillageRow['zone_id'])) : '';
+    if ($scanVillageZone !== '') {
+        foreach ($scanZones as $sz) {
+            if (strtoupper((string)$sz['code']) === $scanVillageZone
+                && (int)($sz['district_id'] ?? 0) === $scanDistrictId
+                && !empty($sz['tiers'])) {
+                $scanZoneOpts[] = $sz;
+                break;
+            }
+        }
+    }
+}
+$savedScanZone = !empty($scanParcel['id']) ? strtoupper(trim((string)($scanParcel['zone_code'] ?? ''))) : '';
+if ($savedScanZone !== '' && !in_array($savedScanZone, array_column($scanZoneOpts, 'code'), true)) {
+    $scanZoneOpts[] = ['code' => $savedScanZone, 'district_name' => '', 'plan_zone' => ''];
+}
 $pendingScans = api_call('GET', 'scans.php?status=pending', null, $token)['data']['scans'] ?? [];
 
 $parsedLabels = [
@@ -557,7 +584,9 @@ if ($editId > 0) {
                               <?php endforeach; ?>
                             </select></span>
                           </div>
+                          <div class="zone-warn" id="zone-dist-warn"></div>
                           <div class="zone-warn" id="zone-warn"><?= te('This village is not mapped to a valuation zone — ask the administrator to map it before this parcel can be billed.') ?></div>
+                          <div class="zone-warn" id="zone-rate-warn"></div>
                           <div class="tax-preview" id="tax-preview"></div>
                         </div>
           </div>
@@ -688,16 +717,19 @@ if ($editId > 0) {
                 </div>
                 <div class="form-group">
                   <label><?= te('Zone (fee rate)') ?></label>
-                  <select name="zone_code" required>
+                  <select name="zone_code" id="scan-zone-select" required>
                     <option value=""><?= te('-- select --') ?></option>
-                    <?php foreach ($scanZones as $z): ?>
-                    <option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?> — <?= e($z['district_name'] ?? te('unassigned')) ?><?= $z['plan_zone'] ? ' / ' . e($z['plan_zone']) : '' ?></option>
+                    <?php foreach ($scanZoneOpts as $z): ?>
+                    <option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?><?= !empty($z['district_name']) ? ' — ' . e($z['district_name']) : '' ?><?= !empty($z['plan_zone']) ? ' / ' . e($z['plan_zone']) : '' ?></option>
                     <?php endforeach; ?>
                   </select>
+                  <div class="zone-warn" id="scan-zone-dist-warn"></div>
+                  <div class="zone-warn" id="scan-zone-vill-warn"><?= te('This village is not mapped to a valuation zone — ask the administrator to map it before this parcel can be billed.') ?></div>
+                  <div class="zone-warn" id="scan-zone-rate-warn"></div>
                 </div>
                 <div class="form-group">
                   <label><?= te('Road access') ?></label>
-                  <select name="road_category" required>
+                  <select name="road_category" id="scan-road-select" required>
                     <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
                     <option value="<?= $rc ?>" <?= ($val('road_category') ?: 'none') === $rc ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
                     <?php endforeach; ?>
@@ -726,7 +758,7 @@ if ($editId > 0) {
                   <select name="village_id" id="village-select">
                     <option value=""><?= te('-- select --') ?></option>
                     <?php foreach ($scanVillages as $v): ?>
-                    <option value="<?= (int)$v['id'] ?>" <?= $scanVillageId === (int)$v['id'] ? 'selected' : '' ?>><?= e($v['name_lo']) ?> <?= e($v['name_en'] ?: '') ?></option>
+                    <option value="<?= (int)$v['id'] ?>" data-zone="<?= e($v['zone_id'] ?? '') ?>" <?= $scanVillageId === (int)$v['id'] ? 'selected' : '' ?>><?= e($v['name_lo']) ?> <?= e($v['name_en'] ?: '') ?></option>
                     <?php endforeach; ?>
                   </select>
                 </div>
@@ -820,6 +852,10 @@ const I18N = <?= json_encode([
   'chooseFile'    => t('Choose a file first.'),
   'taxEstimate'   => t('Estimated tax'),
   'kip'           => t('kip'),
+  'zoneNoDistrict'=> t('No valuation zone has been created for this district yet — ask the administrator to add zone rates before billing.'),
+  'zoneNoVillage' => t('This village is not mapped to a valuation zone — ask the administrator to map it before this parcel can be billed.'),
+  'zoneNoVillageZone' => t('The valuation zone mapped to this village is not in the selected district — ask the administrator to fix the village mapping.'),
+  'zoneNoRate'    => t('No zone rate has been set for this road access yet — ask the administrator to add it before billing.'),
   'fullName'      => t('Full name'),
   'idNumber'      => t('ID number'),
   'address'       => t('Address / residence'),
@@ -891,7 +927,7 @@ async function loadGeoData() {
   const zRes = await fetch('/api/v1/rates.php', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
   const zJson = await zRes.json();
   allZones = zJson.data?.zones || [];
-  populateZoneSelect(null);
+  refreshZoneField();
 
   // Extract unique provinces from districts (each district has province_name)
   const provSet = new Set();
@@ -912,16 +948,79 @@ function populateProvSelects() {
   document.getElementById('issued-prov-select').innerHTML = opts;
 }
 
-/* ---------- valuation zones: filter by selected district ---------- */
-function populateZoneSelect(districtId) {
+/* ---------- valuation zone: blank until district + village resolve it ----------
+   A zone belongs to one district (zones.district_id) and a village maps to
+   exactly one zone (villages.zone_id), so the list is deliberately empty until
+   a village is chosen. It also stays empty when the village's zone has no rate
+   row yet — an officer cannot bill a parcel against an unrelated or unpriced
+   zone. */
+function zoneLabel(z) {
+  return z.code + (z.district_name ? ' — ' + z.district_name : '') + (z.plan_zone ? ' / ' + z.plan_zone : '');
+}
+function zoneWarn(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg || '';
+  el.classList.toggle('show', !!msg);
+}
+function zoneRateRows(z) {
+  return (z && z.tiers) ? Object.keys(z.tiers).length : 0;
+}
+function setZoneOption(code) {
+  const sel = document.getElementById('zone-code-select');
+  if (!sel || !code) return;
+  if (!Array.from(sel.options).some(o => o.value === code)) {
+    const z = allZones.find(x => x.code === code);
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = z ? zoneLabel(z) : code;
+    sel.appendChild(opt);
+  }
+  sel.value = code;
+}
+function refreshZoneField() {
   const sel = document.getElementById('zone-code-select');
   if (!sel) return;
-  const did = districtId ? Number(districtId) : 0;
-  const opts = allZones.filter(z => !did || !z.district_id || Number(z.district_id) === did);
-  sel.innerHTML = '<option value="">' + esc(I18N.select) + '</option>' +
-    opts.map(z => '<option value="' + esc(z.code) + '">' +
-      esc(z.code + (z.district_name ? ' — ' + z.district_name : '') + (z.plan_zone ? ' / ' + z.plan_zone : '')) +
-      '</option>').join('');
+  sel.innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+  zoneWarn('zone-dist-warn', '');
+  zoneWarn('zone-warn', '');
+  zoneWarn('zone-rate-warn', '');
+  const did = parseInt(document.getElementById('dist-select').value, 10) || 0;
+  if (!did) { updateTaxPreview(); return; }
+  const districtZones = allZones.filter(z => Number(z.district_id) === did);
+  if (!districtZones.length) {
+    zoneWarn('zone-dist-warn', I18N.zoneNoDistrict);
+    updateTaxPreview(); return;
+  }
+  const vid = parseInt(document.getElementById('vill-select').value, 10) || 0;
+  if (!vid) { updateTaxPreview(); return; }
+  const v = allVillages.find(x => x.id === vid);
+  const code = v && v.zone_id ? v.zone_id : '';
+  if (!code) {
+    zoneWarn('zone-warn', I18N.zoneNoVillage);
+    updateTaxPreview(); return;
+  }
+  const z = districtZones.find(x => x.code === code);
+  if (!z) {
+    zoneWarn('zone-dist-warn', I18N.zoneNoVillageZone);
+    updateTaxPreview(); return;
+  }
+  if (!zoneRateRows(z)) {
+    zoneWarn('zone-rate-warn', I18N.zoneNoRate);
+    updateTaxPreview(); return;
+  }
+  sel.innerHTML += '<option value="' + esc(z.code) + '">' + esc(zoneLabel(z)) + '</option>';
+  sel.value = z.code;
+  updateTaxPreview();
+}
+// Warn when the chosen zone has no explicit rate row for the chosen road.
+function rateWarning(zoneCode, road, zones) {
+  if (!zoneCode) return '';
+  const z = (zones || []).find(x => x.code === zoneCode);
+  if (!z) return I18N.zoneNoRate;
+  if (!road) return '';
+  const hasTier = z.tiers && z.tiers[road];
+  return hasTier ? '' : I18N.zoneNoRate;
 }
 
 /* ---------- land location cascade: #4 province → #5 district (id) → #6 village (id) ---------- */
@@ -932,12 +1031,13 @@ document.getElementById('prov-select').addEventListener('change', function() {
       .map(d => '<option value="' + d.id + '">' + esc(d.name_lo) + '</option>').join('');
   document.getElementById('dist-select').innerHTML = opts;
   document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+  refreshZoneField();
 });
 
 document.getElementById('dist-select').addEventListener('change', async function() {
   const dId = parseInt(this.value, 10);
   document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
-  populateZoneSelect(dId || null);
+  refreshZoneField();
   if (!dId) { document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>'; return; }
   const vils = await ensureVillages(dId);
   allVillages = vils;
@@ -946,36 +1046,9 @@ document.getElementById('dist-select').addEventListener('change', async function
   document.getElementById('vill-select').innerHTML = opts;
 });
 
-/* Auto-fill the valuation zone from the chosen parcel village (#6).
-   A village maps to exactly one zone (villages.zone_id); picking the village
-   selects that zone in the Tax footer. The officer can still override it.
-   When the village is not mapped we say so instead of silently billing the
-   parcel against a placeholder zone. */
-document.getElementById('vill-select').addEventListener('change', function() {
-  const vid = parseInt(this.value, 10);
-  const v = allVillages.find(x => x.id === vid);
-  const zoneCode = v && v.zone_id ? v.zone_id : '';
-  const zsel = document.getElementById('zone-code-select');
-  const warn = document.getElementById('zone-warn');
-  if (warn) warn.classList.toggle('show', !!vid && !zoneCode);
-  if (zsel) {
-    if (zoneCode) {
-      // Ensure the option exists (it should, since the zone is mapped to this village).
-      let found = false;
-      Array.from(zsel.options).forEach(o => { if (o.value === zoneCode) found = true; });
-      if (!found) {
-        const opt = document.createElement('option');
-        opt.value = zoneCode;
-        opt.textContent = zoneCode;
-        zsel.appendChild(opt);
-      }
-      zsel.value = zoneCode;
-    } else {
-      zsel.value = '';
-    }
-  }
-  updateTaxPreview();
-});
+/* The chosen village (#6) decides the valuation zone; refreshZoneField() keeps
+   the list blank until the mapping and its rates both exist. */
+document.getElementById('vill-select').addEventListener('change', refreshZoneField);
 
 /* ---------- live tax estimate (rate × area) ----------
    The rate is the zone's tier for the chosen road access; rates.php already
@@ -987,13 +1060,27 @@ function zoneRateFor(zoneCode, roadCategory) {
   const r = z.rates[roadCategory];
   return (r === undefined || r === null || r === '') ? null : Number(r);
 }
+// A tier row is the rate actually maintained in Basic Data > Zone rates; the
+// zone's single rate_per_sqm is only a legacy fallback, so it is not quoted.
+function zoneHasTier(zoneCode, roadCategory) {
+  const z = allZones.find(x => x.code === zoneCode);
+  return !!(z && z.tiers && roadCategory && z.tiers[roadCategory]);
+}
 function updateTaxPreview() {
   const box = document.getElementById('tax-preview');
   if (!box) return;
   const zone = v('zone_code');
   const road = v('road_category');
   const area = parseFloat(v('area'));
-  const rate = (zone && road) ? zoneRateFor(zone, road) : null;
+  const rateWarn = document.getElementById('zone-rate-warn');
+  // Only speak for a selected zone: with none, refreshZoneField() owns this
+  // warning (e.g. "the village's zone has no rates at all").
+  if (rateWarn && zone) {
+    const msg = rateWarning(zone, road, allZones);
+    rateWarn.textContent = msg;
+    rateWarn.classList.toggle('show', !!msg);
+  }
+  const rate = (zone && road && zoneHasTier(zone, road)) ? zoneRateFor(zone, road) : null;
   if (!zone || !road || !(area > 0) || rate === null) {
     box.classList.remove('show');
     box.innerHTML = '';
@@ -1232,8 +1319,9 @@ function prefillEditParcel() {
           document.getElementById('vill-select').dispatchEvent(new Event('change'));
         }
       }
-      if (p.zone_code) setVal('zone_code', p.zone_code);
+      if (p.zone_code) setZoneOption(p.zone_code);
       if (p.road_category) setVal('road_category', p.road_category);
+      updateTaxPreview();
 
       // Issued date
       if (p.issued_date && /^\d{4}-\d{2}-\d{2}$/.test(p.issued_date)) {
@@ -1318,8 +1406,65 @@ function scanFillSelect(sel, rows) {
     const o = document.createElement('option');
     o.value = r.id;
     o.textContent = r.name_lo + (r.name_en ? ' (' + r.name_en + ')' : '');
+    if (r.zone_id) o.setAttribute('data-zone', r.zone_id);
     sel.appendChild(o);
   });
+}
+
+/* ---------- scan review: the zone list follows the chosen district + village ----------
+   Same rule as the entry form: blank until a district and village are chosen,
+   then only the village's own zone (villages.zone_id), and only when that zone
+   belongs to the district and has rate rows. The warnings say why it is blank,
+   so a missing rate is caught here instead of at billing time. */
+const SCAN_ZONES = <?= json_encode($scanZones, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+function scanZoneLabel(z) {
+  if (!z) return '';
+  return z.code + (z.district_name ? ' — ' + z.district_name : '') + (z.plan_zone ? ' / ' + z.plan_zone : '');
+}
+function scanWarn(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg || '';
+  el.classList.toggle('show', !!msg);
+}
+function scanZoneRateRows(z) {
+  return (z && z.tiers) ? Object.keys(z.tiers).length : 0;
+}
+function refreshScanZoneField() {
+  const sel = document.getElementById('scan-zone-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">' + I18N.select + '</option>';
+  scanWarn('scan-zone-dist-warn', '');
+  scanWarn('scan-zone-vill-warn', '');
+  scanWarn('scan-zone-rate-warn', '');
+  const did = parseInt(scanDistrictSelect.value, 10) || 0;
+  if (!did) return;
+  const districtZones = SCAN_ZONES.filter(z => Number(z.district_id) === did);
+  if (!districtZones.length) { scanWarn('scan-zone-dist-warn', I18N.zoneNoDistrict); return; }
+  const vid = parseInt(scanVillageSelect.value, 10) || 0;
+  if (!vid) return;
+  const opt = scanVillageSelect.options[scanVillageSelect.selectedIndex];
+  const code = (opt && opt.getAttribute('data-zone')) || '';
+  if (!code) { scanWarn('scan-zone-vill-warn', I18N.zoneNoVillage); return; }
+  const z = districtZones.find(x => x.code === code);
+  if (!z) { scanWarn('scan-zone-dist-warn', I18N.zoneNoVillageZone); return; }
+  if (!scanZoneRateRows(z)) { scanWarn('scan-zone-rate-warn', I18N.zoneNoRate); return; }
+  sel.innerHTML += '<option value="' + esc(z.code) + '">' + esc(scanZoneLabel(z)) + '</option>';
+  sel.value = z.code;
+  scanRateWarn();
+}
+// With no zone selected this is silent — refreshScanZoneField() owns the
+// warning in that state (e.g. the village's zone has no rate rows at all).
+function scanRateWarn() {
+  const sel = document.getElementById('scan-zone-select');
+  const roadSel = document.getElementById('scan-road-select');
+  const w = document.getElementById('scan-zone-rate-warn');
+  if (!sel || !w || !sel.value) return;
+  const z = SCAN_ZONES.find(x => x.code === sel.value);
+  const road = roadSel ? roadSel.value : '';
+  const msg = (!z || (road && !(z.tiers && z.tiers[road]))) ? I18N.zoneNoRate : '';
+  w.textContent = msg;
+  w.classList.toggle('show', !!msg);
 }
 
 // Districts are national (148), so they load after a province is picked.
@@ -1327,6 +1472,7 @@ if (scanProvinceSelect && scanDistrictSelect && scanVillageSelect) {
   scanProvinceSelect.addEventListener('change', async () => {
     scanVillageSelect.innerHTML = '<option value="">' + I18N.select + '</option>';
     scanDistrictSelect.innerHTML = '<option value="">' + I18N.select + '</option>';
+    refreshScanZoneField();
     if (!scanProvinceSelect.value) return;
     const r = await fetch('/api/v1/districts.php?province_id=' + encodeURIComponent(scanProvinceSelect.value), {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
@@ -1340,6 +1486,7 @@ if (scanDistrictSelect && scanVillageSelect) {
   scanDistrictSelect.addEventListener('change', async () => {
     const val = scanDistrictSelect.value;
     scanVillageSelect.innerHTML = '<option value="">' + I18N.select + '</option>';
+    refreshScanZoneField();
     if (!val) return;
     const r = await fetch('/api/v1/villages.php?district_id=' + encodeURIComponent(val), {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
@@ -1347,6 +1494,16 @@ if (scanDistrictSelect && scanVillageSelect) {
     const j = await r.json();
     scanFillSelect(scanVillageSelect, j.data);
   });
+}
+
+const scanZoneSelect = document.getElementById('scan-zone-select');
+const scanRoadSelect = document.getElementById('scan-road-select');
+if (scanZoneSelect && scanRoadSelect) {
+  scanRoadSelect.addEventListener('change', scanRateWarn);
+  scanZoneSelect.addEventListener('change', scanRateWarn);
+  scanVillageSelect.addEventListener('change', refreshScanZoneField);
+
+  if (scanVillageSelect.value) scanVillageSelect.dispatchEvent(new Event('change'));
 }
 
   // Geo data first, then the edit prefill: the prefill walks the province →

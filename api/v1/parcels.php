@@ -242,10 +242,16 @@ if ($method === 'POST') {
         json_error('You can only manage parcels in your own district', 403, 'out_of_scope');
     }
     
-    // Check village belongs to district
-    $st = $pdo->prepare("SELECT id FROM villages WHERE id = :id AND district_id = :did");
+    // Check village belongs to district, and that a mapped village is billed
+    // against its own valuation zone (villages.zone_id).
+    $st = $pdo->prepare("SELECT zone_id FROM villages WHERE id = :id AND district_id = :did");
     $st->execute([':id' => $villageId, ':did' => $districtId]);
-    if (!$st->fetch()) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
+    $villageRow = $st->fetch();
+    if (!$villageRow) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
+    $villageZone = strtoupper(trim((string)($villageRow['zone_id'] ?? '')));
+    if ($villageZone !== '' && $villageZone !== $zone) {
+        json_error('Valuation zone does not match the village mapping', 422, 'zone_village_mismatch');
+    }
 
     // Check the valuation zone exists, is active, and belongs to this district.
     $st = $pdo->prepare("SELECT district_id FROM zones WHERE code = :zc AND is_active = TRUE");

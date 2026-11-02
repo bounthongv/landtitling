@@ -73,9 +73,14 @@ if ($scope['district_id'] !== null && $districtId !== $scope['district_id']) {
     json_error('You can only confirm parcels into your own district', 403, 'out_of_scope');
 }
 
-$st = $pdo->prepare("SELECT id FROM villages WHERE id = :id AND district_id = :did");
+$st = $pdo->prepare("SELECT zone_id FROM villages WHERE id = :id AND district_id = :did");
 $st->execute([':id' => $villageId, ':did' => $districtId]);
-if (!$st->fetch()) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
+$villageRow = $st->fetch();
+if (!$villageRow) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
+$villageZone = strtoupper(trim((string)($villageRow['zone_id'] ?? '')));
+if ($villageZone !== '' && $villageZone !== $zone) {
+    json_error('Valuation zone does not match the village mapping', 422, 'zone_village_mismatch');
+}
 
 $st = $pdo->prepare("SELECT district_id FROM zones WHERE code = :zc AND is_active = TRUE");
 $st->execute([':zc' => $zone]);
