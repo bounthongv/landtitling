@@ -97,9 +97,9 @@ case 'collection': {
         SELECT district, village, road_category, fee_year,
                DATE_TRUNC('month', paid_at)::date AS month,
                COUNT(*) AS payments,
-               COALESCE(SUM(amount), 0) AS collected_kip,
                COALESCE(SUM(tax_part), 0) AS tax_kip,
-               COALESCE(SUM(pen_part), 0) AS surcharge_kip
+               COALESCE(SUM(pen_part), 0) AS surcharge_kip,
+               COALESCE(SUM(amount), 0) AS collected_kip
           FROM split p
           $dw
          GROUP BY district, village, road_category, fee_year, DATE_TRUNC('month', paid_at)
@@ -117,7 +117,7 @@ case 'collection': {
     }
     $result = [
         'columns' => ['District', 'Village', 'Road', 'Fee year', 'Month', 'Payments',
-                      'Collected (kip)', 'Tax (kip)', 'Surcharge (kip)'],
+                      'Tax (kip)', 'Surcharge (kip)', 'Collected (kip)'],
         'rows'    => $rows,
         'summary' => [
             'payments'      => $payments,
