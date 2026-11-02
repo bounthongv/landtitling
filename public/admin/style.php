@@ -238,6 +238,18 @@
     outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(27,94,32,0.12);
   }
 
+  /* File inputs: the browser draws "Choose File / No file chosen" in its own
+     locale, which ignores the page language. The native input is made
+     invisible over our own button + filename text instead. */
+  .file-field { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; }
+  .file-field:hover { border-color: var(--green-light); }
+  .file-field:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(27,94,32,0.12); }
+  .file-field input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+  .file-field .file-btn { flex: 0 0 auto; padding: 7px 14px; border-radius: 6px; background: var(--green); color: #fff; font-size: 15px; font-weight: 600; }
+  .file-field .file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .file-field .file-name.has-file { color: var(--text); }
+  .entry-tools .file-field { flex: 1 1 220px; }
+
   .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(2px); }
   .modal-bg.show { display: flex; }
   .modal { background: #fff; border-radius: 16px; padding: 28px; max-width: 560px; width: 94%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
@@ -486,4 +498,39 @@
 if ('serviceWorker' in navigator) {
   addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 }
+
+// Localize every file picker: the native caption follows the OS/browser
+// locale, so the input sits invisibly over a translated button + file name.
+(function () {
+  var choose = <?= json_encode(t('Choose file'), JSON_UNESCAPED_UNICODE) ?>;
+  var none   = <?= json_encode(t('No file chosen'), JSON_UNESCAPED_UNICODE) ?>;
+  var files  = <?= json_encode(t('files'), JSON_UNESCAPED_UNICODE) ?>;
+  function label(input, name) {
+    var n = input.files ? input.files.length : 0;
+    name.textContent = n === 0 ? none : (n === 1 ? input.files[0].name : n + ' ' + files);
+    name.classList.toggle('has-file', n > 0);
+  }
+  function enhance(input) {
+    if (input.closest('.file-field')) return;
+    var wrap = document.createElement('span');
+    wrap.className = 'file-field';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    var btn = document.createElement('span');
+    btn.className = 'file-btn';
+    btn.textContent = choose;
+    var name = document.createElement('span');
+    name.className = 'file-name';
+    wrap.appendChild(btn);
+    wrap.appendChild(name);
+    label(input, name);
+    input.addEventListener('change', function () { label(input, name); });
+  }
+  function run() {
+    var list = document.querySelectorAll('input[type="file"]');
+    for (var i = 0; i < list.length; i++) enhance(list[i]);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})();
 </script>

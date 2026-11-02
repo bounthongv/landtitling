@@ -100,7 +100,7 @@ $reportGroups = [
   </aside>
   <main class="main">
     <h1><?= te('Reports') ?></h1>
-    <p class="sub"><?= te('All figures are derived from payments and fee_obligations. Export any report as CSV.') ?></p>
+    <p class="sub"><?= te('All figures are derived from payments and fee_obligations.') ?></p>
 
     <div class="form-box">
       <form method="get">
