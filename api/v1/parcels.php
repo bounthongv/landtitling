@@ -174,6 +174,55 @@ if ($method === 'GET') {
     json_ok(['parcels' => $parcels, 'count' => count($parcels), 'total' => $total], 200);
 }
 
+// ---- POST ?action=delete: remove a parcel (admin only, money-trail guarded) ----
+// A parcel carries fee + payment history, so a delete is refused when any money was
+// ever recorded against it (a payment row, or an obligation carrying a payment).
+// Everything else cascades: parcel_owners and unpaid fee_obligations go with it.
+if ($method === 'POST' && ($_GET['action'] ?? '') === 'delete') {
+    if ($me['role'] !== 'admin') {
+        json_error('Admins only.', 403, 'admin_only');
+    }
+    $id = (int)($_GET['id'] ?? 0);
+    if ($id <= 0) {
+        json_error('Parcel id required', 400, 'bad_request');
+    }
+    $st = $pdo->prepare("SELECT id, parcel_no, sub_parcel_no, district_id, village_id, zone_code
+        FROM parcels WHERE id = :id");
+    $st->execute([':id' => $id]);
+    $parcel = $st->fetch();
+    if (!$parcel) {
+        json_error('Parcel not found', 404, 'not_found');
+    }
+
+    $pc = $pdo->prepare("SELECT COUNT(*) FROM payments WHERE parcel_id = :id");
+    $pc->execute([':id' => $id]);
+    $payments = (int)$pc->fetchColumn();
+
+    $oc = $pdo->prepare("SELECT COUNT(*) FROM fee_obligations WHERE parcel_id = :id AND amount_paid > 0");
+    $oc->execute([':id' => $id]);
+    $settled = (int)$oc->fetchColumn();
+
+    if ($payments > 0 || $settled > 0) {
+        $blockers = [];
+        if ($payments > 0) { $blockers[] = $payments . ' payment(s)'; }
+        if ($settled > 0)  { $blockers[] = $settled . ' settled fee year(s)'; }
+        json_error(
+            'Cannot delete parcel ' . $parcel['parcel_no']
+                . ': still referenced by ' . implode(' and ', $blockers) . '.',
+            409, 'in_use', ['payments' => $payments, 'settled_obligations' => $settled]
+        );
+    }
+
+    $pdo->prepare("DELETE FROM parcels WHERE id = :id")->execute([':id' => $id]);
+    fee_audit($pdo, $me['sub'], 'parcel_delete', 'parcel', $id, [
+        'parcel_no'   => $parcel['parcel_no'],
+        'district_id' => (int)$parcel['district_id'],
+        'village_id'  => (int)$parcel['village_id'],
+        'zone_code'   => $parcel['zone_code'],
+    ]);
+    json_ok(['deleted' => $parcel]);
+}
+
 // ---- POST: create/update parcel with full data and owners ----
 if ($method === 'POST') {
     require_staff_write($me);   // only district admin/officer create/update records

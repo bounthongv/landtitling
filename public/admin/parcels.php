@@ -4,6 +4,33 @@ require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 
+// Delete a parcel from the registry — admin only. Filters ride through the form's
+// hidden fields so the redirect returns to the same list the officer was looking at.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    if ($role !== 'admin') { http_response_code(403); exit(t('Admins only.')); }
+    $id = (int)($_POST['id'] ?? 0);
+    $r  = api_call('POST', 'parcels.php?action=delete&id=' . $id, null, $_SESSION['admin_token']);
+    $back = http_build_query(array_filter([
+        'province_id' => (int)($_POST['province_id'] ?? 0),
+        'district_id' => (int)($_POST['district_id'] ?? 0),
+        'village_id'  => (int)($_POST['village_id'] ?? 0),
+        'owner_name'  => trim((string)($_POST['owner_name'] ?? '')),
+        'parcel_no'   => trim((string)($_POST['parcel_no'] ?? '')),
+        'map_ref_no'  => trim((string)($_POST['map_ref_no'] ?? '')),
+        'title_no'    => trim((string)($_POST['title_no'] ?? '')),
+        'status'      => trim((string)($_POST['status'] ?? '')),
+    ], fn($v) => $v !== '' && $v !== 0));
+    $msg = !empty($r['ok']) ? 'deleted' : 'delete_error';
+    if (!empty($r['ok'])) {
+        header('Location: parcels.php' . ($back ? "?$back&msg=$msg" : "?msg=$msg"));
+    } else {
+        $why = rawurlencode($r['error']['message'] ?? t('Delete failed'));
+        header('Location: parcels.php' . ($back ? "?$back" : '') . "&msg=$msg&why=$why");
+    }
+    exit;
+}
+$flash = $_GET['msg'] ?? '';
+
 $district_id = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
 $village_id   = isset($_GET['village_id']) ? (int)$_GET['village_id'] : 0;
 $province_id  = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
@@ -119,6 +146,8 @@ $roadMap = [
   <main class="main">
     <h1><?= te('Parcels') ?></h1>
     <p class="sub"><?= te('Registry of land parcels. Filter by province, district, parcel no, status.') ?></p>
+    <?php if ($flash === 'deleted'): ?><p class="flash ok"><?= te('Parcel deleted.') ?></p><?php endif; ?>
+    <?php if ($flash === 'delete_error'): ?><p class="flash err"><?= e($_GET['why'] ?? t('Delete failed.')) ?></p><?php endif; ?>
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
         <div class="form-group"><label><?= te('Province') ?></label>
@@ -137,6 +166,18 @@ $roadMap = [
     </div>
 
     <?php if ($count === 0): ?><p class="empty"><?= te('No parcels match the filter.') ?></p><?php else: ?>
+    <?php
+    // Hidden inputs carried in each row's delete form so the list comes back to the
+    // same filtered view after a delete (built once, reused per row).
+    $filterInputs = '';
+    foreach ([
+        'province_id' => $province_id, 'district_id' => $district_id, 'village_id' => $village_id,
+        'owner_name' => $owner_name, 'parcel_no' => $parcel_no, 'map_ref_no' => $map_ref_no,
+        'title_no' => $title_no, 'status' => $status,
+    ] as $fk => $fv) {
+        $filterInputs .= '<input type="hidden" name="' . e($fk) . '" value="' . e($fv) . '">';
+    }
+    ?>
     <table style="margin-top:8px;">
       <thead>
         <tr>
@@ -152,6 +193,7 @@ $roadMap = [
           <th><?= te('Tax') ?></th>
           <th><?= te('Status') ?></th>
           <th><?= te('Updated') ?></th>
+          <?php if ($role === 'admin'): ?><th></th><?php endif; ?>
         </tr>
       </thead>
       <tbody>
@@ -169,6 +211,17 @@ $roadMap = [
           <td><?= $p['_tax_amount'] > 0 ? number_format((float)$p['_tax_amount'], 0) . ' ກີບ' : '—' ?></td>
           <td><span class="pill pill-<?= e($p['status']) ?>"><?= e(t(ucfirst($p['status']))) ?></span></td>
           <td><?= e($p['updated_at'] ?? $p['created_at']) ?></td>
+          <?php if ($role === 'admin'): ?>
+          <td>
+            <form method="post" style="display:inline"
+                  onsubmit="return confirm('<?= te('Delete this parcel and its unpaid fee records? This cannot be undone.') ?>');">
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+              <?= $filterInputs ?>
+              <button class="btn btn-red btn-sm" type="submit"><?= te('Delete') ?></button>
+            </form>
+          </td>
+          <?php endif; ?>
         </tr>
         <?php endforeach; ?>
       </tbody>

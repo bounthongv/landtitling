@@ -47,6 +47,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlin
     header('Location: parcel.php?id=' . $parcel_id . '&msg=' . (!empty($r['ok']) ? 'unlinked' : 'unlink_error'));
     exit;
 }
+
+// Delete the parcel — admin only; the API refuses when a payment or settled fee exists.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    if ($role !== 'admin') { http_response_code(403); exit(t('Admins only.')); }
+    $r = api_call('POST', 'parcels.php?action=delete&id=' . $parcel_id, null, $token);
+    if (!empty($r['ok'])) {
+        header('Location: parcels.php?msg=deleted');
+    } else {
+        $why = rawurlencode($r['error']['message'] ?? t('Delete failed'));
+        header('Location: parcel.php?id=' . $parcel_id . '&msg=delete_error&why=' . $why);
+    }
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -67,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlin
     <?php if ($flash === 'error'): ?><p class="flash err"><?= te('Recompute failed.') ?></p><?php endif; ?>
     <?php if ($flash === 'unlinked'): ?><p class="flash ok"><?= te('Citizen account unlinked from this owner.') ?></p><?php endif; ?>
     <?php if ($flash === 'unlink_error'): ?><p class="flash err"><?= te('Could not unlink the citizen account.') ?></p><?php endif; ?>
+    <?php if ($flash === 'delete_error'): ?><p class="flash err"><?= e($_GET['why'] ?? t('Delete failed.')) ?></p><?php endif; ?>
 
     <?php if (!$parcel): ?>
       <p class="empty"><?= te('Parcel not found.') ?></p>
@@ -171,6 +185,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlin
     <?php if (!$is_manager && in_array($parcel['status'] ?? '', ['draft', 'confirmed'], true)): ?>
     <div class="form-actions" style="margin-top:16px;">
       <a href="<?= $base ?>/parcel_entry.php?id=<?= (int)$parcel['id'] ?>" class="btn btn-gold"><?= te('Edit parcel') ?></a>
+    </div>
+    <?php endif; ?>
+    <?php if ($role === 'admin'): ?>
+    <div class="form-actions" style="margin-top:12px;">
+      <form method="post" style="display:inline"
+            onsubmit="return confirm('<?= te('Delete this parcel and its unpaid fee records? This cannot be undone.') ?>');">
+        <input type="hidden" name="action" value="delete">
+        <button class="btn btn-red" type="submit"><?= te('Delete parcel') ?></button>
+      </form>
     </div>
     <?php endif; ?>
     <p><a href="<?= $base ?>/parcels.php">&larr; <?= te('Back to parcels') ?></a></p>
