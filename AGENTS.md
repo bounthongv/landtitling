@@ -70,7 +70,7 @@ Land Fee Payment MVP for Savannakhet Province (Lao). Three front-ends over one P
 - Flutter app: `cd mobile && flutter pub get && flutter run --dart-define=API_BASE=http://10.0.2.2:8091/api/v1`. `flutter analyze` must be clean. There is **no Android SDK on this dev machine**, so no APK can be built here — the app has never been run on a device.
 
 ## Demo Credentials
-- **Officer:** `sav_officer` / `demo1234` (live DB only)
+- **Admin:** `sav_officer` / `demo1234` (live DB only) — the name is legacy; its `users.role` is `admin` (district super admin, `is_super = TRUE`, sees and edits every district). It is *not* an officer, so admin-only actions (basic data, users, parcel delete) are available to it. A genuinely `officer`-role account (e.g. `snnk_officer`) cannot.
 - **Citizen:** email OTP — set `OTP_DEBUG=1` locally; the code is echoed in `data.debug_code`. `otp_send_email()` in `lib/otp.php` is the (currently MTA-dependent) email seam, so **no real email is sent without a mail server**.
 
 ## Verification (no automated tests exist)

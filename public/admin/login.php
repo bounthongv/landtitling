@@ -84,7 +84,6 @@ if ('serviceWorker' in navigator) {
     <div class="form-group"><label><?= te('Password') ?></label><input name="password" type="password" value="demo1234" required></div>
     <button type="submit"><?= te('Sign in') ?></button>
   </form>
-  <p class="foot"><?= te('Demo credentials') ?>: <code>sav_officer</code> / <code>demo1234</code></p>
 </div>
 </body>
 </html>
