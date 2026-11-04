@@ -1204,12 +1204,17 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   const result = await res.json();
   if (result.ok) {
     showResult(I18N.savedId.replace('{id}', result.data.parcel_id), true);
-    document.getElementById('parcel-form').reset();
-    populateProvSelects();
-    document.getElementById('dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
-    document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
-    document.getElementById('addr-dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
-    document.getElementById('addr-vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+    // Only blank the form when creating the NEXT parcel. When editing an existing
+    // parcel (?id=) the officer expects the saved values to stay on screen — the
+    // old unconditional reset made a save look like the Clear button was pressed.
+    if (!EDIT_MODE) {
+      document.getElementById('parcel-form').reset();
+      populateProvSelects();
+      document.getElementById('dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+      document.getElementById('vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+      document.getElementById('addr-dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+      document.getElementById('addr-vill-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';
+    }
   } else {
     const box = document.getElementById('save-result');
     box.dataset.sticky = '1';
