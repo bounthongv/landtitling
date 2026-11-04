@@ -256,25 +256,29 @@ if ($method === 'POST') {
         if ($fields['land_use_class'] === '') unset($fields['land_use_class'], $fieldConf['land_use_class']);
     }
 
-    // Final geography gate (runs after both passes): only trust auto-resolved
-    // district/village ids on a NEAR-EXACT match (confidence >= 90). The fuzzy
-    // matcher scores even completely different Lao district names ~70% (shared
-    // consonants), so a 70-ish threshold misattributes parcels; 90 accepts a
-    // 1-char OCR typo (~97%) but rejects unrelated names. Anything below is
-    // nulled so the officer picks it in review instead of a wrong fee.
+    // Geography suggestion (runs after both passes): store the best-matched
+    // district/village id so the review form prefills them from OCR, and record
+    // the match confidence so the officer sees the badge. We no longer hide a
+    // sub-90 id — the confirm step re-validates the *posted* district/village/zone,
+    // so a prefilled-but-uncertain value can never mis-set the fee unnoticed.
+    // Village is scoped to the district only when that district match is NEAR-EXACT
+    // (>= 90): the fuzzy matcher scores even unrelated Lao names ~70%, so scoping to
+    // such a district could suppress the correct village; otherwise resolve it globally.
+    $strictDid = null;
     if (!empty($fields['district_name'])) {
         [$did, $dc] = title_resolve_district($fields['district_name'], $pdo);
-        $fields['district_id'] = ($did && $dc >= 90) ? $did : null;
-        if ($fields['district_id']) $fieldConf['district_id'] = max($fieldConf['district_id'] ?? 0, $dc);
-        else unset($fieldConf['district_id']);          // no id, no confidence
+        $fields['district_id'] = $did;
+        if ($did) {
+            $fieldConf['district_id'] = max($fieldConf['district_id'] ?? 0, $dc);
+            if ($dc >= 90) $strictDid = $did;
+        }
     } else {
         $fields['district_id'] = null;
     }
     if (!empty($fields['village_name'])) {
-        [$vid, $vc] = title_resolve_village($fields['village_name'], $fields['district_id'] ?? null, $pdo);
-        $fields['village_id'] = ($vid && $vc >= 90) ? $vid : null;
-        if ($fields['village_id']) $fieldConf['village_id'] = max($fieldConf['village_id'] ?? 0, $vc);
-        else unset($fieldConf['village_id']);
+        [$vid, $vc] = title_resolve_village($fields['village_name'], $strictDid, $pdo);
+        $fields['village_id'] = $vid;
+        if ($vid) $fieldConf['village_id'] = max($fieldConf['village_id'] ?? 0, $vc);
     } else {
         $fields['village_id'] = null;
     }

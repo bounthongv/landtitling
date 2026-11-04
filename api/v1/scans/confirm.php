@@ -90,8 +90,15 @@ if ($zoneRow['district_id'] !== null && (int)$zoneRow['district_id'] !== $distri
     json_error('Valuation zone does not belong to the selected district', 422, 'zone_district_mismatch');
 }
 
-// Optional title metadata (blank -> NULL). Reference codes are FK-checked.
-$province  = trim((string)($parcel['province'] ?? '')) ?: 'Savannakhet';
+// Province is a function of the chosen district, not the OCR text (which often
+// misspells it, e.g. ວຽງຈັາ for ວຽງຈັນ). Back-derive the authoritative Lao name from
+// the district so the detail page and slip agree with the registry, which already
+// shows pr.name_lo. Falls back to Savannakhet only if the district has no province.
+$province = null;
+$pst = $pdo->prepare("SELECT pr.name_lo FROM districts d
+        JOIN provinces pr ON pr.id = d.province_id WHERE d.id = :did");
+$pst->execute([':did' => $districtId]);
+$province = $pst->fetchColumn() ?: 'Savannakhet';
 $mapRefNo  = trim((string)($parcel['map_ref_no'] ?? '')) ?: null;
 $titleNo   = trim((string)($parcel['title_no'] ?? '')) ?: null;
 $titleType = ref_code_exists($pdo, 'title_types', trim((string)($parcel['title_type'] ?? '')))
