@@ -181,8 +181,13 @@ if ($method === 'GET') {
 // lets an admin clear a wrongly-created duplicate that only has an unfunded slip attached.
 // Everything else already cascades: parcel_owners and unpaid fee_obligations go with it,
 // title_scans detach (SET NULL).
+//
+// TEST PHASE: a super user (users.is_super) bypasses the money-collected guard entirely
+// and deletes the parcel plus EVERY related payment, regardless of status. This is a
+// convenience for the demo/seed data and should be withdrawn once we go live.
 if ($method === 'POST' && ($_GET['action'] ?? '') === 'delete') {
-    if ($me['role'] !== 'admin') {
+    $isSuper = !empty($me['is_super']);
+    if ($me['role'] !== 'admin' && !$isSuper) {
         json_error('Admins only.', 403, 'admin_only');
     }
     $id = (int)($_GET['id'] ?? 0);
@@ -197,28 +202,31 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'delete') {
         json_error('Parcel not found', 404, 'not_found');
     }
 
-    // Collected money: verified or refunded payments...
-    $pc = $pdo->prepare("SELECT COUNT(*) FROM payments WHERE parcel_id = :id AND status IN ('PAID','REFUNDED')");
-    $pc->execute([':id' => $id]);
-    $collected = (int)$pc->fetchColumn();
-    // ...and obligations that already have money settled against them.
-    $oc = $pdo->prepare("SELECT COUNT(*) FROM fee_obligations WHERE parcel_id = :id AND amount_paid > 0");
-    $oc->execute([':id' => $id]);
-    $settled = (int)$oc->fetchColumn();
+    // Collected-money guard — skipped for a super user.
+    if (!$isSuper) {
+        // Verified or refunded payments...
+        $pc = $pdo->prepare("SELECT COUNT(*) FROM payments WHERE parcel_id = :id AND status IN ('PAID','REFUNDED')");
+        $pc->execute([':id' => $id]);
+        $collected = (int)$pc->fetchColumn();
+        // ...and obligations that already have money settled against them.
+        $oc = $pdo->prepare("SELECT COUNT(*) FROM fee_obligations WHERE parcel_id = :id AND amount_paid > 0");
+        $oc->execute([':id' => $id]);
+        $settled = (int)$oc->fetchColumn();
 
-    if ($collected > 0 || $settled > 0) {
-        $blockers = [];
-        if ($collected > 0) { $blockers[] = $collected . ' paid or refunded payment(s)'; }
-        if ($settled > 0)  { $blockers[] = $settled . ' settled fee year(s)'; }
-        json_error(
-            'Cannot delete parcel ' . $parcel['parcel_no']
-                . ': money has already been collected (' . implode(' and ', $blockers) . ' on record).',
-            409, 'in_use', ['collected_payments' => $collected, 'settled_obligations' => $settled]
-        );
+        if ($collected > 0 || $settled > 0) {
+            $blockers = [];
+            if ($collected > 0) { $blockers[] = $collected . ' paid or refunded payment(s)'; }
+            if ($settled > 0)  { $blockers[] = $settled . ' settled fee year(s)'; }
+            json_error(
+                'Cannot delete parcel ' . $parcel['parcel_no']
+                    . ': money has already been collected (' . implode(' and ', $blockers) . ' on record).',
+                409, 'in_use', ['collected_payments' => $collected, 'settled_obligations' => $settled]
+            );
+        }
     }
 
-    // No collected money: drop the remaining (unpaid) payment rows so the FK lets the
-    // parcel go, then delete it. Owners + unpaid obligations cascade; scans detach.
+    // Drop every related payment row so the FK lets the parcel go, then delete it.
+    // Owners + obligations cascade; scans detach. Super deletes paid rows too.
     try {
         $pdo->beginTransaction();
         $drop = $pdo->prepare("DELETE FROM payments WHERE parcel_id = :id");
@@ -236,9 +244,10 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'delete') {
         'district_id' => (int)$parcel['district_id'],
         'village_id'  => (int)$parcel['village_id'],
         'zone_code'   => $parcel['zone_code'],
-        'dropped_unpaid_payments' => $dropped,
+        'dropped_payments' => $dropped,
+        'guard_bypassed_by_super' => $isSuper,
     ]);
-    json_ok(['deleted' => $parcel, 'dropped_unpaid_payments' => $dropped]);
+    json_ok(['deleted' => $parcel, 'dropped_payments' => $dropped, 'guard_bypassed' => $isSuper]);
 }
 
 // ---- POST: create/update parcel with full data and owners ----

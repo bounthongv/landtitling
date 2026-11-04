@@ -3,11 +3,14 @@
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
+// TEST PHASE: a super user may delete parcels in any case (bypasses the money-collected
+// guard at the API), so show the control for super as well as for admins.
+$canDelete = ($role === 'admin' || !empty($user['is_super']));
 
-// Delete a parcel from the registry — admin only. Filters ride through the form's
+// Delete a parcel from the registry — admin or super. Filters ride through the form's
 // hidden fields so the redirect returns to the same list the officer was looking at.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
-    if ($role !== 'admin') { http_response_code(403); exit(t('Admins only.')); }
+    if (!$canDelete) { http_response_code(403); exit(t('Admins only.')); }
     $id = (int)($_POST['id'] ?? 0);
     $r  = api_call('POST', 'parcels.php?action=delete&id=' . $id, null, $_SESSION['admin_token']);
     $back = http_build_query(array_filter([
@@ -205,7 +208,7 @@ $roadMap = [
           <th><?= te('Tax') ?></th>
           <th><?= te('Status') ?></th>
           <th><?= te('Updated') ?></th>
-          <?php if ($role === 'admin'): ?><th></th><?php endif; ?>
+          <?php if ($canDelete): ?><th></th><?php endif; ?>
         </tr>
       </thead>
       <tbody>
@@ -223,7 +226,7 @@ $roadMap = [
           <td><?= $p['_tax_amount'] > 0 ? number_format((float)$p['_tax_amount'], 0) . ' ກີບ' : '—' ?></td>
           <td><span class="pill pill-<?= e($p['status']) ?>"><?= e(t(ucfirst($p['status']))) ?></span></td>
           <td><?= e($p['updated_at'] ?? $p['created_at']) ?></td>
-          <?php if ($role === 'admin'): ?>
+          <?php if ($canDelete): ?>
           <td>
             <form method="post" style="display:inline"
                   onsubmit="return confirm('<?= te('Delete this parcel and its unpaid fee records? This cannot be undone.') ?>');">

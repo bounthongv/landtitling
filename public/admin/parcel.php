@@ -3,6 +3,9 @@
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
+// TEST PHASE: a super user may delete parcels in any case (bypasses the money-collected
+// guard at the API), so allow it here as well as for admins.
+$canDelete = ($role === 'admin' || !empty($user['is_super']));
 $token = $_SESSION['admin_token'];
 
 // Managers are read-only: a parcel page is a view, never a data-entry form.
@@ -50,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unlin
 
 // Delete the parcel — admin only; the API refuses when a payment or settled fee exists.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
-    if ($role !== 'admin') { http_response_code(403); exit(t('Admins only.')); }
+    if (!$canDelete) { http_response_code(403); exit(t('Admins only.')); }
     $r = api_call('POST', 'parcels.php?action=delete&id=' . $parcel_id, null, $token);
     if (!empty($r['ok'])) {
         header('Location: parcels.php?msg=deleted');
@@ -198,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
       <a href="<?= $base ?>/parcel_entry.php?id=<?= (int)$parcel['id'] ?>" class="btn btn-gold"><?= te('Edit parcel') ?></a>
     </div>
     <?php endif; ?>
-    <?php if ($role === 'admin'): ?>
+    <?php if ($canDelete): ?>
     <div class="form-actions" style="margin-top:12px;">
       <form method="post" style="display:inline"
             onsubmit="return confirm('<?= te('Delete this parcel and its unpaid fee records? This cannot be undone.') ?>');">
