@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         <p><?= te('Tax has already been collected for this parcel, so it cannot be deleted.') ?></p>
         <p class="sub" style="color:#666; font-size:13px;"><?= e($_GET['why'] ?? t('Delete failed.')) ?></p>
         <div class="modal-actions">
-          <button class="btn" type="button" onclick="document.getElementById('del-err-modal').classList.remove('show')"><?= te('OK') ?></button>
+          <button class="btn btn-blue" type="button" onclick="document.getElementById('del-err-modal').classList.remove('show')"><?= te('OK') ?></button>
         </div>
       </div>
     </div>
