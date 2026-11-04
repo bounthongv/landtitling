@@ -145,6 +145,7 @@ if ($method === 'GET') {
     // never mixes English/Lao spellings of the same province.
     $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name,
             pr.name_lo AS province,
+            (SELECT COUNT(*) FROM payments pm WHERE pm.parcel_id = p.id) AS payment_count,
             (SELECT string_agg(o.full_name, ', ' ORDER BY CASE WHEN po.role = 'owner' THEN 0 ELSE 1 END, o.full_name)
              FROM parcel_owners po JOIN owners o ON o.id = po.owner_id
              WHERE po.parcel_id = p.id) AS owners_names

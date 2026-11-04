@@ -465,6 +465,7 @@
   "Edit village": "ແກ້ໄຂບ້ານ",
   "Edit zone": "ແກ້ໄຂເຂດ",
   "Edit parcel": "ແກ້ໄຂຕອນດິນ",
+  "A fee slip has already been issued for this parcel, so it cannot be edited.": "ໄດ້ອອກໃບບິນຄ່າພາສີໃຫ້ຕອນດິນນີ້ແລ້ວ ຈຶ່ງບໍ່ສາມາດແກ້ໄຂໄດ້.",
   "Add fee year": "ເພີ່ມປີ",
   "Edit fee year": "ແກ້ໄຂປີ",
   "Update fee year": "ອັບເດດປີ",

@@ -6,6 +6,9 @@ $role = $user['role'];
 // TEST PHASE: a super user may delete parcels in any case (bypasses the money-collected
 // guard at the API), so show the control for super as well as for admins.
 $canDelete = ($role === 'admin' || !empty($user['is_super']));
+// Parcel Entry (manual edit) allows officer + admin; managers are read-only. Editing is
+// blocked per-row once the parcel has a fee slip (payment) issued.
+$canEdit = in_array($role, ['officer', 'admin'], true);
 
 // Delete a parcel from the registry — admin or super. Filters ride through the form's
 // hidden fields so the redirect returns to the same list the officer was looking at.
@@ -208,7 +211,7 @@ $roadMap = [
           <th><?= te('Tax') ?></th>
           <th><?= te('Status') ?></th>
           <th><?= te('Updated') ?></th>
-          <?php if ($canDelete): ?><th></th><?php endif; ?>
+          <?php if ($canEdit || $canDelete): ?><th></th><?php endif; ?>
         </tr>
       </thead>
       <tbody>
@@ -226,8 +229,16 @@ $roadMap = [
           <td><?= $p['_tax_amount'] > 0 ? number_format((float)$p['_tax_amount'], 0) . ' ກີບ' : '—' ?></td>
           <td><span class="pill pill-<?= e($p['status']) ?>"><?= e(t(ucfirst($p['status']))) ?></span></td>
           <td><?= e($p['updated_at'] ?? $p['created_at']) ?></td>
-          <?php if ($canDelete): ?>
-          <td>
+          <?php if ($canEdit || $canDelete): ?>
+          <td style="white-space:nowrap;">
+            <?php if ($canEdit): $locked = (int)($p['payment_count'] ?? 0) > 0; ?>
+              <?php if ($locked): ?>
+                <button class="btn btn-blue btn-sm" type="button" disabled title="<?= te('A fee slip has already been issued for this parcel, so it cannot be edited.') ?>"><?= te('Edit') ?></button>
+              <?php else: ?>
+                <a class="btn btn-blue btn-sm" href="<?= $base ?>/parcel_entry.php?id=<?= (int)$p['id'] ?>"><?= te('Edit') ?></a>
+              <?php endif; ?>
+            <?php endif; ?>
+            <?php if ($canDelete): ?>
             <form method="post" style="display:inline"
                   onsubmit="return confirm('<?= te('Delete this parcel and its unpaid fee records? This cannot be undone.') ?>');">
               <input type="hidden" name="action" value="delete">
@@ -235,6 +246,7 @@ $roadMap = [
               <?= $filterInputs ?>
               <button class="btn btn-red btn-sm" type="submit"><?= te('Delete') ?></button>
             </form>
+            <?php endif; ?>
           </td>
           <?php endif; ?>
         </tr>
