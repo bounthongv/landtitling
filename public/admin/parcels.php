@@ -242,7 +242,7 @@ $roadMap = [
           <td style="white-space:nowrap;">
             <?php if ($canEdit): $locked = (int)($p['payment_count'] ?? 0) > 0; ?>
               <?php if ($locked): ?>
-                <button class="btn btn-sm" type="button" style="background:#9aa3b2; color:#fff; cursor:help; border:1px solid #7c8698;"
+                <button class="btn btn-sm" type="button" style="background:#5b6472; color:#fff; cursor:help; border:1px solid #454d59;"
                         title="<?= te('A fee slip has already been issued for this parcel, so it cannot be edited.') ?>"
                         data-reason="<?= e(t('A fee slip has already been issued for this parcel, so it cannot be edited.')) ?>"
                         onclick="showEditLock(this.getAttribute('data-reason'))"><?= te('Edit') ?></button>
