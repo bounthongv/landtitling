@@ -1204,10 +1204,14 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
   const result = await res.json();
   if (result.ok) {
     showResult(I18N.savedId.replace('{id}', result.data.parcel_id), true);
-    // Only blank the form when creating the NEXT parcel. When editing an existing
-    // parcel (?id=) the officer expects the saved values to stay on screen — the
-    // old unconditional reset made a save look like the Clear button was pressed.
-    if (!EDIT_MODE) {
+    if (EDIT_MODE) {
+      // Editing an existing parcel (?id=): leave the form and open the saved parcel's
+      // detail so the officer sees the change took effect. Staying put and blanking the
+      // fields looked like the Clear button had been pressed.
+      const pid = encodeURIComponent(result.data.parcel_id);
+      setTimeout(() => { window.location.href = 'parcel.php?id=' + pid + '&msg=saved'; }, 600);
+    } else {
+      // New parcel: blank the form so the next one can be entered.
       document.getElementById('parcel-form').reset();
       populateProvSelects();
       document.getElementById('dist-select').innerHTML = '<option value="">' + esc(I18N.select) + '</option>';

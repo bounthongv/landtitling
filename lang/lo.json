@@ -97,6 +97,7 @@
   "OK": "ຕົກລົງ",
   "Delete this parcel and its unpaid fee records? This cannot be undone.": "ລຶບຕອນດິນນີ້ ພ້ອມທັງຄ່າພາສີທີ່ຍັງບໍ່ທັນຊຳລະບໍ? ເມື່ອລຶບແລ້ວຈະບໍ່ສາມາດຟື້ນຟູໄດ້.",
   "Parcel deleted.": "ລຶບຕອນດິນແລ້ວ.",
+  "Parcel saved.": "ບັນທຶກຕອນດິນແລ້ວ.",
   "Deleted.": "ລຶບແລ້ວ.",
   "Discard": "ຖິ້ມ",
   "Discard failed": "ຖິ້ມລົ້ມເຫຼວ",

@@ -79,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     <?= admin_side_foot() ?>
   </aside>
   <main class="main">
+    <?php if ($flash === 'saved'): ?><p class="flash ok"><?= te('Parcel saved.') ?></p><?php endif; ?>
     <?php if ($flash === 'recomputed'): ?><p class="flash ok"><?= te('Current-year obligation recomputed.') ?></p><?php endif; ?>
     <?php if ($flash === 'error'): ?><p class="flash err"><?= te('Recompute failed.') ?></p><?php endif; ?>
     <?php if ($flash === 'unlinked'): ?><p class="flash ok"><?= te('Citizen account unlinked from this owner.') ?></p><?php endif; ?>
