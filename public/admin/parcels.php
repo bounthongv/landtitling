@@ -148,7 +148,18 @@ $roadMap = [
     <h1><?= te('Parcels') ?></h1>
     <p class="sub"><?= te('Registry of land parcels. Filter by province, district, parcel no, status.') ?></p>
     <?php if ($flash === 'deleted'): ?><p class="flash ok"><?= te('Parcel deleted.') ?></p><?php endif; ?>
-    <?php if ($flash === 'delete_error'): ?><p class="flash err"><?= e($_GET['why'] ?? t('Delete failed.')) ?></p><?php endif; ?>
+    <?php if ($flash === 'delete_error'): ?>
+    <div class="modal-bg show" id="del-err-modal">
+      <div class="modal">
+        <h2><?= te('Cannot delete parcel') ?></h2>
+        <p><?= te('Tax has already been collected for this parcel, so it cannot be deleted.') ?></p>
+        <p class="sub" style="color:#666; font-size:13px;"><?= e($_GET['why'] ?? t('Delete failed.')) ?></p>
+        <div class="modal-actions">
+          <button class="btn" type="button" onclick="document.getElementById('del-err-modal').classList.remove('show')"><?= te('OK') ?></button>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
         <div class="form-group"><label><?= te('Province') ?></label>

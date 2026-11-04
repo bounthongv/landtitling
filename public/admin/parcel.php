@@ -80,7 +80,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     <?php if ($flash === 'error'): ?><p class="flash err"><?= te('Recompute failed.') ?></p><?php endif; ?>
     <?php if ($flash === 'unlinked'): ?><p class="flash ok"><?= te('Citizen account unlinked from this owner.') ?></p><?php endif; ?>
     <?php if ($flash === 'unlink_error'): ?><p class="flash err"><?= te('Could not unlink the citizen account.') ?></p><?php endif; ?>
-    <?php if ($flash === 'delete_error'): ?><p class="flash err"><?= e($_GET['why'] ?? t('Delete failed.')) ?></p><?php endif; ?>
+    <?php if ($flash === 'delete_error'): ?>
+    <div class="modal-bg show" id="del-err-modal">
+      <div class="modal">
+        <h2><?= te('Cannot delete parcel') ?></h2>
+        <p><?= te('Tax has already been collected for this parcel, so it cannot be deleted.') ?></p>
+        <p class="sub" style="color:#666; font-size:13px;"><?= e($_GET['why'] ?? t('Delete failed.')) ?></p>
+        <div class="modal-actions">
+          <button class="btn" type="button" onclick="document.getElementById('del-err-modal').classList.remove('show')"><?= te('OK') ?></button>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
 
     <?php if (!$parcel): ?>
       <p class="empty"><?= te('Parcel not found.') ?></p>

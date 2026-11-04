@@ -174,10 +174,13 @@ if ($method === 'GET') {
     json_ok(['parcels' => $parcels, 'count' => count($parcels), 'total' => $total], 200);
 }
 
-// ---- POST ?action=delete: remove a parcel (admin only, money-trail guarded) ----
-// A parcel carries fee + payment history, so a delete is refused when any money was
-// ever recorded against it (a payment row, or an obligation carrying a payment).
-// Everything else cascades: parcel_owners and unpaid fee_obligations go with it.
+// ---- POST ?action=delete: remove a parcel (admin only, money-collected guarded) ----
+// Deletion is refused only when real money is on the record: a PAID/REFUNDED payment, or
+// a fee obligation already carrying a payment (amount_paid > 0). Draft / issued / submitted
+// / rejected payments hold no collected money, so they are removed with the parcel — this
+// lets an admin clear a wrongly-created duplicate that only has an unfunded slip attached.
+// Everything else already cascades: parcel_owners and unpaid fee_obligations go with it,
+// title_scans detach (SET NULL).
 if ($method === 'POST' && ($_GET['action'] ?? '') === 'delete') {
     if ($me['role'] !== 'admin') {
         json_error('Admins only.', 403, 'admin_only');
@@ -194,33 +197,48 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'delete') {
         json_error('Parcel not found', 404, 'not_found');
     }
 
-    $pc = $pdo->prepare("SELECT COUNT(*) FROM payments WHERE parcel_id = :id");
+    // Collected money: verified or refunded payments...
+    $pc = $pdo->prepare("SELECT COUNT(*) FROM payments WHERE parcel_id = :id AND status IN ('PAID','REFUNDED')");
     $pc->execute([':id' => $id]);
-    $payments = (int)$pc->fetchColumn();
-
+    $collected = (int)$pc->fetchColumn();
+    // ...and obligations that already have money settled against them.
     $oc = $pdo->prepare("SELECT COUNT(*) FROM fee_obligations WHERE parcel_id = :id AND amount_paid > 0");
     $oc->execute([':id' => $id]);
     $settled = (int)$oc->fetchColumn();
 
-    if ($payments > 0 || $settled > 0) {
+    if ($collected > 0 || $settled > 0) {
         $blockers = [];
-        if ($payments > 0) { $blockers[] = $payments . ' payment(s)'; }
+        if ($collected > 0) { $blockers[] = $collected . ' paid or refunded payment(s)'; }
         if ($settled > 0)  { $blockers[] = $settled . ' settled fee year(s)'; }
         json_error(
             'Cannot delete parcel ' . $parcel['parcel_no']
-                . ': still referenced by ' . implode(' and ', $blockers) . '.',
-            409, 'in_use', ['payments' => $payments, 'settled_obligations' => $settled]
+                . ': money has already been collected (' . implode(' and ', $blockers) . ' on record).',
+            409, 'in_use', ['collected_payments' => $collected, 'settled_obligations' => $settled]
         );
     }
 
-    $pdo->prepare("DELETE FROM parcels WHERE id = :id")->execute([':id' => $id]);
+    // No collected money: drop the remaining (unpaid) payment rows so the FK lets the
+    // parcel go, then delete it. Owners + unpaid obligations cascade; scans detach.
+    try {
+        $pdo->beginTransaction();
+        $drop = $pdo->prepare("DELETE FROM payments WHERE parcel_id = :id");
+        $drop->execute([':id' => $id]);
+        $dropped = $drop->rowCount();
+        $pdo->prepare("DELETE FROM parcels WHERE id = :id")->execute([':id' => $id]);
+        $pdo->commit();
+    } catch (PDOException $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error('Failed to delete parcel: ' . $e->getMessage(), 500, 'delete_failed');
+    }
+
     fee_audit($pdo, $me['sub'], 'parcel_delete', 'parcel', $id, [
         'parcel_no'   => $parcel['parcel_no'],
         'district_id' => (int)$parcel['district_id'],
         'village_id'  => (int)$parcel['village_id'],
         'zone_code'   => $parcel['zone_code'],
+        'dropped_unpaid_payments' => $dropped,
     ]);
-    json_ok(['deleted' => $parcel]);
+    json_ok(['deleted' => $parcel, 'dropped_unpaid_payments' => $dropped]);
 }
 
 // ---- POST: create/update parcel with full data and owners ----
