@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel']) &&
             'district_id'    => $_POST['district_id'] ?? '',
             'status'         => $_POST['status'] ?? 'confirmed',
             'title_no'       => $_POST['title_no'] ?? '',
-            'title_type'     => $_POST['title_type'] ?? '',
+            'title_type'     => 'land_title', // only one document type is handled
             'book_no'        => $_POST['book_no'] ?? '',
             'volume_no'      => $_POST['volume_no'] ?? '',
             'page_no'        => $_POST['page_no'] ?? '',
@@ -217,14 +217,13 @@ $pendingScans = api_call('GET', 'scans.php?status=pending', null, $token)['data'
 
 $parsedLabels = [
     'parcel_no' => t('Parcel no'), 'map_ref_no' => t('Map sheet'), 'area_sqm' => t('Area (m²)'),
-    'title_no' => t('Title no'), 'title_type' => t('Title type'), 'book_no' => t('Book'),
+    'title_no' => t('Title no'), 'book_no' => t('Book'),
     'volume_no' => t('Volume'), 'page_no' => t('Page'), 'land_use_class' => t('Land use'),
     'issued_date' => t('Issued date'), 'province' => t('Province'),
     'district_name' => t('District (text)'), 'village_name' => t('Village (text)'),
     'district_id' => t('District id'), 'village_id' => t('Village id'),
     'owner_name' => t('Owner name'), 'owner_id_number' => t('Owner ID'), 'owner_address' => t('Owner address'),
 ];
-$titleTypes = ['land_title' => t('Land title'), 'survey_cert' => t('Survey certificate'), 'concession' => t('Concession'), 'other' => t('Other')];
 $landUseClasses = ['residential' => t('Residential'), 'agricultural' => t('Agricultural'), 'commercial' => t('Commercial'), 'other' => t('Other')];
 
 $initialTab = $_GET['tab'] ?? 'manual';
@@ -765,15 +764,6 @@ if ($editId > 0) {
                 <div class="form-group">
                   <label><?= te('Title number') ?></label>
                   <input name="title_no" value="<?= e($val('title_no')) ?>">
-                </div>
-                <div class="form-group">
-                  <label><?= te('Title type') ?></label>
-                  <select name="title_type">
-                    <option value=""><?= te('-- select --') ?></option>
-                    <?php foreach ($titleTypes as $v => $lbl): ?>
-                    <option value="<?= $v ?>" <?= $val('title_type') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option>
-                    <?php endforeach; ?>
-                  </select>
                 </div>
                 <div class="form-group">
                   <label><?= te('Book') ?></label>
