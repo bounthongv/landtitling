@@ -166,6 +166,15 @@ $roadMap = [
       </div>
     </div>
     <?php endif; ?>
+    <div class="modal-bg" id="edit-lock-modal">
+      <div class="modal">
+        <h2><?= te('Cannot edit parcel') ?></h2>
+        <p id="edit-lock-reason"></p>
+        <div class="modal-actions">
+          <button class="btn" type="button" onclick="hideEditLock()"><?= te('OK') ?></button>
+        </div>
+      </div>
+    </div>
     <div class="form-box">
       <form method="get" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
         <div class="form-group"><label><?= te('Province') ?></label>
@@ -233,7 +242,10 @@ $roadMap = [
           <td style="white-space:nowrap;">
             <?php if ($canEdit): $locked = (int)($p['payment_count'] ?? 0) > 0; ?>
               <?php if ($locked): ?>
-                <button class="btn btn-blue btn-sm" type="button" disabled title="<?= te('A fee slip has already been issued for this parcel, so it cannot be edited.') ?>"><?= te('Edit') ?></button>
+                <button class="btn btn-blue btn-sm" type="button" style="opacity:.55; cursor:help;"
+                        title="<?= te('A fee slip has already been issued for this parcel, so it cannot be edited.') ?>"
+                        data-reason="<?= e(t('A fee slip has already been issued for this parcel, so it cannot be edited.')) ?>"
+                        onclick="showEditLock(this.getAttribute('data-reason'))"><?= te('Edit') ?></button>
               <?php else: ?>
                 <a class="btn btn-blue btn-sm" href="<?= $base ?>/parcel_entry.php?id=<?= (int)$p['id'] ?>"><?= te('Edit') ?></a>
               <?php endif; ?>
@@ -259,6 +271,16 @@ $roadMap = [
 </div>
 
 <script>
+// Locked Edit buttons are clickable but muted; clicking explains why in a modal,
+// because a disabled button gives no feedback and the officer UI is used on phones
+// where a hover tooltip is unreachable.
+function showEditLock(reason) {
+  document.getElementById('edit-lock-reason').textContent = reason;
+  document.getElementById('edit-lock-modal').classList.add('show');
+}
+function hideEditLock() {
+  document.getElementById('edit-lock-modal').classList.remove('show');
+}
 // All districts (id, name_lo, province_id) — the province→district cascade
 // filters this client-side; no extra API round-trip or auth header needed.
 var allDistricts = <?= json_encode($districts, JSON_UNESCAPED_UNICODE) ?>;

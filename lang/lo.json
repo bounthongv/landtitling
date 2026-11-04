@@ -93,6 +93,7 @@
   "Delete failed.": "ລຶບລົ້ມເຫຼວ",
   "Delete parcel": "ລຶບຕອນດິນ",
   "Cannot delete parcel": "ບໍ່ສາມາດລຶບຕອນດິນໄດ້",
+  "Cannot edit parcel": "ບໍ່ສາມາດແກ້ໄຂຕອນດິນໄດ້",
   "Tax has already been collected for this parcel, so it cannot be deleted.": "ເງິນພາສີຂອງຕອນດິນນີ້ຖືກເກັບກຳແລ້ວ ຈຶ່ງບໍ່ສາມາດລຶບໄດ້.",
   "OK": "ຕົກລົງ",
   "Delete this parcel and its unpaid fee records? This cannot be undone.": "ລຶບຕອນດິນນີ້ ພ້ອມທັງຄ່າພາສີທີ່ຍັງບໍ່ທັນຊຳລະບໍ? ເມື່ອລຶບແລ້ວຈະບໍ່ສາມາດຟື້ນຟູໄດ້.",
