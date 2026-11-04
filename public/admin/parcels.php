@@ -25,7 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         header('Location: parcels.php' . ($back ? "?$back&msg=$msg" : "?msg=$msg"));
     } else {
         $why = rawurlencode($r['error']['message'] ?? t('Delete failed'));
-        header('Location: parcels.php' . ($back ? "?$back" : '') . "&msg=$msg&why=$why");
+        $tail = "msg=$msg&why=$why";
+        header('Location: parcels.php' . ($back ? "?$back&$tail" : "?$tail"));
     }
     exit;
 }
