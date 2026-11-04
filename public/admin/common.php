@@ -89,23 +89,6 @@ function admin_nav($role) {
     $act = ($page === 'index.php') ? ' class="active"' : '';
     $links[] = '<li' . $act . '><a' . $act . ' href="' . $base . '/index.php">' . ($icons['index.php'] ?? '') . '<span>' . te('Dashboard') . '</span></a></li>';
 
-    $navItems = [
-        'parcel_entry.php' => 'Parcel Entry',
-        'parcels.php'      => 'Parcels',
-        'obligations.php'  => 'Obligations',
-        'payments.php'     => 'Payment Verify',
-        'bank_imports.php' => 'Bank Import',
-    ];
-    foreach ($navItems as $file => $label) {
-        $act = ($page === $file) ? ' class="active"' : '';
-        $liAct = ($page === $file) ? ' class="active"' : '';
-        $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/' . $file . '">' . ($icons[$file] ?? '') . '<span>' . te($label) . '</span></a></li>';
-    }
-
-    // Reports — read-only, visible to all staff roles.
-    $act = ($page === 'reports.php') ? ' class="active"' : '';
-    $links[] = '<li' . $act . '><a' . $act . ' href="' . $base . '/reports.php">' . ($icons['reports.php'] ?? '') . '<span>' . te('Reports') . '</span></a></li>';
-
     if ($role === 'admin') {
         $onBasicData = ($page === 'basic_data.php');
 
@@ -123,6 +106,23 @@ function admin_nav($role) {
         }
         $links[] = '</li>';
     }
+
+    $navItems = [
+        'parcel_entry.php' => 'Parcel Entry',
+        'parcels.php'      => 'Parcels',
+        'obligations.php'  => 'Obligations',
+        'payments.php'     => 'Payment Verify',
+        'bank_imports.php' => 'Bank Import',
+    ];
+    foreach ($navItems as $file => $label) {
+        $act = ($page === $file) ? ' class="active"' : '';
+        $liAct = ($page === $file) ? ' class="active"' : '';
+        $links[] = '<li' . $liAct . '><a' . $act . ' href="' . $base . '/' . $file . '">' . ($icons[$file] ?? '') . '<span>' . te($label) . '</span></a></li>';
+    }
+
+    // Reports — read-only, visible to all staff roles.
+    $act = ($page === 'reports.php') ? ' class="active"' : '';
+    $links[] = '<li' . $act . '><a' . $act . ' href="' . $base . '/reports.php">' . ($icons['reports.php'] ?? '') . '<span>' . te('Reports') . '</span></a></li>';
 
     // Users — visible to all staff (view list); create/edit is admin-only (enforced in the API).
     $act = ($page === 'users.php') ? ' class="active"' : '';
