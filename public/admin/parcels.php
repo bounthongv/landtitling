@@ -171,7 +171,7 @@ $roadMap = [
         <h2><?= te('Cannot edit parcel') ?></h2>
         <p id="edit-lock-reason"></p>
         <div class="modal-actions">
-          <button class="btn" type="button" onclick="hideEditLock()"><?= te('OK') ?></button>
+          <button class="btn btn-blue" type="button" onclick="hideEditLock()"><?= te('OK') ?></button>
         </div>
       </div>
     </div>
