@@ -79,6 +79,15 @@ if (!empty($params['actor']))          $filters[t('Actor')] = $params['actor'];
 if (!empty($params['action_filter']))  $filters[t('Action')] = $params['action_filter'];
 
 $autoPrint = isset($_GET['auto']) && $data;
+
+// Signature block — whatever the officer left in the four boxes on reports.php.
+// A cleared box arrives as sig2= (present but empty) and is dropped, so an
+// absent parameter falls back to the default label instead.
+$signLabels = [];
+for ($i = 1; $i <= 4; $i++) {
+    $signLabels[] = isset($_GET['sig' . $i]) ? trim((string)$_GET['sig' . $i]) : t('Signature {n}', ['n' => $i]);
+}
+$signLabels = array_values(array_filter($signLabels, fn($s) => $s !== ''));
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -120,6 +129,8 @@ $autoPrint = isset($_GET['auto']) && $data;
   .empty, .err { padding: 14px; border: 1px solid #cbd5c0; border-radius: 6px; background: #f7faf5; }
   .err { border-color: #c62828; background: #fdecea; color: #8e1b1b; }
   .foot { margin-top: 16px; font-size: 11.5px; color: #5f6b5f; border-top: 1px solid #cbd5c0; padding-top: 8px; }
+  .sigs { display: flex; gap: 14px; margin-top: 36px; break-inside: avoid; }
+  .sig { flex: 1; min-width: 0; text-align: center; font-size: 13px; color: #1a2e1a; border-top: 1px dotted #8a948a; padding-top: 6px; }
   @media print {
     @page { size: A4 landscape; margin: 10mm; }
     body { background: #fff; font-size: 11px; }
@@ -128,6 +139,8 @@ $autoPrint = isset($_GET['auto']) && $data;
     .state-title { font-size: 15px; }
     .state-motto { font-size: 13px; }
     .doc-head { padding-bottom: 6px; margin-bottom: 8px; }
+    .sigs { margin-top: 22px; gap: 10px; }
+    .sig { font-size: 11px; }
     h1 { font-size: 16px; }
     .summary { margin: 10px 0; gap: 6px; }
     .sum-item { padding: 5px 8px; min-width: 110px; }
@@ -228,6 +241,14 @@ $autoPrint = isset($_GET['auto']) && $data;
         <?php endforeach; ?>
       </tbody>
     </table>
+    <?php endif; ?>
+
+    <?php if ($signLabels): ?>
+    <div class="sigs">
+      <?php foreach ($signLabels as $s): ?>
+      <div class="sig"><?= e($s) ?></div>
+      <?php endforeach; ?>
+    </div>
     <?php endif; ?>
 
     <div class="foot"><?= te('Land Tax Collection System') ?> — <?= e($title) ?></div>

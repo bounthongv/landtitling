@@ -50,6 +50,19 @@ if ($actor !== '' && $report === 'audit')           { $params[] = 'actor=' . url
 if ($action !== '' && $report === 'audit')          { $params[] = 'action=' . urlencode($action); }
 $qs = implode('&', $params);
 
+// Signature placeholders for the printed document. They are not part of the
+// report query — only of the print links, appended below. A box the officer
+// cleared comes back as sig2= (present but empty) and must stay empty, so the
+// default label is used only when the parameter is absent, not when it is blank.
+$sigValues = [];
+$sigPairs  = [];
+for ($i = 1; $i <= 4; $i++) {
+    $k = 'sig' . $i;
+    $sigValues[$i] = isset($_GET[$k]) ? (string)$_GET[$k] : t('Signature {n}', ['n' => $i]);
+    $sigPairs[] = $k . '=' . urlencode($sigValues[$i]);
+}
+$qsDoc = $qs . '&' . implode('&', $sigPairs);
+
 $d = api_call('GET', 'reports.php?' . $qs, null, $token);
 $data = $d['ok'] ? $d['data'] : null;
 $error = $d['ok'] ? null : ($d['error']['message'] ?? t('Report failed'));
@@ -178,6 +191,15 @@ $reportGroups = [
           <div class="form-group" style="margin-bottom:0;"><label><?= te('To') ?></label><input name="to" type="date" value="<?= e($to) ?>"></div>
         </div>
         <?php endif; ?>
+
+        <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+          <?php for ($i = 1; $i <= 4; $i++): ?>
+          <div class="form-group" style="margin-bottom:0;">
+            <label><?= te('Signature {n}', ['n' => $i]) ?></label>
+            <input name="sig<?= $i ?>" value="<?= e($sigValues[$i]) ?>" maxlength="60">
+          </div>
+          <?php endfor; ?>
+        </div>
       </form>
     </div>
 
@@ -190,8 +212,8 @@ $reportGroups = [
             <span class="sub" style="margin-left:8px"><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span>
           </h2>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <a class="btn btn-gold" href="<?= e($base) ?>/reports_print.php?<?= e($qs) ?>" target="_blank" rel="noopener"><?= te('Preview & Print') ?></a>
-            <a class="btn btn-green" href="<?= e($base) ?>/reports_print.php?<?= e($qs) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
+            <a class="btn btn-gold" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>" target="_blank" rel="noopener"><?= te('Preview & Print') ?></a>
+            <a class="btn btn-green" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
             <a class="btn btn-blue" href="<?= e($base) ?>/reports_export.php?<?= e($qs) ?>"><?= te('Download CSV') ?></a>
           </div>
         </div>
