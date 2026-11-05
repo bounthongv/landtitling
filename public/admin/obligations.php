@@ -106,15 +106,17 @@ foreach ($obligations as $o) {
     if ($penalty_id && (int)$o['id'] === $penalty_id) { $penaltyRow = $o; }
 }
 $msg = $_GET['msg'] ?? '';
-// Generate-box year choices: every fee year on record plus this year and next,
-// with the year currently being viewed preselected.
+// Generate-box year choices: only years that actually exist in
+// Basic Data → Fee years. Adding this year and next year unconditionally let an
+// officer bill a year nobody had created, and generating it silently opened that
+// year with a guessed Dec-31 due date — which the nightly cron then keeps billing.
 $genYears = [];
 foreach ($years as $y) { $genYears[] = (int)$y['year']; }
-$genYears[] = (int)date('Y');
-$genYears[] = (int)date('Y') + 1;
+if (!$genYears) { $genYears[] = (int)date('Y'); } // fresh DB: keep the control usable
 $genYears = array_values(array_unique($genYears));
 rsort($genYears);
 $genYear = $fee_year ?: (int)date('Y');
+if (!in_array($genYear, $genYears, true)) { $genYear = $genYears[0]; }
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
