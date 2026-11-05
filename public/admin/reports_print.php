@@ -32,14 +32,20 @@ $reportLabels = [
 ];
 $title = $reportLabels[$report] ?? ucfirst(str_replace('_', ' ', $report));
 
+// The printed document is an official one, so the report name always carries the
+// "ລາຍງານ" prefix. It goes through the translation table rather than the view so
+// the English UI reads "Report: Collection" instead of a Lao word glued to English.
+$heading = t('Report: {name}', ['name' => $title]);
+
 // Resolve the chosen province/district for the filter line. District staff have
 // no filter in the query, so show their own scope from the session instead.
+// Names are Lao only, dropping the English that the registry stores alongside.
 $provinces = api_call('GET', 'refdata.php?table=provinces', null, $_SESSION['admin_token'])['data'] ?? [];
 $districts = api_call('GET', 'districts.php', null, $_SESSION['admin_token'])['data'] ?? [];
 $provinceName = '';
 foreach ($provinces as $pv) {
     if ((int)$pv['id'] === (int)($params['province_id'] ?? 0)) {
-        $provinceName = $pv['name_lo'] . (!empty($pv['name_en']) ? ' ' . $pv['name_en'] : '');
+        $provinceName = (string)$pv['name_lo'];
         break;
     }
 }
@@ -50,7 +56,7 @@ if (!$scopeDistrictId && ($user['level'] ?? '') === 'district') {
 }
 foreach ($districts as $di) {
     if ((int)$di['id'] === $scopeDistrictId) {
-        $districtName = $di['name_lo'] . (!empty($di['name_en']) ? ' ' . $di['name_en'] : '');
+        $districtName = (string)$di['name_lo'];
         break;
     }
 }
@@ -59,7 +65,7 @@ $filters = [];
 if ($provinceName !== '') {
     $filters[t('Province')] = $provinceName;
 } elseif (($user['level'] ?? '') === 'province' && !empty($user['province_name'])) {
-    $filters[t('Province')] = $user['province_name'];
+    $filters[t('Province')] = !empty($user['province_name_lo']) ? $user['province_name_lo'] : $user['province_name'];
 }
 if ($districtName !== '') {
     $filters[t('District')] = $districtName;
@@ -92,6 +98,12 @@ $autoPrint = isset($_GET['auto']) && $data;
   .toolbar .spacer { flex: 1; }
   .hint { padding: 8px 16px; background: #fff8e1; border-bottom: 1px solid #f0d98c; color: #5c4a00; font-size: 13px; }
   .doc { max-width: 1160px; margin: 16px auto; background: #fff; padding: 26px 30px; box-shadow: 0 2px 14px rgba(0,0,0,.08); }
+  .doc-head { text-align: center; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 2px solid #1b5e20; }
+  .state-title { font-size: 20px; font-weight: 700; color: #1a2e1a; letter-spacing: .2px; }
+  .state-motto { font-size: 16px; font-weight: 700; color: #1a2e1a; margin-top: 3px; }
+  .doc-head .org { margin-top: 12px; }
+  .doc-head .meta { justify-content: center; }
+  .doc-head .filters { justify-content: center; }
   .org { font-size: 13px; color: #5f6b5f; letter-spacing: .3px; }
   h1 { margin: 2px 0 4px; font-size: 22px; color: #1b5e20; }
   .meta { color: #5f6b5f; font-size: 12.5px; display: flex; gap: 16px; flex-wrap: wrap; }
@@ -113,6 +125,9 @@ $autoPrint = isset($_GET['auto']) && $data;
     body { background: #fff; font-size: 11px; }
     .toolbar, .hint { display: none !important; }
     .doc { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+    .state-title { font-size: 15px; }
+    .state-motto { font-size: 13px; }
+    .doc-head { padding-bottom: 6px; margin-bottom: 8px; }
     h1 { font-size: 16px; }
     .summary { margin: 10px 0; gap: 6px; }
     .sum-item { padding: 5px 8px; min-width: 110px; }
@@ -133,19 +148,23 @@ $autoPrint = isset($_GET['auto']) && $data;
 <div class="hint" id="pdf-hint"<?= isset($_GET['auto']) ? '' : ' style="display:none"' ?>><?= te('In the print dialog choose Save as PDF to download this report as a PDF.') ?></div>
 
 <div class="doc">
-  <div class="org"><?= te('Land Tax Collection System') ?></div>
-  <h1><?= e($title) ?></h1>
-  <div class="meta">
-    <?php if ($data): ?><span><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span><?php endif; ?>
-    <span><?= te('Generated {date}', ['date' => date('Y-m-d H:i')]) ?></span>
+  <div class="doc-head">
+    <div class="state-title">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
+    <div class="state-motto">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
+    <div class="org"><?= te('Land Tax Collection System') ?></div>
+    <h1><?= e($heading) ?></h1>
+    <div class="meta">
+      <?php if ($data): ?><span><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span><?php endif; ?>
+      <span><?= te('Generated {date}', ['date' => date('Y-m-d H:i')]) ?></span>
+    </div>
+    <?php if ($filters): ?>
+    <div class="filters">
+      <?php foreach ($filters as $label => $value): ?>
+      <span><b><?= e($label) ?>:</b> <?= e($value) ?></span>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
   </div>
-  <?php if ($filters): ?>
-  <div class="filters">
-    <?php foreach ($filters as $label => $value): ?>
-    <span><b><?= e($label) ?>:</b> <?= e($value) ?></span>
-    <?php endforeach; ?>
-  </div>
-  <?php endif; ?>
 
   <?php if ($error): ?>
     <p class="err"><?= e($error) ?></p>

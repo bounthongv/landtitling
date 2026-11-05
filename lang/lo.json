@@ -271,6 +271,7 @@
   "Rejected": "ປະຕິເສດແລ້ວ",
   "Rejected by officer": "ຖືກພະນັກງານປະຕິເສດ",
   "Report": "ລາຍງານ",
+  "Report: {name}": "ລາຍງານ{name}",
   "Report failed": "ລາຍງານລົ້ມເຫຼວ",
   "Reports": "ລາຍງານ",
   "Residential": "ທີ່ຢູ່ອາໄສ",
