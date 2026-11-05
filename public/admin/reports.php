@@ -212,8 +212,8 @@ $reportGroups = [
             <span class="sub" style="margin-left:8px"><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span>
           </h2>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <a class="btn btn-gold" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>" target="_blank" rel="noopener"><?= te('Preview & Print') ?></a>
-            <a class="btn btn-green" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
+            <a class="btn btn-gold" id="rep-print-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>" target="_blank" rel="noopener"><?= te('Preview & Print') ?></a>
+            <a class="btn btn-green" id="rep-pdf-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
             <a class="btn btn-blue" href="<?= e($base) ?>/reports_export.php?<?= e($qs) ?>"><?= te('Download CSV') ?></a>
           </div>
         </div>
@@ -322,5 +322,38 @@ $reportGroups = [
 })();
 </script>
 <?php endif; ?>
+<script>
+// The print and PDF buttons are links, so they carried whatever the signature
+// boxes said when the page loaded — editing a box then clicking straight through
+// silently printed the old text. Both hrefs are rebuilt from the live values.
+// A cleared box is sent as sig2= (present but empty); the print page drops it
+// instead of falling back to its default label.
+(function () {
+  var printBase = <?= json_encode($base . '/reports_print.php?') ?>;
+  var reportQs  = <?= json_encode($qs) ?>;
+  var printLink = document.getElementById('rep-print-link');
+  var pdfLink   = document.getElementById('rep-pdf-link');
+  if (!printLink || !pdfLink) return;
+
+  function boxes() {
+    var out = [];
+    for (var i = 1; i <= 4; i++) { out.push(document.querySelector('input[name="sig' + i + '"]')); }
+    return out;
+  }
+
+  function refresh() {
+    var parts = [];
+    boxes().forEach(function (b, i) {
+      parts.push('sig' + (i + 1) + '=' + encodeURIComponent(b ? b.value : ''));
+    });
+    var href = printBase + reportQs + '&' + parts.join('&');
+    printLink.href = href;
+    pdfLink.href   = href + '&auto=1';
+  }
+
+  boxes().forEach(function (b) { if (b) { b.addEventListener('input', refresh); } });
+  refresh();
+})();
+</script>
 </body>
 </html>
