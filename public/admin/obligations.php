@@ -117,6 +117,28 @@ $genYears = array_values(array_unique($genYears));
 rsort($genYears);
 $genYear = $fee_year ?: (int)date('Y');
 if (!in_array($genYear, $genYears, true)) { $genYear = $genYears[0]; }
+
+// Per-year metadata for the Generate box. Two independent facts matter:
+//  - past:  the due date has gone, so anything created now is overdue at once and
+//           fee_penalty_sql() adds the 10% surcharge to it.
+//  - cron:  whether the 02:00 job covers this year. This mirrors
+//           cron_generate_obligations.php exactly (open AND (due today or later OR
+//           year this year or later)) — a current year past its due date is still
+//           covered, while a closed or future-past year is not.
+$today    = date('Y-m-d');
+$curYear  = (int)date('Y');
+$genMeta = [];
+foreach ($years as $y) {
+    $yy  = (int)$y['year'];
+    $due = substr((string)($y['due_date'] ?? ''), 0, 10);
+    $st  = (string)($y['status'] ?? '');
+    $genMeta[$yy] = [
+        'status' => $st,
+        'due'    => $due,
+        'past'   => $due !== '' && $due < $today,
+        'cron'   => $st === 'open' && (($due !== '' && $due >= $today) || $yy >= $curYear),
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -184,9 +206,12 @@ if (!in_array($genYear, $genYears, true)) { $genYear = $genYears[0]; }
       <form method="post" class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;">
         <input type="hidden" name="action" value="generate">
         <div class="form-group"><label><?= te('Tax year') ?></label>
-          <select name="fee_year">
-            <?php foreach ($genYears as $yy): ?>
-            <option value="<?= $yy ?>" <?= $genYear === $yy ? 'selected' : '' ?>><?= $yy ?></option>
+          <select name="fee_year" id="obl-gen-year">
+            <?php foreach ($genYears as $yy): $m = $genMeta[$yy] ?? null; ?>
+            <option value="<?= $yy ?>" data-past="<?= empty($m['past']) ? 0 : 1 ?>"
+                    data-cron="<?= empty($m['cron']) ? 0 : 1 ?>"
+                    <?= $genYear === $yy ? 'selected' : '' ?>><?= $yy ?><?php if ($m): ?>
+              (<?= e(t($m['status'])) ?><?= $m['due'] !== '' ? ', ' . te('Due date') . ' ' . e($m['due']) : '' ?>)<?php endif; ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -206,6 +231,9 @@ if (!in_array($genYear, $genYears, true)) { $genYear = $genYears[0]; }
         </div>
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-blue" type="submit"><?= te('Generate') ?></button></div>
       </form>
+      <p class="flash err" id="obl-gen-past" style="display:none;"><?= te('Past due year: every obligation created now is overdue on arrival, so the 10% late-payment surcharge is added to it.') ?></p>
+      <p class="flash ok" id="obl-gen-cron-yes" style="display:none;"><?= te('The nightly job already covers this year, so pressing Generate only does it sooner.') ?></p>
+      <p class="flash err" id="obl-gen-cron-no" style="display:none;"><?= te('The nightly job will NOT bill this year (it is not open, or its due date has passed). Generate here is the only way to assess it, and you must re-run it after registering more parcels.') ?></p>
       <p class="sub"><?= te('Safe to re-run: existing unpaid obligations are updated to the current rate; paid ones are left alone.') ?></p>
     </div>
     <?php endif; ?>
@@ -330,6 +358,25 @@ var allDistricts = <?= json_encode($districts, JSON_UNESCAPED_UNICODE) ?>;
     if (gProvince.value) { rebuildDistricts(gProvince.value, gDistrict); }
     if (genDistrict)     { gDistrict.value = genDistrict; }
   }
+
+  // Warn what the chosen year means before pressing Generate: a past-due year is
+  // arrears work (overdue immediately, never re-billed by the nightly job), while
+  // a not-yet-due year is already handled automatically.
+  var genYearSel = document.getElementById('obl-gen-year');
+  var notePast    = document.getElementById('obl-gen-past');
+  var noteCronYes = document.getElementById('obl-gen-cron-yes');
+  var noteCronNo  = document.getElementById('obl-gen-cron-no');
+  function showGenNote() {
+    if (!genYearSel || !notePast || !noteCronYes || !noteCronNo) return;
+    var opt  = genYearSel.options[genYearSel.selectedIndex];
+    var past = opt ? opt.getAttribute('data-past') : null;
+    var cron = opt ? opt.getAttribute('data-cron') : null;
+    // No meta (a year with no fee_years row yet): stay silent rather than guess.
+    notePast.style.display    = past === '1' ? 'block' : 'none';
+    noteCronYes.style.display = cron === '1' ? 'block' : 'none';
+    noteCronNo.style.display  = cron === '0' ? 'block' : 'none';
+  }
+  if (genYearSel) { genYearSel.onchange = showGenNote; showGenNote(); }
 })();
 </script>
 </body>
