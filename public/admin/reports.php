@@ -326,8 +326,8 @@ $reportGroups = [
 // The print and PDF buttons are links, so they carried whatever the signature
 // boxes said when the page loaded — editing a box then clicking straight through
 // silently printed the old text. Both hrefs are rebuilt from the live values.
-// A cleared box is sent as sig2= (present but empty); the print page drops it
-// instead of falling back to its default label.
+// A cleared box is sent as sig2= (present but empty); the print page keeps that
+// slot as an empty position rather than reverting to its default label.
 (function () {
   var printBase = <?= json_encode($base . '/reports_print.php?') ?>;
   var reportQs  = <?= json_encode($qs) ?>;

@@ -81,13 +81,14 @@ if (!empty($params['action_filter']))  $filters[t('Action')] = $params['action_f
 $autoPrint = isset($_GET['auto']) && $data;
 
 // Signature block — whatever the officer left in the four boxes on reports.php.
-// A cleared box arrives as sig2= (present but empty) and is dropped, so an
-// absent parameter falls back to the default label instead.
+// All four slots always render so blanking a box leaves its position empty rather
+// than letting the neighbours slide across the line. A cleared box comes back as
+// sig2= (present but empty); an absent parameter falls back to the default label.
 $signLabels = [];
 for ($i = 1; $i <= 4; $i++) {
     $signLabels[] = isset($_GET['sig' . $i]) ? trim((string)$_GET['sig' . $i]) : t('Signature {n}', ['n' => $i]);
 }
-$signLabels = array_values(array_filter($signLabels, fn($s) => $s !== ''));
+$hasSignature = count(array_filter($signLabels, fn($s) => $s !== '')) > 0;
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -129,8 +130,9 @@ $signLabels = array_values(array_filter($signLabels, fn($s) => $s !== ''));
   .empty, .err { padding: 14px; border: 1px solid #cbd5c0; border-radius: 6px; background: #f7faf5; }
   .err { border-color: #c62828; background: #fdecea; color: #8e1b1b; }
   .foot { margin-top: 16px; font-size: 11.5px; color: #5f6b5f; border-top: 1px solid #cbd5c0; padding-top: 8px; }
-  .sigs { display: flex; gap: 14px; margin-top: 36px; break-inside: avoid; }
-  .sig { flex: 1; min-width: 0; text-align: center; font-size: 13px; color: #1a2e1a; border-top: 1px dotted #8a948a; padding-top: 6px; }
+  .sigs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 36px; break-inside: avoid; }
+  .sig { min-width: 0; text-align: center; font-size: 13px; color: #1a2e1a; border-top: 1px dotted #8a948a; padding-top: 6px; }
+  .sig-blank { border-top-color: transparent; }
   @media print {
     @page { size: A4 landscape; margin: 10mm; }
     body { background: #fff; font-size: 11px; }
@@ -243,10 +245,10 @@ $signLabels = array_values(array_filter($signLabels, fn($s) => $s !== ''));
     </table>
     <?php endif; ?>
 
-    <?php if ($signLabels): ?>
+    <?php if ($hasSignature): ?>
     <div class="sigs">
       <?php foreach ($signLabels as $s): ?>
-      <div class="sig"><?= e($s) ?></div>
+      <div class="sig<?= $s === '' ? ' sig-blank' : '' ?>"><?= e($s) ?></div>
       <?php endforeach; ?>
     </div>
     <?php endif; ?>
