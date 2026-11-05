@@ -151,7 +151,7 @@ function admin_province_name() {
     return $name;
 }
 
-/** Sidebar top: language toggle (EN | ລາວ) as first line. */
+/** Sidebar top: language toggle (ລາວ | EN) as first line. */
 function admin_side_top() {
     return '<div class="lang-toggle">' . lang_switch() . '</div>' .
            '<div class="brand">' . te('Land Tax Collection System') . '</div>';

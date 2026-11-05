@@ -5,7 +5,7 @@
 // Officers/admins can edit that file with any text editor — no code changes needed.
 //
 // Lao is the default. A `lang` cookie remembers the choice; the sidebar toggle
-// (EN | ລາວ) flips it through /public/admin/lang.php.
+// (ລາວ | EN) flips it through /public/admin/lang.php.
 //
 // Usage in views (inside a PHP block):
 //   echo '<h3>' . te('Confirm / Edit Parcel Data') . '</h3>';
@@ -68,5 +68,5 @@ function lang_switch($next = null) {
     $cur  = i18n_current();
     $en   = '<a class="' . ($cur === 'en' ? 'active' : '') . '" href="' . htmlspecialchars($href . 'en', ENT_QUOTES, 'UTF-8') . '">EN</a>';
     $lo   = '<a class="' . ($cur === 'lo' ? 'active' : '') . '" href="' . htmlspecialchars($href . 'lo', ENT_QUOTES, 'UTF-8') . '">ລາວ</a>';
-    return '<div class="lang-switch">' . $en . '<span>|</span>' . $lo . '</div>';
+    return '<div class="lang-switch">' . $lo . '<span>|</span>' . $en . '</div>';
 }
