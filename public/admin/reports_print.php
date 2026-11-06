@@ -183,7 +183,7 @@ $hasSignature = count(array_filter($signLabels, fn($s) => $s !== '')) > 0;
     <div class="meta">
       <?php if ($period['words'] !== ''): ?><span><?= e($period['words']) ?></span><?php endif; ?>
       <?php if ($data): ?><span><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span><?php endif; ?>
-      <span><?= te('Generated {date}', ['date' => date('Y-m-d H:i')]) ?></span>
+      <span><?= te('Generated {date}', ['date' => date('d/m/Y H:i')]) ?></span>
     </div>
     <?php if ($filters): ?>
     <div class="filters">

@@ -54,23 +54,27 @@ $periodMeaning = [
 $yearReports   = ['collection', 'arrears', 'mof'];
 $parcelFilters = ['collection', 'arrears', 'registration', 'register', 'mof'];
 
+// Whether this report reads a period at all, and the picker fields that say
+// which interval was chosen. Only from= and to= reach the report API, so the
+// document links carry the picker as submitted and reports_print.php resolves
+// it the same way the screen does — a quarter has to come back as quarter 2.
+// The dates travel with the picker rather than in the core query so the
+// browser can substitute the boxes as they now stand.
+$usePeriod = in_array($report, $dateReports, true);
+
 $params = ['report=' . urlencode($report)];
+$dates  = [];
 if ($effProvince && in_array($report, $parcelFilters, true)) { $params[] = 'province_id=' . $effProvince; }
 if ($district && in_array($report, $parcelFilters, true)) { $params[] = 'district_id=' . $district; }
 if ($fee_year && in_array($report, $yearReports, true)) { $params[] = 'fee_year=' . $fee_year; }
 if ($road !== '') { $params[] = 'road_category=' . urlencode($road); }
-if ($from && in_array($report, $dateReports, true)) { $params[] = 'from=' . $from; }
-if ($to   && in_array($report, $dateReports, true)) { $params[] = 'to=' . $to; }
+if ($from && $usePeriod) { $dates[] = 'from=' . $from; }
+if ($to   && $usePeriod) { $dates[] = 'to=' . $to; }
 if ($q !== '' && $report === 'register')            { $params[] = 'q=' . urlencode($q); }
 if ($actor !== '' && $report === 'audit')           { $params[] = 'actor=' . urlencode($actor); }
 if ($action !== '' && $report === 'audit')          { $params[] = 'action=' . urlencode($action); }
-$qs = implode('&', $params);
-
-// The printed document names the interval in words, and only the raw picker
-// fields say which mode was chosen — from= and to= alone look like a range the
-// officer typed, whatever was actually picked. So the document links carry the
-// picker as submitted and reports_print.php resolves it the same way.
-$usePeriod = in_array($report, $dateReports, true);
+$qsCore = implode('&', $params);
+$qs     = $qsCore . ($dates ? '&' . implode('&', $dates) : '');
 
 // Signature placeholders for the printed document. They are not part of the
 // report query — only of the print links, appended after the report labels are
@@ -147,17 +151,20 @@ $pYearQ   = isset($_GET['p_year_q'])   ? (int)$_GET['p_year_q']  : (int)date('Y'
 $pYearH   = isset($_GET['p_year_h'])   ? (int)$_GET['p_year_h']  : (int)date('Y');
 $pYear    = isset($_GET['p_year'])     ? (int)$_GET['p_year']    : (int)date('Y');
 
-// Everything the document needs beyond the report query: the picker fields, the
-// four signature slots and the heading. The dates themselves are already in the
-// query, so only the mode and its month/quarter/half/year values are appended.
-$qsDocBase = $qs . ($usePeriod ? '&' . http_build_query([
+// The links' query: the report filters plus the picker as it now stands. The
+// browser rebuilds that second part from the live controls, so printing after
+// typing a date or moving a select cannot use an interval the officer has
+// already changed — and the href is still right with scripting off.
+$qsPicker = $usePeriod ? http_build_query([
+    'from'      => $from,     'to'       => $to,
     'pmode'     => $period['mode'],
     'p_month'   => $pMonth,   'p_year_m' => $pYearM,
     'p_quarter' => $pQuarter, 'p_year_q' => $pYearQ,
     'p_half'    => $pHalf,    'p_year_h' => $pYearH,
     'p_year'    => $pYear,
-]) : '');
-$qsDoc = $qsDocBase . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
+]) : '';
+$qsLive = $qsCore . ($qsPicker !== '' ? '&' . $qsPicker : '');
+$qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -346,7 +353,7 @@ $qsDoc = $qsDocBase . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rt
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <a class="btn btn-gold" id="rep-print-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>" target="_blank" rel="noopener"><?= te('Preview & Print') ?></a>
             <a class="btn btn-green" id="rep-pdf-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
-            <a class="btn btn-blue" href="<?= e($base) ?>/reports_export.php?<?= e($qs) ?>"><?= te('Download CSV') ?></a>
+            <a class="btn btn-blue" id="rep-csv-link" href="<?= e($base) ?>/reports_export.php?<?= e($qsLive) ?>"><?= te('Download CSV') ?></a>
           </div>
         </div>
 
@@ -469,9 +476,9 @@ $qsDoc = $qsDocBase . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rt
 })();
 
 // The same reasoning covers the period picker: a quarter or a year is a choice,
-// not text being typed, so picking one applies it at once and the printed
-// document can never name an interval the screen is not showing. The two date
-// boxes keep waiting for Run, because the officer works through both of them.
+// not text being typed, so picking one applies it at once and the table on
+// screen cannot disagree with the document being printed. The two date boxes
+// still wait for Run to redraw the table, but the links read them as typed.
 (function () {
   var col = document.querySelector('.per-col');
   if (!col) return;
@@ -480,39 +487,59 @@ $qsDoc = $qsDocBase . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rt
   });
 })();
 
-// The print and PDF buttons are links, so they carried whatever the signature
-// boxes said when the page loaded — editing a box then clicking straight through
-// silently printed the old text. Both hrefs are rebuilt from the live values.
-// A cleared box is sent as sig2= (present but empty); the print page keeps that
-// slot as an empty position rather than reverting to its default label.
+// The print, PDF and CSV buttons are links, so they carried whatever the picker
+// said when the page loaded: typing a date range and clicking straight through
+// printed the interval from the last run. Every href is rebuilt from the form as
+// it now stands. A cleared signature box is sent as sig2= (present but empty);
+// the print page keeps that slot as an empty position rather than reverting to
+// its default label.
 (function () {
-  var printBase = <?= json_encode($base . '/reports_print.php?') ?>;
-  var docQs     = <?= json_encode($qsDocBase) ?>;
-  var printLink = document.getElementById('rep-print-link');
-  var pdfLink   = document.getElementById('rep-pdf-link');
-  if (!printLink || !pdfLink) return;
+  var printBase  = <?= json_encode($base . '/reports_print.php?') ?>;
+  var exportBase = <?= json_encode($base . '/reports_export.php?') ?>;
+  var coreQs     = <?= json_encode($qsCore) ?>;
+  var printLink  = document.getElementById('rep-print-link');
+  var pdfLink    = document.getElementById('rep-pdf-link');
+  var csvLink    = document.getElementById('rep-csv-link');
+  var form       = document.querySelector('form');
+  if (!printLink || !pdfLink || !csvLink || !form) return;
+
+  function field(name) { return form.querySelector('[name="' + name + '"]'); }
+  function val(name) { var el = field(name); return el ? el.value : ''; }
+
+  // The picker exactly as the form would submit it: every row sends its
+  // controls, and the print page reads only the checked mode's.
+  function pickerQs() {
+    if (!field('pmode')) return '';
+    var checked = form.querySelector('input[name="pmode"]:checked');
+    var parts = ['pmode=' + encodeURIComponent(checked ? checked.value : 'range')];
+    ['from', 'to', 'p_month', 'p_year_m', 'p_quarter', 'p_year_q',
+     'p_half', 'p_year_h', 'p_year'].forEach(function (n) {
+      parts.push(n + '=' + encodeURIComponent(val(n)));
+    });
+    return '&' + parts.join('&');
+  }
 
   function boxes() {
     var out = [];
-    for (var i = 1; i <= 4; i++) { out.push(document.querySelector('input[name="sig' + i + '"]')); }
+    for (var i = 1; i <= 4; i++) { out.push(field('sig' + i)); }
     return out;
   }
 
   function refresh() {
+    var core = coreQs + pickerQs();
     var parts = [];
     boxes().forEach(function (b, i) {
       parts.push('sig' + (i + 1) + '=' + encodeURIComponent(b ? b.value : ''));
     });
-    var t = document.querySelector('input[name="rtitle"]');
-    parts.push('rtitle=' + encodeURIComponent(t ? t.value : ''));
-    var href = printBase + docQs + '&' + parts.join('&');
+    parts.push('rtitle=' + encodeURIComponent(val('rtitle')));
+    var href = printBase + core + '&' + parts.join('&');
     printLink.href = href;
     pdfLink.href   = href + '&auto=1';
+    csvLink.href   = exportBase + core;
   }
 
-  boxes().forEach(function (b) { if (b) { b.addEventListener('input', refresh); } });
-  var titleInput = document.querySelector('input[name="rtitle"]');
-  if (titleInput) { titleInput.addEventListener('input', refresh); }
+  form.addEventListener('input', refresh);
+  form.addEventListener('change', refresh);
   refresh();
 })();
 </script>

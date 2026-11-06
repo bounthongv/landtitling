@@ -8,6 +8,12 @@ if (!$is_logged_in) { header('Location: login.php'); exit; }
 
 $params = $_GET;
 unset($params['format']);
+// The picker, not the two date boxes, decides the interval, and the report API
+// understands only from/to — so resolve it here exactly as the screen and the
+// printed document do, or a CSV of quarter 2 could come out unfiltered.
+$period = report_period($params);
+if ($period['from'] !== '') { $params['from'] = $period['from']; } else { unset($params['from']); }
+if ($period['to']   !== '') { $params['to']   = $period['to'];   } else { unset($params['to']); }
 $params['format'] = 'csv';
 $qs = http_build_query($params);
 

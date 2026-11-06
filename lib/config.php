@@ -22,13 +22,21 @@ $__https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
 $__scheme = $__https ? 'https' : 'http';
 $__host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
+// One timezone for the whole app. The DB session runs in Asia/Vientiane
+// (lib/db.php), so every CURRENT_TIMESTAMP column is already Vientiane time —
+// but PHP's own clock follows the server default, which is UTC on the host.
+// A report printed at 15:30 was therefore stamped 08:30, and a paid_at written
+// by PHP landed seven hours away from the row created beside it.
+$__timezone = 'Asia/Vientiane';
+date_default_timezone_set($__timezone);
+
 return [
     'pgsql_host'   => getenv('PGHOST') ?: 'localhost',
     'pgsql_port'   => (int)(getenv('PGPORT') ?: 5432),
     'pgsql_db'     => getenv('PGDATABASE') ?: 'landfee',
     'pgsql_user'   => getenv('PGUSER') ?: 'postgres',
     'pgsql_pass'   => getenv('PGPASSWORD') ?: '',
-    'timezone'     => 'Asia/Vientiane',
+    'timezone'     => $__timezone,
     'uploads'      => getenv('UPLOADS') ?: (dirname(__DIR__) . '/public/uploads/'),
     'jwt_secret'   => getenv('JWT_SECRET') ?: 'landfee-dev-secret-change-me',
     'jwt_ttl'      => 86400, // seconds (24h)
