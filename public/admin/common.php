@@ -175,6 +175,70 @@ function admin_side_foot() {
     return '<div class="side-foot">' . implode('', $lines) . '</div>';
 }
 
+/**
+ * Resolve the report period picker into a from/to date pair.
+ *
+ * All five radios submit, so only the controls belonging to the selected mode
+ * are read — a value left in the URL from an earlier pick cannot change the
+ * period. Every mode collapses to two dates because a date range is the only
+ * thing the report API understands.
+ *
+ * @return array{mode:string,from:string,to:string}  empty dates = no period
+ */
+function report_period(array $get)
+{
+    $modes = ['range', 'month', 'quarter', 'half', 'year'];
+    $mode  = isset($get['pmode']) && in_array($get['pmode'], $modes, true) ? $get['pmode'] : 'range';
+
+    $bounded = static function ($v, int $min, int $max): int {
+        return is_numeric($v) && (int)$v >= $min && (int)$v <= $max ? (int)$v : 0;
+    };
+    $isoDate = static function ($v): string {
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v) ? (string)$v : '';
+    };
+
+    if ($mode === 'range') {
+        $from = $isoDate($get['from'] ?? '');
+        $to   = $isoDate($get['to'] ?? '');
+        if ($from !== '' && $to !== '' && $from > $to) { [$from, $to] = [$to, $from]; }
+        return ['mode' => $mode, 'from' => $from, 'to' => $to];
+    }
+
+    $yearKey = ['month' => 'p_year_m', 'quarter' => 'p_year_q', 'half' => 'p_year_h', 'year' => 'p_year'];
+    $year = $bounded($get[$yearKey[$mode]] ?? 0, 1900, 2999);
+    if (!$year) { return ['mode' => $mode, 'from' => '', 'to' => '']; }
+
+    $startMonth = 1;
+    $endMonth   = 12;
+    if ($mode === 'month') {
+        $m = $bounded($get['p_month'] ?? 0, 1, 12);
+        if (!$m) { return ['mode' => $mode, 'from' => '', 'to' => '']; }
+        $startMonth = $endMonth = $m;
+    } elseif ($mode === 'quarter') {
+        $q = $bounded($get['p_quarter'] ?? 0, 1, 4);
+        if (!$q) { return ['mode' => $mode, 'from' => '', 'to' => '']; }
+        $startMonth = 3 * $q - 2;
+        $endMonth   = 3 * $q;
+    } elseif ($mode === 'half') {
+        $h = $bounded($get['p_half'] ?? 0, 1, 2);
+        if (!$h) { return ['mode' => $mode, 'from' => '', 'to' => '']; }
+        $startMonth = $h === 1 ? 1 : 7;
+        $endMonth   = $h === 1 ? 6 : 12;
+    }
+
+    $from = sprintf('%04d-%02d-01', $year, $startMonth);
+    $to   = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $year, $endMonth)));
+    return ['mode' => $mode, 'from' => $from, 'to' => $to];
+}
+
+/** The period as it reads on paper: dd/mm/yyyy - dd/mm/yyyy, the Lao convention. */
+function report_period_label($from, $to)
+{
+    $fmt = static function ($d) { return $d === '' ? '' : date('d/m/Y', strtotime($d)); };
+    if ($from !== '' && $to !== '') { return $fmt($from) . ' - ' . $fmt($to); }
+    return $fmt($from !== '' ? $from : $to);
+}
+
 // api_call(method, path, body, token) — helper for server-side calls to the JSON API.
 function api_call($method, $path, $body = null, $token = '') {
     global $api_base;

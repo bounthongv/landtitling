@@ -14,6 +14,12 @@ foreach ($allowed as $k) {
 }
 if (empty($params['report'])) $params['report'] = 'collection';
 $report = $params['report'];
+
+// The period picker resolves to two dates; the print page resolves them the same
+// way so a link carrying the raw picker fields still prints the right range.
+$period = report_period($_GET);
+if ($period['from'] !== '') { $params['from'] = $period['from']; } else { unset($params['from']); }
+if ($period['to']   !== '') { $params['to']   = $period['to']; } else { unset($params['to']); }
 $qs = http_build_query($params);
 
 $d = api_call('GET', 'reports.php?' . $qs, null, $_SESSION['admin_token']);
@@ -32,10 +38,13 @@ $reportLabels = [
 ];
 $title = $reportLabels[$report] ?? ucfirst(str_replace('_', ' ', $report));
 
-// The printed document is an official one, so the report name always carries the
-// "ລາຍງານ" prefix. It goes through the translation table rather than the view so
-// the English UI reads "Report: Collection" instead of a Lao word glued to English.
+// The printed document is an official one, so the report name normally carries
+// the "ລາຍງານ" prefix. The officer can type a heading of their own on reports.php;
+// what is typed is printed exactly as typed, and only an empty box falls back to
+// the generated name.
+$typedTitle = isset($_GET['rtitle']) ? trim((string)$_GET['rtitle']) : '';
 $heading = t('Report: {name}', ['name' => $title]);
+if ($typedTitle !== '') { $heading = (string)$_GET['rtitle']; }
 
 // Resolve the chosen province/district for the filter line. District staff have
 // no filter in the query, so show their own scope from the session instead.
@@ -72,8 +81,11 @@ if ($districtName !== '') {
 }
 if (!empty($params['fee_year']))       $filters[t('Fee year')] = $params['fee_year'];
 if (!empty($params['road_category']))  $filters[t('Road')] = t(ucfirst($params['road_category']));
-if (!empty($params['from']))           $filters[t('From')] = $params['from'];
-if (!empty($params['to']))             $filters[t('To')] = $params['to'];
+// One line for the whole period rather than a From and a To entry, because the
+// officer picked a month/quarter/half/year rather than two loose dates.
+if (!empty($params['from']) || !empty($params['to'])) {
+    $filters[t('Period')] = report_period_label($params['from'] ?? '', $params['to'] ?? '');
+}
 if (!empty($params['q']))              $filters[t('Search parcel/title')] = $params['q'];
 if (!empty($params['actor']))          $filters[t('Actor')] = $params['actor'];
 if (!empty($params['action_filter']))  $filters[t('Action')] = $params['action_filter'];

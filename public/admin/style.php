@@ -295,6 +295,18 @@
   .pay-actions { display: flex; flex-direction: column; gap: 8px; align-self: start; }
   /* Parcel entry: map/lookup column beside the entry form. */
   .split-340 { display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+  /* Reports: the period picker beside the printed title and signature boxes. */
+  .per-split { display: grid; grid-template-columns: 440px 1fr; gap: 16px 24px; align-items: start; }
+  .per-split > * { min-width: 0; }
+  .per-head { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .04em; margin-bottom: 6px; }
+  .per-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 5px 0; cursor: pointer; }
+  .per-row .per-lbl { min-width: 96px; font-size: 13px; }
+  .per-in { display: flex; align-items: center; gap: 6px; }
+  .per-in select { width: auto; }
+  .per-row input[type="radio"] { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; accent-color: var(--green); }
+  .per-in input, .per-in select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: #fff; }
+  .per-in input[type="date"] { width: 140px; }
+  .per-sep { font-size: 12px; color: var(--muted); }
 
   /* ---- Manager monitoring overview (monitor.php) ------------------------ */
   .monitor-head { margin-bottom: 16px; }
@@ -456,6 +468,9 @@
     .pay-split { grid-template-columns: 1fr; }
     .pay-actions { flex-direction: row; flex-wrap: wrap; }
     .split-340 { grid-template-columns: 1fr; }
+    .per-split { grid-template-columns: 1fr; }
+    .per-row .per-lbl { min-width: 84px; }
+    .per-in { flex-wrap: wrap; }
     .bank-strip { grid-template-columns: 1fr 1fr; }
     .pay-tabs { gap: 6px; }
     .pay-tabs a { padding: 10px 12px; font-size: 14px; flex: 1 1 auto; text-align: center; }

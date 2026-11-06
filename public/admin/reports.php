@@ -10,8 +10,10 @@ $province = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
 $district = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
 $fee_year = isset($_GET['fee_year']) ? (int)$_GET['fee_year'] : 0;
 $road     = $_GET['road_category'] ?? '';
-$from     = $_GET['from'] ?? '';
-$to       = $_GET['to'] ?? '';
+// The period picker collapses to the two dates the report API understands.
+$period   = report_period($_GET);
+$from     = $period['from'];
+$to       = $period['to'];
 $q        = $_GET['q'] ?? '';
 $actor    = $_GET['actor'] ?? '';
 $action   = $_GET['action_filter'] ?? '';
@@ -51,9 +53,10 @@ if ($action !== '' && $report === 'audit')          { $params[] = 'action=' . ur
 $qs = implode('&', $params);
 
 // Signature placeholders for the printed document. They are not part of the
-// report query — only of the print links, appended below. A box the officer
-// cleared comes back as sig2= (present but empty) and must stay empty, so the
-// default label is used only when the parameter is absent, not when it is blank.
+// report query — only of the print links, appended after the report labels are
+// known. A box the officer cleared comes back as sig2= (present but empty) and
+// must stay empty, so the default label is used only when the parameter is
+// absent, not when it is blank.
 $sigValues = [];
 $sigPairs  = [];
 for ($i = 1; $i <= 4; $i++) {
@@ -61,7 +64,6 @@ for ($i = 1; $i <= 4; $i++) {
     $sigValues[$i] = isset($_GET[$k]) ? (string)$_GET[$k] : t('Signature {n}', ['n' => $i]);
     $sigPairs[] = $k . '=' . urlencode($sigValues[$i]);
 }
-$qsDoc = $qs . '&' . implode('&', $sigPairs);
 
 $d = api_call('GET', 'reports.php?' . $qs, null, $token);
 $data = $d['ok'] ? $d['data'] : null;
@@ -96,6 +98,26 @@ $reportGroups = [
     t('Registry') => ['registration', 'register'],
     t('Controls') => ['bank', 'rates', 'audit'],
 ];
+
+// The printed title travels to the document only, never to the API query. An
+// empty box falls back to the report's own name, because an official document
+// with no heading is not what the officer meant to produce.
+$rtitle = isset($_GET['rtitle']) && trim((string)$_GET['rtitle']) !== ''
+    ? (string)$_GET['rtitle']
+    : t('Report: {name}', ['name' => $reportLabels[$report] ?? $report]);
+
+// Reporting periods are calendar facts, so the year list must not depend on
+// which fee years an admin happens to have opened: the last eleven years.
+$periodYears = range((int)date('Y'), (int)date('Y') - 10);
+$pMonth   = isset($_GET['p_month'])   ? (int)$_GET['p_month']   : (int)date('n');
+$pQuarter = isset($_GET['p_quarter'])  ? (int)$_GET['p_quarter'] : (int)ceil(date('n') / 3);
+$pHalf    = isset($_GET['p_half'])     ? (int)$_GET['p_half']    : (date('n') <= 6 ? 1 : 2);
+$pYearM   = isset($_GET['p_year_m'])   ? (int)$_GET['p_year_m']  : (int)date('Y');
+$pYearQ   = isset($_GET['p_year_q'])   ? (int)$_GET['p_year_q']  : (int)date('Y');
+$pYearH   = isset($_GET['p_year_h'])   ? (int)$_GET['p_year_h']  : (int)date('Y');
+$pYear    = isset($_GET['p_year'])     ? (int)$_GET['p_year']    : (int)date('Y');
+
+$qsDoc = $qs . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -185,20 +207,88 @@ $reportGroups = [
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Run') ?></button></div>
         </div>
 
-        <?php if (in_array($report, $dateReports, true)): ?>
-        <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
-          <div class="form-group" style="margin-bottom:0;"><label><?= te('From') ?></label><input name="from" type="date" value="<?= e($from) ?>"></div>
-          <div class="form-group" style="margin-bottom:0;"><label><?= te('To') ?></label><input name="to" type="date" value="<?= e($to) ?>"></div>
-        </div>
-        <?php endif; ?>
-
-        <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
-          <?php for ($i = 1; $i <= 4; $i++): ?>
-          <div class="form-group" style="margin-bottom:0;">
-            <label><?= te('Signature {n}', ['n' => $i]) ?></label>
-            <input name="sig<?= $i ?>" value="<?= e($sigValues[$i]) ?>" maxlength="60">
+        <?php $usePeriod = in_array($report, $dateReports, true); ?>
+        <div class="<?= $usePeriod ? 'per-split' : '' ?>" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+        <?php if ($usePeriod): ?>
+          <div class="per-col">
+            <div class="per-head"><?= te('Period') ?></div>
+            <?php
+            // One row per mode; the radio decides which fields report_period() reads.
+            $pm = $period['mode'];
+            $mkYearSel = static function (string $name) use ($periodYears, $pYearM, $pYearQ, $pYearH, $pYear): string {
+                $sel = ['p_year_m' => $pYearM, 'p_year_q' => $pYearQ, 'p_year_h' => $pYearH, 'p_year' => $pYear][$name];
+                $out = '<select name="' . $name . '">';
+                foreach ($periodYears as $yy) {
+                    $out .= '<option value="' . $yy . '"' . ($yy === $sel ? ' selected' : '') . '>' . $yy . '</option>';
+                }
+                return $out . '</select>';
+            };
+            ?>
+            <label class="per-row">
+              <input type="radio" name="pmode" value="range" <?= $pm === 'range' ? 'checked' : '' ?>>
+              <span class="per-lbl"><?= te('From date') ?></span>
+              <span class="per-in">
+                <input name="from" type="date" value="<?= e($from) ?>">
+                <span class="per-sep"><?= te('To') ?></span>
+                <input name="to" type="date" value="<?= e($to) ?>">
+              </span>
+            </label>
+            <label class="per-row">
+              <input type="radio" name="pmode" value="month" <?= $pm === 'month' ? 'checked' : '' ?>>
+              <span class="per-lbl"><?= te('Month') ?></span>
+              <span class="per-in">
+                <select name="p_month">
+                  <?php for ($mm = 1; $mm <= 12; $mm++): ?>
+                  <option value="<?= $mm ?>" <?= $mm === $pMonth ? 'selected' : '' ?>><?= $mm ?></option>
+                  <?php endfor; ?>
+                </select>
+                <?= $mkYearSel('p_year_m') ?>
+              </span>
+            </label>
+            <label class="per-row">
+              <input type="radio" name="pmode" value="quarter" <?= $pm === 'quarter' ? 'checked' : '' ?>>
+              <span class="per-lbl"><?= te('Quarter') ?></span>
+              <span class="per-in">
+                <select name="p_quarter">
+                  <?php for ($qq = 1; $qq <= 4; $qq++): ?>
+                  <option value="<?= $qq ?>" <?= $qq === $pQuarter ? 'selected' : '' ?>><?= $qq ?></option>
+                  <?php endfor; ?>
+                </select>
+                <?= $mkYearSel('p_year_q') ?>
+              </span>
+            </label>
+            <label class="per-row">
+              <input type="radio" name="pmode" value="half" <?= $pm === 'half' ? 'checked' : '' ?>>
+              <span class="per-lbl"><?= te('6 months') ?></span>
+              <span class="per-in">
+                <select name="p_half">
+                  <option value="1" <?= $pHalf === 1 ? 'selected' : '' ?>>1–6</option>
+                  <option value="2" <?= $pHalf === 2 ? 'selected' : '' ?>>7–12</option>
+                </select>
+                <?= $mkYearSel('p_year_h') ?>
+              </span>
+            </label>
+            <label class="per-row">
+              <input type="radio" name="pmode" value="year" <?= $pm === 'year' ? 'checked' : '' ?>>
+              <span class="per-lbl"><?= te('Year') ?></span>
+              <span class="per-in"><?= $mkYearSel('p_year') ?></span>
+            </label>
           </div>
-          <?php endfor; ?>
+        <?php endif; ?>
+          <div class="doc-col">
+            <div class="form-group">
+              <label for="rep-rtitle"><?= te('Main title') ?></label>
+              <input name="rtitle" id="rep-rtitle" value="<?= e($rtitle) ?>" maxlength="120">
+            </div>
+            <div class="form-grid" style="margin-top:12px;">
+              <?php for ($i = 1; $i <= 4; $i++): ?>
+              <div class="form-group" style="margin-bottom:0;">
+                <label><?= te('Signature {n}', ['n' => $i]) ?></label>
+                <input name="sig<?= $i ?>" value="<?= e($sigValues[$i]) ?>" maxlength="60">
+              </div>
+              <?php endfor; ?>
+            </div>
+          </div>
         </div>
       </form>
     </div>
@@ -359,12 +449,16 @@ $reportGroups = [
     boxes().forEach(function (b, i) {
       parts.push('sig' + (i + 1) + '=' + encodeURIComponent(b ? b.value : ''));
     });
+    var t = document.querySelector('input[name="rtitle"]');
+    parts.push('rtitle=' + encodeURIComponent(t ? t.value : ''));
     var href = printBase + reportQs + '&' + parts.join('&');
     printLink.href = href;
     pdfLink.href   = href + '&auto=1';
   }
 
   boxes().forEach(function (b) { if (b) { b.addEventListener('input', refresh); } });
+  var titleInput = document.querySelector('input[name="rtitle"]');
+  if (titleInput) { titleInput.addEventListener('input', refresh); }
   refresh();
 })();
 </script>
