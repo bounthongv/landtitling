@@ -10,8 +10,10 @@ Province.
 
 1. Sign in with a **phone number** (no email, no OTP, no PIN, nothing sent).
    The first time a number is used the account is created.
-2. **Look up a parcel by its number** — from the land title — and see the land
-   tax assessed on it: the zone code, the rate, the area and the amount.
+2. **Look up a parcel the way the registry identifies it** — province →
+   district → village → map sheet → parcel number — and see the land tax
+   assessed on it: the zone code, the rate, the area and the amount. Then
+   claim it to make it yours.
 3. Choose how much to pay and how, and issue a payment slip
    (reference `LFE-{year}-{seq6}` + QR).
 4. Photograph the paid bank slip and upload it.
@@ -56,17 +58,19 @@ Defaults to the live server: `https://landtax.apis.com.la/api/v1`.
 
 | Call | Endpoint | State |
 |------|----------|-------|
-| Sign in | `POST api/v1/citizen_auth.php` | **to be added** |
-| Price a parcel | `GET api/v1/parcel_fee.php` | **to be added** |
-| Issue a slip | `POST api/v1/citizen_payments.php` | **to be added** |
-| My payments | `GET api/v1/citizen_payments.php` | **to be added** |
-| Upload the receipt | `POST api/v1/citizen_payments.php?id={id}&receipt=1` | **to be added** |
-| My linked parcels | `GET api/v1/my_parcels.php` | exists |
+| Sign in | `POST api/v1/citizen_auth.php` | deployed |
+| Price a parcel | `GET api/v1/parcel_fee.php` | deployed |
+| Claim a parcel | `POST api/v1/citizen_claim.php` | deployed |
+| My linked parcels | `GET api/v1/my_parcels.php` | deployed |
+| Issue a slip | `POST api/v1/citizen_payments.php` | deployed |
+| My payments | `GET api/v1/citizen_payments.php` | deployed |
+| Upload the receipt | `POST api/v1/citizen_payments.php?id={id}&receipt=1` | deployed |
 
-The first five are specified in the contract document and are **not in the
-repository yet** — the backend is being worked on by someone else, so the app
-is built against the contract and the endpoints are added separately. Until
-they are, the app cannot talk to a server.
+These are specified in [`../docs/9-citizen-app-api-contract.md`](../docs/9-citizen-app-api-contract.md)
+and all of them answer on `https://landtax.apis.com.la/api/v1` (401/405 to an
+unauthenticated GET, which is the designed behaviour). The app therefore talks
+to the live server out of the box; what has not been done is a smoke-test run
+against it — see M7 and "Smoke test" below.
 
 ## Smoke test
 
@@ -95,16 +99,19 @@ never fails in a confusing way.
 |-----------|-------|
 | M1 scaffold + theme | done |
 | M2 core (client, models, token store) | done |
-| M3 sign-in (phone number) | done in the app; the endpoint is specified, not deployed |
-| M4 find a parcel + its fee | done in the app; the endpoint is specified, not deployed |
-| M5 pay → slip → receipt upload | done in the app; the endpoint is specified, not deployed |
-| M6 history + status | done in the app; the endpoint is specified, not deployed |
-| M7 end-to-end with the back-office | proven against a reference implementation of the contract; not proven against the deployed API |
+| M3 sign-in (phone number) | done in the app; `citizen_auth.php` is deployed on landtax.apis.com.la |
+| M4 find a parcel + its fee | done in the app; `parcel_fee.php` is deployed on landtax.apis.com.la |
+| M5 pay → slip → receipt upload | done in the app; `citizen_payments.php` is deployed on landtax.apis.com.la |
+| M6 history + status | done in the app; `citizen_payments.php` is deployed on landtax.apis.com.la |
+| M7 end-to-end with the back-office | proven against a reference implementation of the contract; not yet proven against the deployed API, because `tool/smoke_test.dart` writes to the database it runs against |
 | M8 harden + release | release APK builds here (`flutter build apk --release`, ~49 MB); it is signed with the **debug** key, so it is not distributable |
 
 ## Known gaps
 
-- **The backend endpoints are not written yet** (see the contract document).
+- **The four citizen endpoints are written and deployed** (`citizen_auth.php`,
+  `parcel_fee.php`, `citizen_claim.php`, `citizen_payments.php` on
+  landtax.apis.com.la). What is still missing is a run of `tool/smoke_test.dart`
+  against them (M7), which needs a throwaway database because it writes.
 - **The QR is a placeholder.** The land office's receiving account and the
   bank's QR format are not known yet, so the slip shows the reference in large,
   copyable type and the citizen types it into their banking app. The real QR
@@ -114,8 +121,11 @@ never fails in a confusing way.
   show where to pay.
 - **A phone number is guessable.** With no PIN, anyone who knows a citizen's
   number can sign in as them and read their land record and payment history.
-  The province accepted this: the endpoint should be rate-limited and logged,
-  and a PIN can be added later without changing the app.
+  The province accepted this. Brute-forcing *new* numbers is throttled by
+  `lib/rate_limit.php` (migration 016) in the shipped code, but the throttle
+  fails open, so it only really works if `auth_attempts` exists on the server;
+  a citizen who has signed in before is never blocked by it. A PIN can be
+  added later without changing the app.
 - **No push notifications** — the app refreshes on demand.
 - **APKs build on this machine** — the Android SDK is at `D:\AndroidSdk` and
   `android/local.properties` points Gradle at it, so `flutter build apk
