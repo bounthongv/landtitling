@@ -66,6 +66,12 @@ if ($actor !== '' && $report === 'audit')           { $params[] = 'actor=' . url
 if ($action !== '' && $report === 'audit')          { $params[] = 'action=' . urlencode($action); }
 $qs = implode('&', $params);
 
+// The printed document names the interval in words, and only the raw picker
+// fields say which mode was chosen — from= and to= alone look like a range the
+// officer typed, whatever was actually picked. So the document links carry the
+// picker as submitted and reports_print.php resolves it the same way.
+$usePeriod = in_array($report, $dateReports, true);
+
 // Signature placeholders for the printed document. They are not part of the
 // report query — only of the print links, appended after the report labels are
 // known. A box the officer cleared comes back as sig2= (present but empty) and
@@ -116,9 +122,19 @@ $reportGroups = [
 // The printed title travels to the document only, never to the API query. An
 // empty box falls back to the report's own name, because an official document
 // with no heading is not what the officer meant to produce.
-$rtitle = isset($_GET['rtitle']) && trim((string)$_GET['rtitle']) !== ''
-    ? (string)$_GET['rtitle']
-    : t('Report: {name}', ['name' => $reportLabels[$report] ?? $report]);
+//
+// Changing the report submits this very form, so the box arrives in the URL with
+// whatever it held — switching from Collection to Audit trail otherwise printed
+// "Report: Collection" over the audit table. A title equal to some other
+// report's generated name is therefore stale and is regenerated; anything the
+// officer typed by hand is kept exactly as typed.
+$defaultTitle = t('Report: {name}', ['name' => $reportLabels[$report] ?? $report]);
+$otherTitles  = [];
+foreach ($reportLabels as $key => $label) {
+    if ($key !== $report) { $otherTitles[] = t('Report: {name}', ['name' => $label]); }
+}
+$typedTitle = isset($_GET['rtitle']) ? (string)$_GET['rtitle'] : '';
+$rtitle = (trim($typedTitle) === '' || in_array($typedTitle, $otherTitles, true)) ? $defaultTitle : $typedTitle;
 
 // Reporting periods are calendar facts, so the year list must not depend on
 // which fee years an admin happens to have opened: the last eleven years.
@@ -131,7 +147,17 @@ $pYearQ   = isset($_GET['p_year_q'])   ? (int)$_GET['p_year_q']  : (int)date('Y'
 $pYearH   = isset($_GET['p_year_h'])   ? (int)$_GET['p_year_h']  : (int)date('Y');
 $pYear    = isset($_GET['p_year'])     ? (int)$_GET['p_year']    : (int)date('Y');
 
-$qsDoc = $qs . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
+// Everything the document needs beyond the report query: the picker fields, the
+// four signature slots and the heading. The dates themselves are already in the
+// query, so only the mode and its month/quarter/half/year values are appended.
+$qsDocBase = $qs . ($usePeriod ? '&' . http_build_query([
+    'pmode'     => $period['mode'],
+    'p_month'   => $pMonth,   'p_year_m' => $pYearM,
+    'p_quarter' => $pQuarter, 'p_year_q' => $pYearQ,
+    'p_half'    => $pHalf,    'p_year_h' => $pYearH,
+    'p_year'    => $pYear,
+]) : '');
+$qsDoc = $qsDocBase . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
 ?>
 <!DOCTYPE html>
 <html lang="<?= i18n_current() ?>">
@@ -221,7 +247,6 @@ $qsDoc = $qs . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Run') ?></button></div>
         </div>
 
-        <?php $usePeriod = in_array($report, $dateReports, true); ?>
         <div class="<?= $usePeriod ? 'per-split' : '' ?>" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
         <?php if ($usePeriod): ?>
           <div class="per-col">
@@ -443,6 +468,18 @@ $qsDoc = $qs . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
   }
 })();
 
+// The same reasoning covers the period picker: a quarter or a year is a choice,
+// not text being typed, so picking one applies it at once and the printed
+// document can never name an interval the screen is not showing. The two date
+// boxes keep waiting for Run, because the officer works through both of them.
+(function () {
+  var col = document.querySelector('.per-col');
+  if (!col) return;
+  col.querySelectorAll('input[type="radio"], select').forEach(function (el) {
+    el.addEventListener('change', function () { el.form.submit(); });
+  });
+})();
+
 // The print and PDF buttons are links, so they carried whatever the signature
 // boxes said when the page loaded — editing a box then clicking straight through
 // silently printed the old text. Both hrefs are rebuilt from the live values.
@@ -450,7 +487,7 @@ $qsDoc = $qs . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
 // slot as an empty position rather than reverting to its default label.
 (function () {
   var printBase = <?= json_encode($base . '/reports_print.php?') ?>;
-  var reportQs  = <?= json_encode($qs) ?>;
+  var docQs     = <?= json_encode($qsDocBase) ?>;
   var printLink = document.getElementById('rep-print-link');
   var pdfLink   = document.getElementById('rep-pdf-link');
   if (!printLink || !pdfLink) return;
@@ -468,7 +505,7 @@ $qsDoc = $qs . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtitle);
     });
     var t = document.querySelector('input[name="rtitle"]');
     parts.push('rtitle=' + encodeURIComponent(t ? t.value : ''));
-    var href = printBase + reportQs + '&' + parts.join('&');
+    var href = printBase + docQs + '&' + parts.join('&');
     printLink.href = href;
     pdfLink.href   = href + '&auto=1';
   }

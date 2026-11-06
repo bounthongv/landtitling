@@ -176,14 +176,17 @@ function admin_side_foot() {
 }
 
 /**
- * Resolve the report period picker into a from/to date pair.
+ * Resolve the report period picker into a from/to date pair plus the interval
+ * in words.
  *
  * All five radios submit, so only the controls belonging to the selected mode
  * are read — a value left in the URL from an earlier pick cannot change the
  * period. Every mode collapses to two dates because a date range is the only
- * thing the report API understands.
+ * thing the report API understands. The words ride along because a document
+ * signed by two offices has to name the interval the officer actually picked:
+ * quarter 2, not two dates nobody typed.
  *
- * @return array{mode:string,from:string,to:string}  empty dates = no period
+ * @return array{mode:string,from:string,to:string,words:string}  empty dates = no period
  */
 function report_period(array $get)
 {
@@ -196,39 +199,59 @@ function report_period(array $get)
     $isoDate = static function ($v): string {
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$v) ? (string)$v : '';
     };
+    $none = ['mode' => $mode, 'from' => '', 'to' => '', 'words' => ''];
 
     if ($mode === 'range') {
         $from = $isoDate($get['from'] ?? '');
         $to   = $isoDate($get['to'] ?? '');
         if ($from !== '' && $to !== '' && $from > $to) { [$from, $to] = [$to, $from]; }
-        return ['mode' => $mode, 'from' => $from, 'to' => $to];
+        $dmy = static function ($d) { return date('d/m/Y', strtotime($d)); };
+        if ($from !== '' && $to !== '') {
+            $words = t('For {from} - {to}', ['from' => $dmy($from), 'to' => $dmy($to)]);
+        } elseif ($from !== '') {
+            $words = t('From {date}', ['date' => $dmy($from)]);
+        } elseif ($to !== '') {
+            $words = t('To {date}', ['date' => $dmy($to)]);
+        } else {
+            $words = '';
+        }
+        return ['mode' => $mode, 'from' => $from, 'to' => $to, 'words' => $words];
     }
 
     $yearKey = ['month' => 'p_year_m', 'quarter' => 'p_year_q', 'half' => 'p_year_h', 'year' => 'p_year'];
     $year = $bounded($get[$yearKey[$mode]] ?? 0, 1900, 2999);
-    if (!$year) { return ['mode' => $mode, 'from' => '', 'to' => '']; }
+    if (!$year) { return $none; }
 
     $startMonth = 1;
     $endMonth   = 12;
     if ($mode === 'month') {
         $m = $bounded($get['p_month'] ?? 0, 1, 12);
-        if (!$m) { return ['mode' => $mode, 'from' => '', 'to' => '']; }
+        if (!$m) { return $none; }
         $startMonth = $endMonth = $m;
     } elseif ($mode === 'quarter') {
         $q = $bounded($get['p_quarter'] ?? 0, 1, 4);
-        if (!$q) { return ['mode' => $mode, 'from' => '', 'to' => '']; }
+        if (!$q) { return $none; }
         $startMonth = 3 * $q - 2;
         $endMonth   = 3 * $q;
     } elseif ($mode === 'half') {
         $h = $bounded($get['p_half'] ?? 0, 1, 2);
-        if (!$h) { return ['mode' => $mode, 'from' => '', 'to' => '']; }
+        if (!$h) { return $none; }
         $startMonth = $h === 1 ? 1 : 7;
         $endMonth   = $h === 1 ? 6 : 12;
     }
 
     $from = sprintf('%04d-%02d-01', $year, $startMonth);
     $to   = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $year, $endMonth)));
-    return ['mode' => $mode, 'from' => $from, 'to' => $to];
+    if ($mode === 'month') {
+        $words = t('For month {month} of {year}', ['month' => $startMonth, 'year' => $year]);
+    } elseif ($mode === 'quarter') {
+        $words = t('For quarter {quarter} of {year}', ['quarter' => (int)(($startMonth + 2) / 3), 'year' => $year]);
+    } elseif ($mode === 'half') {
+        $words = t('For months {first}-{last} of {year}', ['first' => $startMonth, 'last' => $endMonth, 'year' => $year]);
+    } else {
+        $words = t('For year {year}', ['year' => $year]);
+    }
+    return ['mode' => $mode, 'from' => $from, 'to' => $to, 'words' => $words];
 }
 
 /** The period as it reads on paper: dd/mm/yyyy - dd/mm/yyyy, the Lao convention. */

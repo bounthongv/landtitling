@@ -181,6 +181,7 @@ $hasSignature = count(array_filter($signLabels, fn($s) => $s !== '')) > 0;
     <div class="org"><?= te('Land Tax Collection System') ?></div>
     <h1><?= e($heading) ?></h1>
     <div class="meta">
+      <?php if ($period['words'] !== ''): ?><span><?= e($period['words']) ?></span><?php endif; ?>
       <?php if ($data): ?><span><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span><?php endif; ?>
       <span><?= te('Generated {date}', ['date' => date('Y-m-d H:i')]) ?></span>
     </div>
