@@ -323,6 +323,19 @@ $reportGroups = [
 </script>
 <?php endif; ?>
 <script>
+// Choosing a report did not apply until Run was pressed, because the filters are
+// a GET form. Meanwhile the print, PDF and CSV links were built when the page
+// loaded, so an officer who picked a report and clicked straight through got the
+// report that was open at the time — normally Collection. Applying the choice on
+// change keeps the heading, the table and every link in step with the dropdown,
+// and leaves the server deciding which filters apply to which report.
+(function () {
+  var reportSel = document.querySelector('select[name="report"]');
+  if (reportSel) {
+    reportSel.addEventListener('change', function () { reportSel.form.submit(); });
+  }
+})();
+
 // The print and PDF buttons are links, so they carried whatever the signature
 // boxes said when the page loaded — editing a box then clicking straight through
 // silently printed the old text. Both hrefs are rebuilt from the live values.
