@@ -281,6 +281,7 @@
   "Payments received in the period": "ການຊຳລະທີ່ໄດ້ຮັບໃນໄລຍະ",
   "Obligations falling due in the period; balances stay as of today": "ພາສີທີ່ກຳນົດຊຳລະໃນໄລຍະ; ຍອດຄ້າງຊຳລະຄິດໄລ່ຈົນເຖິງມື້ນີ້",
   "Parcels registered and title pages scanned in the period": "ຕອນດິນທີ່ບັນທຶກ ແລະ ໃບຕາດິນທີ່ສະແກນໃນໄລຍະ",
+  "Titles issued in the period; parcels with no issue date are not listed": "ໃບຕາດິນທີ່ອອກໃນໄລຍະ; ຕອນດິນທີ່ບໍ່ມີວັນທີອອກໃບຕາຈະບໍ່ໄດ້ສະແດງ",
   "Statement rows and the payments they settle, in the period": "ແຖວໃນແທບເງິນທະນາຄານ ແລະ ການຊຳລະທີ່ຈັບຄູ່ ໃນໄລຍະ",
   "Log entries in the period": "ບັນທຶກການເຮັດວຽກຂອງລະບົບໃນໄລຍະ",
   "Collected in the period; assessed and outstanding stay annual": "ຍອດເກັບໄດ້ໃນໄລຍະ; ຍອດປະເມີນ ແລະ ຄ້າງຊຳລະຍັງເປັນຕາມປີ",

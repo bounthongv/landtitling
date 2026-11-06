@@ -289,6 +289,11 @@ case 'register': {
         $where[] = '(p.parcel_no ILIKE :q OR p.title_no ILIKE :q)';
         $params[':q'] = '%' . trim((string)$_GET['q']) . '%';
     }
+    // A period turns the register into "titles issued in it", which is the one
+    // question a date can answer here. It also drops parcels whose title carries
+    // no issue date at all — including confirmed ones — so the screen says as
+    // much, and choosing no period keeps the complete register.
+    rep_date_range($where, $params, 'p.issued_date', $from, $to);
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     $stmt = $pdo->prepare("SELECT p.parcel_no, p.sub_parcel_no, p.title_no, p.map_ref_no, p.title_type,
