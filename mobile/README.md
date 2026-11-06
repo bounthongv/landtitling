@@ -100,7 +100,7 @@ never fails in a confusing way.
 | M5 pay → slip → receipt upload | done in the app; the endpoint is specified, not deployed |
 | M6 history + status | done in the app; the endpoint is specified, not deployed |
 | M7 end-to-end with the back-office | proven against a reference implementation of the contract; not proven against the deployed API |
-| M8 harden + release | **not started** — no Android SDK on the dev machine, so no APK has been built yet |
+| M8 harden + release | release APK builds here (`flutter build apk --release`, ~49 MB); it is signed with the **debug** key, so it is not distributable |
 
 ## Known gaps
 
@@ -117,5 +117,7 @@ never fails in a confusing way.
   The province accepted this: the endpoint should be rate-limited and logged,
   and a PIN can be added later without changing the app.
 - **No push notifications** — the app refreshes on demand.
-- **No APK has been built** (no Android SDK on this machine) and the app has
-  not yet been run on a real device.
+- **APKs build on this machine** — the Android SDK is at `D:\AndroidSdk` and
+  `android/local.properties` points Gradle at it, so `flutter build apk
+  --release` succeeds here. The output is debug-key signed, so it is a test
+  build, not something to hand out.
