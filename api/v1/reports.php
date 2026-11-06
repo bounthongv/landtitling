@@ -50,6 +50,15 @@ function rep_parcel_filters(&$where, &$params, $district, $road, $scopeDistrict 
     }
 }
 
+/**
+ * Append the report period to a WHERE list. Both timestamps and plain dates work:
+ * a date column drops the time part, so the day at each end stays included.
+ */
+function rep_date_range(array &$cond, array &$params, string $col, string $from, string $to) {
+    if ($from) { $cond[] = $col . ' >= :from'; $params[':from'] = $from . ' 00:00:00'; }
+    if ($to)   { $cond[] = $col . ' <= :to';   $params[':to']   = $to . ' 23:59:59'; }
+}
+
 switch ($report) {
 
 // ---- Collection: kip collected by district/village/month/year/road ----
@@ -68,8 +77,7 @@ case 'collection': {
     // every PAID payment of the obligation, or a range would re-allocate tax.
     $dateWhere = [];
     $dateParams = $params;
-    if ($from) { $dateWhere[] = 'p.paid_at >= :from'; $dateParams[':from'] = $from . ' 00:00:00'; }
-    if ($to)   { $dateWhere[] = 'p.paid_at <= :to';   $dateParams[':to']   = $to . ' 23:59:59'; }
+    rep_date_range($dateWhere, $dateParams, 'p.paid_at', $from, $to);
     $dw = $dateWhere ? 'WHERE ' . implode(' AND ', $dateWhere) : '';
 
     $stmt = $pdo->prepare("WITH paid AS (
@@ -137,6 +145,10 @@ case 'arrears': {
     rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
     $where[] = "o.status IN ('UNPAID','PARTIAL')";
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
+    // A period here means "obligations that fell due in it". The outstanding,
+    // days-overdue, bucket and years-behind columns are still today's snapshot,
+    // because an arrears position is a question about now, not about March.
+    rep_date_range($where, $params, 'o.due_date', $from, $to);
     // No filter at all (e.g. super admin, nothing selected) must not emit a bare WHERE.
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $pen = fee_penalty_sql('o');
@@ -181,6 +193,9 @@ case 'registration': {
     $where = [];
     $params = [];
     rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
+    // The period counts work the office did in it: parcels registered and, below,
+    // title pages scanned.
+    rep_date_range($where, $params, 'par.created_at', $from, $to);
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     // NOTE: parcels are aliased `par` here — rep_parcel_filters() emits `par.*` clauses.
@@ -202,15 +217,17 @@ case 'registration': {
     $sParcelStmt->execute($params);
     $sParcels = (int)$sParcelStmt->fetchColumn();
 
-    $scanWhere = '';
+    $scanCond = [];
     $scanParams = [];
     if ($scope['district_id'] !== null) {
-        $scanWhere = 'WHERE district_id = :scope_did';
+        $scanCond[] = 'district_id = :scope_did';
         $scanParams[':scope_did'] = $scope['district_id'];
     } elseif ($province) {
-        $scanWhere = 'WHERE district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
+        $scanCond[] = 'district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
         $scanParams[':prov'] = $province;
     }
+    rep_date_range($scanCond, $scanParams, 'created_at', $from, $to);
+    $scanWhere = $scanCond ? 'WHERE ' . implode(' AND ', $scanCond) : '';
     $sScansStmt = $pdo->prepare("SELECT COUNT(*) FROM title_scans $scanWhere");
     $sScansStmt->execute($scanParams);
     $sScans = (int)$sScansStmt->fetchColumn();
@@ -302,28 +319,35 @@ case 'bank': {
     // Bank rows are only attributable to a district through the payment they
     // matched, so district staff see their own district's matched transactions
     // (unmatched rows belong to no district and stay hidden from them).
-    $bankWhere = '';
+    $bankCond = [];
     $bankParams = [];
     if ($scope['district_id'] !== null) {
-        $bankWhere = 'WHERE t.matched_payment_id IN (
+        $bankCond[] = 't.matched_payment_id IN (
             SELECT pay.id FROM payments pay JOIN parcels par ON par.id = pay.parcel_id
             WHERE par.district_id = :scope_did)';
         $bankParams[':scope_did'] = $scope['district_id'];
     } elseif ($province) {
-        $bankWhere = 'WHERE t.matched_payment_id IN (
+        $bankCond[] = 't.matched_payment_id IN (
             SELECT pay.id FROM payments pay JOIN parcels par ON par.id = pay.parcel_id
             WHERE par.district_id IN (SELECT id FROM districts WHERE province_id = :prov))';
         $bankParams[':prov'] = $province;
     }
-    $w = $bankWhere;
+    // A statement row belongs to the period its own transaction date names; a row
+    // imported without one is placed by the day the file arrived, so a period
+    // cannot silently drop rows out of a reconciliation.
+    rep_date_range($bankCond, $bankParams, 'COALESCE(t.txn_date, b.imported_at::date)', $from, $to);
+    $w = $bankCond ? 'WHERE ' . implode(' AND ', $bankCond) : '';
 
-    // Payments-side clause for the collected total (same scope, different table).
-    $payWhere = '';
+    // Payments-side clause for the collected total (same scope, same period,
+    // different table): both sides of the difference must cover the same window.
+    $payCond = ["pay.status = 'PAID'"];
     if ($scope['district_id'] !== null) {
-        $payWhere = 'AND par.district_id = :scope_did';
+        $payCond[] = 'par.district_id = :scope_did';
     } elseif ($province) {
-        $payWhere = 'AND par.district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
+        $payCond[] = 'par.district_id IN (SELECT id FROM districts WHERE province_id = :prov)';
     }
+    rep_date_range($payCond, $bankParams, 'pay.paid_at', $from, $to);
+    $payWhere = 'WHERE ' . implode(' AND ', $payCond);
 
     $stmt = $pdo->prepare("SELECT b.id AS import_id, b.filename, b.imported_at, t.match_status,
             COUNT(*) AS rows_count, COALESCE(SUM(t.amount),0) AS total_kip
@@ -335,7 +359,8 @@ case 'bank': {
     $rows = $stmt->fetchAll();
 
     $stmtRows = $pdo->prepare("SELECT match_status, COUNT(*) AS n, COALESCE(SUM(amount),0) AS total
-        FROM bank_transactions t $w GROUP BY match_status");
+        FROM bank_transactions t JOIN bank_imports b ON b.id = t.import_id
+        $w GROUP BY match_status");
     $stmtRows->execute($bankParams);
     $stmtRows = $stmtRows->fetchAll();
     $byStatus = [];
@@ -353,7 +378,7 @@ case 'bank': {
                               THEN pay.amount ELSE 0 END),0) AS counter_kip
         FROM payments pay
         JOIN parcels par ON par.id = pay.parcel_id
-        WHERE pay.status='PAID' $payWhere");
+        $payWhere");
     $collectedStmt->execute($bankParams);
     $paid = $collectedStmt->fetch();
     $collected  = (float)$paid['paid_kip'];
@@ -411,8 +436,7 @@ case 'audit': {
     $params = [];
     if ($actor !== '')  { $where[] = '(u.username ILIKE :ac OR a.actor_id = :acid)'; $params[':ac'] = '%'.$actor.'%'; $params[':acid'] = (int)$actor; }
     if ($action !== '') { $where[] = 'a.action ILIKE :act'; $params[':act'] = '%'.$action.'%'; }
-    if ($from) { $where[] = 'a.at >= :from'; $params[':from'] = $from . ' 00:00:00'; }
-    if ($to)   { $where[] = 'a.at <= :to';   $params[':to']   = $to . ' 23:59:59'; }
+    rep_date_range($where, $params, 'a.at', $from, $to);
     // Scope by the actor's district: district staff only see their own district's
     // audit trail, province staff see their province's, super admin sees all.
     if ($scope['district_id'] !== null) {
@@ -461,6 +485,42 @@ case 'mof': {
         ORDER BY o.fee_year DESC, district, village, o.road_category");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
+
+    // With a period chosen, "collected" becomes the money that actually arrived
+    // in it, taken from the same PAID payments that settle fee_obligations
+    // .amount_paid. Assessed and outstanding stay year figures — an obligation is
+    // assessed for a year, not for a month — so a monthly MOF line reads as
+    // collections against the year it belongs to, which is what the ministry asks
+    // for. The rows themselves are untouched: a year with no cash in the period
+    // still shows its assessment.
+    if ($from !== '' || $to !== '') {
+        $cCond = ["pay.status = 'PAID'"];
+        $cParams = [];
+        rep_date_range($cCond, $cParams, 'pay.paid_at', $from, $to);
+        if ($year) { $cCond[] = 'o.fee_year = :fy'; $cParams[':fy'] = $year; }
+        rep_parcel_filters($cCond, $cParams, $district, $road, $scope['district_id'], $province);
+        $cw = 'WHERE ' . implode(' AND ', $cCond);
+        $cStmt = $pdo->prepare("SELECT o.fee_year, d.name_lo AS district, v.name_lo AS village,
+                o.road_category, COALESCE(SUM(pay.amount),0) AS collected_kip
+            FROM payments pay
+            JOIN fee_obligations o ON o.id = pay.obligation_id
+            JOIN parcels par ON par.id = o.parcel_id
+            JOIN districts d ON d.id = par.district_id
+            JOIN villages  v ON v.id = par.village_id
+            $cw
+            GROUP BY o.fee_year, d.name_lo, v.name_lo, o.road_category");
+        $cStmt->execute($cParams);
+        $arrived = [];
+        foreach ($cStmt->fetchAll() as $c) {
+            $arrived[$c['fee_year'] . '|' . $c['district'] . '|' . $c['village'] . '|' . $c['road_category']]
+                = (float)$c['collected_kip'];
+        }
+        foreach ($rows as &$r) {
+            $key = $r['fee_year'] . '|' . $r['district'] . '|' . $r['village'] . '|' . $r['road_category'];
+            $r['collected_kip'] = $arrived[$key] ?? 0;
+        }
+        unset($r);
+    }
     $result = [
         'columns' => ['Fee year', 'District', 'Village', 'Road', 'Parcels',
                       'Assessed (kip)', 'Collected (kip)', 'Outstanding (kip)'],

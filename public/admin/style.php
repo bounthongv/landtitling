@@ -299,6 +299,7 @@
   .per-split { display: grid; grid-template-columns: 440px 1fr; gap: 16px 24px; align-items: start; }
   .per-split > * { min-width: 0; }
   .per-head { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .04em; margin-bottom: 6px; }
+  .per-hint { font-size: 12px; color: var(--muted); margin: -2px 0 8px; }
   .per-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 5px 0; cursor: pointer; }
   .per-row .per-lbl { min-width: 96px; font-size: 13px; }
   .per-in { display: flex; align-items: center; gap: 6px; }
