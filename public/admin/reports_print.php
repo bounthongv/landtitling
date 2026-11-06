@@ -81,11 +81,9 @@ if ($districtName !== '') {
 }
 if (!empty($params['fee_year']))       $filters[t('Fee year')] = $params['fee_year'];
 if (!empty($params['road_category']))  $filters[t('Road')] = t(ucfirst($params['road_category']));
-// One line for the whole period rather than a From and a To entry, because the
-// officer picked a month/quarter/half/year rather than two loose dates.
-if (!empty($params['from']) || !empty($params['to'])) {
-    $filters[t('Period')] = report_period_label($params['from'] ?? '', $params['to'] ?? '');
-}
+// No period entry here: the line above already says what the report was made
+// for, and repeating the interval as two dates underneath it reads as a second
+// filter rather than as the same choice.
 if (!empty($params['q']))              $filters[t('Search parcel/title')] = $params['q'];
 if (!empty($params['actor']))          $filters[t('Actor')] = $params['actor'];
 if (!empty($params['action_filter']))  $filters[t('Action')] = $params['action_filter'];

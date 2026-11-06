@@ -254,14 +254,6 @@ function report_period(array $get)
     return ['mode' => $mode, 'from' => $from, 'to' => $to, 'words' => $words];
 }
 
-/** The period as it reads on paper: dd/mm/yyyy - dd/mm/yyyy, the Lao convention. */
-function report_period_label($from, $to)
-{
-    $fmt = static function ($d) { return $d === '' ? '' : date('d/m/Y', strtotime($d)); };
-    if ($from !== '' && $to !== '') { return $fmt($from) . ' - ' . $fmt($to); }
-    return $fmt($from !== '' ? $from : $to);
-}
-
 // api_call(method, path, body, token) — helper for server-side calls to the JSON API.
 function api_call($method, $path, $body = null, $token = '') {
     global $api_base;
