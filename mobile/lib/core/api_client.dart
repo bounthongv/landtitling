@@ -152,7 +152,7 @@ class ApiClient {
       decoded = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
     } catch (_) {
       throw ApiException(
-        'ຂໍ້ມູນຈາກເຊີຟາດເວີເດີບໍ່ຖືກຕ້ອງ.',
+        'ຂໍ້ມູນຈາກເຊີເວີບໍ່ຖືກຕ້ອງ.',
         statusCode: response.statusCode,
       );
     }
