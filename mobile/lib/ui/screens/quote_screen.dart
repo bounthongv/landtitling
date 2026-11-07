@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/api_client.dart';
 import '../../core/money.dart';
 import '../../core/strings.dart';
 import '../../core/theme.dart';
+import '../../models/bank.dart';
 import '../../models/quote.dart';
 import '../../state/payments_controller.dart';
 import '../widgets/common.dart';
@@ -35,6 +37,8 @@ class _QuoteScreenState extends State<QuoteScreen> {
   String _method = 'bank_transfer';
   bool _payInFull = true;
   late final TextEditingController _amountController;
+  List<Bank> _banks = const [];
+  String? _bankCode;
 
   @override
   void initState() {
@@ -42,6 +46,23 @@ class _QuoteScreenState extends State<QuoteScreen> {
     _amountController = TextEditingController(
       text: widget.quote.outstanding.round().toString(),
     );
+    _loadBanks();
+  }
+
+  Future<void> _loadBanks() async {
+    try {
+      final api = context.read<ApiClient>();
+      final data = await api.getData('banks.php');
+      final raw = data['banks'];
+      if (raw is List) {
+        setState(() {
+          _banks = raw
+              .whereType<Map<String, dynamic>>()
+              .map(Bank.fromJson)
+              .toList();
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -65,6 +86,7 @@ class _QuoteScreenState extends State<QuoteScreen> {
         feeYear: widget.quote.feeYear,
         method: _method,
         amount: _payInFull ? null : _amount,
+        bankCode: (_method == 'bank_transfer' || _method == 'mobile') ? _bankCode : null,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -171,6 +193,29 @@ class _QuoteScreenState extends State<QuoteScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                if (_method == 'bank_transfer' || _method == 'mobile') ...[
+                  SectionCard(
+                    title: 'ທະນາຄານ',
+                    icon: Icons.account_balance,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _bankCode,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        labelText: 'ເລືອກທະນາຄານ',
+                      ),
+                      items: _banks
+                          .map((b) => DropdownMenuItem<String>(
+                                value: b.code,
+                                child: Text(
+                                  '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (v) => setState(() => _bankCode = v),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 SectionCard(
                   title: Strings.t('fullAmount'),
                   icon: Icons.payments_outlined,
