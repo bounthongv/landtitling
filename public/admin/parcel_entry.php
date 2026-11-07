@@ -701,103 +701,76 @@ if ($editId > 0) {
             <h3><?= te('Confirm / Edit Parcel Data') ?></h3>
             <form method="post" action="parcel_entry.php?tab=scan&amp;scan_id=<?= (int)$scan['id'] ?>">
               <input type="hidden" name="confirm_parcel" value="1">
-              <div class="form-grid">
-                <div class="form-group">
-                  <label><?= te('Parcel number') ?></label>
-                  <input name="parcel_no" value="<?= e($val('parcel_no')) ?>">
+              <div class="cert-grid">
+                <div class="cert-head">
+                  <div class="l1"><?= te('Ministry of Agriculture and Environment') ?></div>
+                  <div class="l2"><?= te('Province/District Land &amp; Environment Office') ?></div>
+                  <div class="l3"><?= te('LAND TITLE') ?> — <?= te('ໃບຕາດິນ') ?></div>
+                  <div class="req-legend"><span class="swatch"></span><?= te('Required fields') ?></div>
                 </div>
-                <div class="form-group">
+                <div class="cert-row req-row">
+                  <label><?= te('Title no') ?></label>
+                  <div class="val req-field"><input type="text" name="title_no" value="<?= e($val('title_no')) ?>" required></div>
+                </div>
+                <div class="cert-row geo">
+                  <label><?= te('Parcel address') ?></label>
+                  <div class="inline">
+                    <span class="ci req-field"><label><?= te('Province') ?></label><select name="province" id="province-select" required><option value=""></option><?php foreach ($scanProvinces as $p): ?><option value="<?= (int)$p['id'] ?>" <?= $scanProvinceId === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?> <?= e($p['name_en'] ?: '') ?></option><?php endforeach; ?></select></span>
+                    <span class="ci req-field"><label><?= te('District') ?></label><select name="district_id" id="district-select" required><option value=""></option><?php foreach ($scanDistricts as $d): ?><option value="<?= (int)$d['id'] ?>" <?= $scanDistrictId === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?> <?= e($d['name_en'] ?: '') ?></option><?php endforeach; ?></select></span>
+                    <span class="ci req-field"><label><?= te('Village') ?></label><select name="village_id" id="village-select" required><option value=""></option><?php foreach ($scanVillages as $v): ?><option value="<?= (int)$v['id'] ?>" data-zone="<?= e($v['zone_id'] ?? '') ?>" <?= $scanVillageId === (int)$v['id'] ? 'selected' : '' ?>><?= e($v['name_lo']) ?> <?= e($v['name_en'] ?: '') ?></option><?php endforeach; ?></select></span>
+                  </div>
+                </div>
+                <div class="cert-row req-row">
                   <label><?= te('Map sheet') ?></label>
-                  <input name="map_ref_no" value="<?= e($val('map_ref_no')) ?>" placeholder="e.g. A250-038" required>
+                  <div class="val req-field"><input type="text" name="map_ref_no" value="<?= e($val('map_ref_no')) ?>" placeholder="e.g. A250-038" required></div>
                 </div>
-                <div class="form-group">
-                  <label><?= te('Area (m²)') ?></label>
-                  <input name="area_sqm" type="number" step="0.01" value="<?= e($val('area_sqm')) ?>">
+                <div class="cert-row req-row">
+                  <label><?= te('Parcel No') ?></label>
+                  <div class="val req-field"><input type="text" name="parcel_no" value="<?= e($val('parcel_no')) ?>" required></div>
                 </div>
-                <div class="form-group">
-                  <label><?= te('Zone (fee rate)') ?></label>
-                  <select name="zone_code" id="scan-zone-select" required>
-                    <option value=""><?= te('-- select --') ?></option>
-                    <?php foreach ($scanZoneOpts as $z): ?>
-                    <option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?><?= !empty($z['district_name']) ? ' — ' . e($z['district_name']) : '' ?><?= !empty($z['plan_zone']) ? ' / ' . e($z['plan_zone']) : '' ?></option>
-                    <?php endforeach; ?>
-                  </select>
+                <div class="cert-row req-row">
+                  <label><?= te('Land Area') ?></label>
+                  <div class="val req-field"><input type="number" step="0.01" min="0" name="area_sqm" value="<?= e($val('area_sqm')) ?>" required></div>
+                </div>
+                <details class="opt-block" id="opt-block">
+                  <summary><?= te('Optional details') ?></summary>
+                  <div class="cert-row">
+                    <label><?= te('Book') ?></label>
+                    <div class="val"><input type="text" name="book_no" value="<?= e($val('book_no')) ?>"></div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Volume') ?></label>
+                    <div class="val"><input type="text" name="volume_no" value="<?= e($val('volume_no')) ?>"></div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Page') ?></label>
+                    <div class="val"><input type="text" name="page_no" value="<?= e($val('page_no')) ?>"></div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Land use') ?></label>
+                    <div class="val"><select name="land_use_class"><option value=""><?= te('-- select --') ?></option><?php foreach ($landUseClasses as $v => $lbl): ?><option value="<?= $v ?>" <?= $val('land_use_class') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option><?php endforeach; ?></select></div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Issued date') ?></label>
+                    <div class="val"><input type="date" name="issued_date" value="<?= e($val('issued_date')) ?>"></div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Status') ?></label>
+                    <div class="val"><select name="status"><option value="confirmed" <?= ($val('status') ?: 'confirmed') === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option><option value="active" <?= $val('status') === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option></select></div>
+                  </div>
+                </details>
+                <div class="cert-foot">
+                  <div class="ft-title"><?= te('Tax') ?></div>
+                  <div class="inline">
+                    <span class="ci"><label><?= te('Valuation zone (tax)') ?></label><select name="zone_code" id="scan-zone-select" required><option value=""><?= te('-- select --') ?></option><?php foreach ($scanZoneOpts as $z): ?><option value="<?= e($z['code']) ?>" <?= ($val('zone_code')) === $z['code'] ? 'selected' : '' ?>><?= e($z['code']) ?><?= !empty($z['district_name']) ? ' — ' . e($z['district_name']) : '' ?><?= !empty($z['plan_zone']) ? ' / ' . e($z['plan_zone']) : '' ?></option><?php endforeach; ?></select></span>
+                    <span class="ci"><label><?= te('Road access') ?></label><select name="road_category" id="scan-road-select" required><?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?><option value="<?= $rc ?>" <?= ($val('road_category') ?: 'none') === $rc ? 'selected' : '' ?>><?= te($rcLabel) ?></option><?php endforeach; ?></select></span>
+                  </div>
                   <div class="zone-warn" id="scan-zone-dist-warn"></div>
                   <div class="zone-warn" id="scan-zone-vill-warn"><?= te('This village is not mapped to a valuation zone — ask the administrator to map it before this parcel can be billed.') ?></div>
                   <div class="zone-warn" id="scan-zone-rate-warn"></div>
                 </div>
-                <div class="form-group">
-                  <label><?= te('Road access') ?></label>
-                  <select name="road_category" id="scan-road-select" required>
-                    <?php foreach (['main' => 'Main road', 'branch' => 'Branch road', 'alley' => 'Alley', 'none' => 'None'] as $rc => $rcLabel): ?>
-                    <option value="<?= $rc ?>" <?= ($val('road_category') ?: 'none') === $rc ? 'selected' : '' ?>><?= te($rcLabel) ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label><?= te('Province') ?></label>
-                  <select id="province-select">
-                    <option value=""><?= te('-- select province --') ?></option>
-                    <?php foreach ($scanProvinces as $p): ?>
-                    <option value="<?= (int)$p['id'] ?>" <?= $scanProvinceId === (int)$p['id'] ? 'selected' : '' ?>><?= e($p['name_lo']) ?> <?= e($p['name_en'] ?: '') ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label><?= te('District') ?></label>
-                  <select name="district_id" id="district-select">
-                    <option value=""><?= te('-- select --') ?></option>
-                    <?php foreach ($scanDistricts as $d): ?>
-                    <option value="<?= (int)$d['id'] ?>" <?= $scanDistrictId === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name_lo']) ?> <?= e($d['name_en'] ?: '') ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label><?= te('Village') ?></label>
-                  <select name="village_id" id="village-select">
-                    <option value=""><?= te('-- select --') ?></option>
-                    <?php foreach ($scanVillages as $v): ?>
-                    <option value="<?= (int)$v['id'] ?>" data-zone="<?= e($v['zone_id'] ?? '') ?>" <?= $scanVillageId === (int)$v['id'] ? 'selected' : '' ?>><?= e($v['name_lo']) ?> <?= e($v['name_en'] ?: '') ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label><?= te('Title number') ?></label>
-                  <input name="title_no" value="<?= e($val('title_no')) ?>">
-                </div>
-                <div class="form-group">
-                  <label><?= te('Book') ?></label>
-                  <input name="book_no" value="<?= e($val('book_no')) ?>">
-                </div>
-                <div class="form-group">
-                  <label><?= te('Volume') ?></label>
-                  <input name="volume_no" value="<?= e($val('volume_no')) ?>">
-                </div>
-                <div class="form-group">
-                  <label><?= te('Page') ?></label>
-                  <input name="page_no" value="<?= e($val('page_no')) ?>">
-                </div>
-                <div class="form-group">
-                  <label><?= te('Land use') ?></label>
-                  <select name="land_use_class">
-                    <option value=""><?= te('-- select --') ?></option>
-                    <?php foreach ($landUseClasses as $v => $lbl): ?>
-                    <option value="<?= $v ?>" <?= $val('land_use_class') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label><?= te('Issued date') ?></label>
-                  <input name="issued_date" type="date" value="<?= e($val('issued_date')) ?>">
-                </div>
-                <div class="form-group">
-                  <label><?= te('Status') ?></label>
-                  <select name="status">
-                    <option value="confirmed" <?= ($val('status') ?: 'confirmed') === 'confirmed' ? 'selected' : '' ?>><?= te('Confirmed') ?></option>
-                    <option value="active" <?= $val('status') === 'active' ? 'selected' : '' ?>><?= te('Active') ?></option>
-                  </select>
-                </div>
               </div>
+NEWBLOCK              </div>
 
               <h3 style="margin-top:20px;"><?= te('Owner(s)') ?></h3>
               <div id="owners"></div>
