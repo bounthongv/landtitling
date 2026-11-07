@@ -263,7 +263,10 @@ class _QuoteScreenState extends State<QuoteScreen> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed:
-                      payments.issuing || (_payInFull ? false : _amount <= 0)
+                      payments.issuing ||
+                      (_payInFull ? false : _amount <= 0) ||
+                      ((_method == 'bank_transfer' || _method == 'mobile') &&
+                          _bankCode == null)
                       ? null
                       : _issue,
                   child: payments.issuing
@@ -275,7 +278,12 @@ class _QuoteScreenState extends State<QuoteScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : Text(Strings.t('paymentSlip')),
+                      : Text(
+                          (_method == 'bank_transfer' || _method == 'mobile') &&
+                                  _bankCode == null
+                              ? 'ເລືອກທະນາຄານ'
+                              : 'ໃບສະລິບຊຳລະເງິນ',
+                        ),
                 ),
               ],
             ),
