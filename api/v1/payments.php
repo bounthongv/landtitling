@@ -128,12 +128,18 @@ if ($method === 'POST' && !isset($_GET['id'])) {
     $reference = slip_generate_no($pdo);
     $qr = slip_qr_payload($reference, $amount);
     $chequeNo = trim((string)($body['cheque_no'] ?? $body['bank_ref'] ?? '')) ?: null;
+    $bankCode = trim((string)($body['bank_code'] ?? '')) ?: null;
+    if ($bankCode !== null) {
+        $bk = $pdo->prepare("SELECT 1 FROM banks WHERE code = :c AND is_active = TRUE");
+        $bk->execute([':c' => $bankCode]);
+        if (!$bk->fetch()) { json_error('Unknown or inactive bank', 400, 'invalid_bank'); }
+    }
 
     $st = $pdo->prepare("INSERT INTO payments
         (obligation_id, parcel_id, fee_year, payer_owner_id, method, amount, reference_no, slip_qr, status,
-         paid_at, verified_by, verify_method, verify_note, bank_ref)
+         paid_at, verified_by, verify_method, verify_note, bank_ref, bank_code)
         VALUES (:oid, :pid, :fy, :poid, :m, :amt, :ref, :qr, :status,
-         :paid_at, :vby, :vm, :vnote, :bref) RETURNING id");
+         :paid_at, :vby, :vm, :vnote, :bref, :bc) RETURNING id");
     $st->execute([
         ':oid' => $obligationId, ':pid' => (int)$ob['parcel_id'], ':fy' => (int)$ob['fee_year'],
         ':poid' => $payerOwnerId, ':m' => $method_, ':amt' => $amount, ':ref' => $reference, ':qr' => $qr,
@@ -143,6 +149,7 @@ if ($method === 'POST' && !isset($_GET['id'])) {
         ':vm' => $settle ? 'counter' : null,
         ':vnote' => $settle ? (trim((string)($body['note'] ?? '')) ?: null) : null,
         ':bref' => $chequeNo,
+        ':bc'   => $bankCode,
     ]);
     $paymentId = (int)$st->fetch()['id'];
     if ($settle) {
@@ -399,13 +406,14 @@ if ($method === 'GET') {
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     $sql = "SELECT pay.*, par.parcel_no, par.area_sqm, d.name_lo AS district_name, v.name_lo AS village_name,
-            o.full_name AS payer_name, ob.status AS obligation_status
+            o.full_name AS payer_name, ob.status AS obligation_status, b.name_lo AS bank_name, b.name_en AS bank_name_en
         FROM payments pay
         JOIN parcels par ON par.id = pay.parcel_id
         JOIN districts d ON d.id = par.district_id
         JOIN villages v ON v.id = par.village_id
         LEFT JOIN owners o ON o.id = pay.payer_owner_id
         LEFT JOIN fee_obligations ob ON ob.id = pay.obligation_id
+        LEFT JOIN banks b ON b.code = pay.bank_code
         $whereSql
         ORDER BY pay.created_at DESC LIMIT 300";
     $st = $pdo->prepare($sql);

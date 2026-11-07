@@ -83,6 +83,7 @@ class PaymentsController extends ChangeNotifier {
     required String filePath,
     required String fileName,
     String? mimeType,
+    String? bankCode,
   }) async {
     uploading = true;
     error = null;
@@ -95,6 +96,7 @@ class PaymentsController extends ChangeNotifier {
         fileName,
         mimeType: mimeType,
         query: {'id': '$paymentId', 'receipt': '1'},
+        fields: bankCode == null ? null : {'bank_code': bankCode},
       );
       uploading = false;
       notifyListeners();

@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/api_client.dart';
 import '../../core/strings.dart';
 import '../../core/theme.dart';
+import '../../models/bank.dart';
 import '../../state/payments_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/gov_header.dart';
@@ -26,6 +28,32 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   XFile? _picked;
   String? _error;
   bool _uploading = false;
+  List<Bank> _banks = const [];
+  String? _bankCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBanks();
+  }
+
+  Future<void> _loadBanks() async {
+    try {
+      final api = context.read<ApiClient>();
+      final data = await api.getData('banks.php');
+      final raw = data['banks'];
+      if (raw is List) {
+        _banks = raw
+            .whereType<Map<String, dynamic>>()
+            .map(Bank.fromJson)
+            .toList();
+      }
+    } catch (_) {
+      // Non-fatal: the citizen can still upload without a bank.
+    } finally {
+      if (mounted) setState(() {});
+    }
+  }
 
   Future<void> _pick(ImageSource source) async {
     try {
@@ -60,6 +88,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         filePath: file.path,
         fileName: file.name,
         mimeType: 'image/jpeg',
+        bankCode: _bankCode,
       );
       if (!mounted) return;
       messenger.showSnackBar(
@@ -138,6 +167,23 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                             height: 320,
                             fit: BoxFit.contain,
                           ),
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<String>(
+                          initialValue: _bankCode,
+                          decoration: const InputDecoration(
+                            labelText: 'Bank (optional)',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _banks
+                              .map((b) => DropdownMenuItem<String>(
+                                    value: b.code,
+                                    child: Text(
+                                      '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
+                                    ),
+                                  ))
+                              .toList(),
+                          onChanged: (v) => setState(() => _bankCode = v),
                         ),
                         const SizedBox(height: 14),
                         Row(

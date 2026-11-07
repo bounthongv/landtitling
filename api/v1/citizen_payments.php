@@ -54,7 +54,8 @@ if ($method === 'GET') {
     // Two distinct placeholders: pdo_pgsql does not tolerate one named
     // parameter bound twice in the same statement.
     $st = $pdo->prepare("SELECT pay.id, pay.reference_no, pay.amount, pay.status, pay.method,
-            pay.fee_year, pay.created_at, pay.paid_at, pay.slip_path, pay.verify_note,
+            pay.fee_year, pay.created_at, pay.paid_at, pay.slip_path, pay.verify_note, pay.bank_code,
+            b.name_lo AS bank_name, b.name_en AS bank_name_en,
             p.parcel_no, p.map_ref_no, d.name_lo AS district_name, v.name_lo AS village_name,
             o.status AS obligation_status
         FROM payments pay
@@ -62,6 +63,7 @@ if ($method === 'GET') {
         JOIN districts d ON d.id = p.district_id
         JOIN villages  v ON v.id = p.village_id
         LEFT JOIN fee_obligations o ON o.id = pay.obligation_id
+        LEFT JOIN banks b ON b.code = pay.bank_code
         WHERE pay.citizen_user_id = :made
            OR pay.parcel_id IN (
                 SELECT po.parcel_id
@@ -118,9 +120,22 @@ if ($method === 'POST' && isset($_GET['id']) && isset($_GET['receipt'])) {
     // SUBMITTED (waiting for an officer), and re-uploading while SUBMITTED just
     // replaces the photo.
     $path = '/public/uploads/' . $filename;
-    $pdo->prepare("UPDATE payments SET slip_path = :p, status = 'SUBMITTED' WHERE id = :id")
-        ->execute([':p' => $path, ':id' => $id]);
-    fee_audit($pdo, $meId, 'payment_receipt', 'payment', $id, ['slip_path' => $path, 'status' => 'SUBMITTED']);
+    $bankCodeAttach = trim((string)($_POST['bank_code'] ?? $_GET['bank_code'] ?? '')) ?: null;
+    if ($bankCodeAttach !== null) {
+        $bk = $pdo->prepare("SELECT 1 FROM banks WHERE code = :c AND is_active = TRUE");
+        $bk->execute([':c' => $bankCodeAttach]);
+        if (!$bk->fetch()) {
+            json_error('Unknown or inactive bank', 400, 'invalid_bank');
+        }
+    }
+    if ($bankCodeAttach !== null) {
+        $pdo->prepare("UPDATE payments SET slip_path = :p, status = 'SUBMITTED', bank_code = :bc WHERE id = :id")
+            ->execute([':p' => $path, ':bc' => $bankCodeAttach, ':id' => $id]);
+    } else {
+        $pdo->prepare("UPDATE payments SET slip_path = :p, status = 'SUBMITTED' WHERE id = :id")
+            ->execute([':p' => $path, ':id' => $id]);
+    }
+    fee_audit($pdo, $meId, 'payment_receipt', 'payment', $id, ['slip_path' => $path, 'status' => 'SUBMITTED', 'bank_code' => $bankCodeAttach]);
     json_ok(['id' => $id, 'slip_path' => $path, 'status' => 'SUBMITTED']);
 }
 
@@ -132,6 +147,7 @@ if ($method === 'POST') {
     $parcelIdIn = (int)($body['parcel_id'] ?? 0);
     $feeYear    = (int)($body['fee_year'] ?? 0) ?: (int)date('Y');
     $payMethod  = (string)($body['method'] ?? 'counter');
+    $bankCode   = trim((string)($body['bank_code'] ?? '')) ?: null;
 
     if ($parcelNo === '' && $parcelIdIn <= 0) {
         json_error('parcel_no (or parcel_id) is required', 400, 'missing_parcel');
@@ -141,6 +157,15 @@ if ($method === 'POST') {
     }
     if (!in_array($payMethod, ['counter', 'bank_transfer', 'mobile', 'cash'], true)) {
         json_error('Invalid payment method', 400, 'invalid_method');
+    }
+
+    // Bank is only meaningful for bank_transfer / mobile; cash/counter skip it.
+    if ($bankCode !== null) {
+        $bk = $pdo->prepare("SELECT 1 FROM banks WHERE code = :c AND is_active = TRUE");
+        $bk->execute([':c' => $bankCode]);
+        if (!$bk->fetch()) {
+            json_error('Unknown or inactive bank', 400, 'invalid_bank');
+        }
     }
 
     if ($parcelNo !== '') {
@@ -183,8 +208,8 @@ if ($method === 'POST') {
 
     $st = $pdo->prepare("INSERT INTO payments
         (obligation_id, parcel_id, fee_year, payer_owner_id, citizen_user_id, method, amount,
-         reference_no, slip_qr, status)
-        VALUES (:oid, :pid, :fy, NULL, :cuid, :m, :amt, :ref, :qr, 'ISSUED') RETURNING id");
+         reference_no, slip_qr, status, bank_code)
+        VALUES (:oid, :pid, :fy, NULL, :cuid, :m, :amt, :ref, :qr, 'ISSUED', :bc) RETURNING id");
     $st->execute([
         ':oid'  => (int)$ob['id'],
         ':pid'  => $parcelId,
@@ -194,6 +219,7 @@ if ($method === 'POST') {
         ':amt'  => $amount,
         ':ref'  => $reference,
         ':qr'   => $qr,
+        ':bc'   => $bankCode,
     ]);
     $paymentId = (int)$st->fetch()['id'];
 

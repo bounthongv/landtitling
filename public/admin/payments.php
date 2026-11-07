@@ -135,6 +135,7 @@ function attach_counter_evidence(int $paymentId, ?array $file, string $token): s
 }
 
 $years = api_call('GET', 'fee_years.php', null, $token)['data']['years'] ?? [];
+$banks = api_call('GET', 'banks.php', null, $token)['data']['banks'] ?? [];
 
 // Counter entry can settle arrears, so offer every year back to 2016 (the first
 // full year of the current land-tax decree) plus any configured fee years.
@@ -231,6 +232,9 @@ function render_payment_card(array $p, string $base): void
             <?php endif; ?>
             <?php if (!empty($p['bank_ref'])): ?>
               <p class="sub"><?= te('Bank ref') ?>: <?= e($p['bank_ref']) ?></p>
+            <?php endif; ?>
+            <?php if (!empty($p['bank_code'])): ?>
+              <p class="sub"><?= te('Bank') ?>: <?= e($p['bank_code']) ?><?= $p['bank_name'] ? ' — ' . e($p['bank_name']) : '' ?></p>
             <?php endif; ?>
             <?php if (!empty($p['slip_path'])): ?>
               <p><b><?= te('Slip photo') ?>:</b><br><img src="<?= e($p['slip_path']) ?>" class="slip-zoom" style="max-width:220px; border-radius:4px; background:#fff; cursor:zoom-in;" alt="<?= te('Slip photo') ?>" onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<span style=color:#c62828;font-size:13px;>Photo file not found</span>');"></p>
@@ -373,6 +377,7 @@ function render_payment_card(array $p, string $base): void
             <div class="form-group"><label><?= te('Amount received') ?> (<?= te('optional') ?>)</label><input name="amount" type="number" step="any" min="0" placeholder="<?= te('full balance') ?>"></div>
             <div class="form-group" id="counter-cheque-group" style="display:none;"><label><?= te('Cheque no') ?></label><input name="cheque_no"></div>
             <div class="form-group" id="counter-bankref-group" style="display:none;"><label><?= te('Bank ref') ?></label><input name="bank_ref" placeholder="<?= te('from the slip') ?>"></div>
+            <div class="form-group" id="counter-bank-group" style="display:none;"><label><?= te('Bank') ?></label><select name="bank_code"><option value=""><?= te('— select —') ?></option><?php foreach ($banks as $b): ?><option value="<?= e($b['code']) ?>"><?= e($b['code']) ?> — <?= e($b['name_en']) ?></option><?php endforeach; ?></select></div>
             <div class="form-group"><label><span id="counter-evidence-label"><?= te('Receipt photo') ?></span> <span class="sub"><?= te('optional') ?></span></label>
               <input type="file" name="slip" accept="image/jpeg,image/png,image/webp,application/pdf">
             </div>
@@ -705,6 +710,8 @@ var ADMIN_TOKEN = <?= json_encode($_SESSION['admin_token'] ?? '') ?>;
     var m = methodSel ? methodSel.value : 'cash';
     if (chequeGroup) { chequeGroup.style.display = m === 'cheque' ? '' : 'none'; }
     if (bankRefGroup) { bankRefGroup.style.display = (m === 'bank_transfer' || m === 'mobile') ? '' : 'none'; }
+    var bankGroup = document.getElementById('counter-bank-group');
+    if (bankGroup) { bankGroup.style.display = (m === 'bank_transfer' || m === 'mobile') ? '' : 'none'; }
     if (evidenceLabel) { evidenceLabel.textContent = EVIDENCE_LABEL[m] || EVIDENCE_LABEL.cash; }
   }
 

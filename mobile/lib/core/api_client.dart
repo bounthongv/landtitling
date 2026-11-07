@@ -86,6 +86,7 @@ class ApiClient {
     String fileName, {
     String? mimeType,
     Map<String, String>? query,
+    Map<String, String>? fields,
   }) async {
     final file = await http.MultipartFile.fromPath(
       field,
@@ -96,6 +97,9 @@ class ApiClient {
     final request = http.MultipartRequest('POST', _uri(path, query))
       ..files.add(file)
       ..headers.addAll(_headers(json: false));
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
     final streamed = await request.send();
     return _unwrap(await _toResponse(streamed));
   }

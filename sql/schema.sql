@@ -433,6 +433,7 @@ CREATE TABLE payments (
   amount DECIMAL(14,2) NOT NULL,
   reference_no VARCHAR(50) UNIQUE NOT NULL,  -- printed on the slip, used for matching
   bank_ref VARCHAR(100),                     -- reference seen on the bank statement
+  bank_code VARCHAR(20),                     -- which bank the citizen paid through (FK banks.code)
   slip_qr VARCHAR(255),
   slip_path VARCHAR(255),                    -- uploaded slip photo
   status VARCHAR(20) NOT NULL DEFAULT 'ISSUED'
@@ -453,11 +454,23 @@ CREATE TABLE payments (
   CONSTRAINT fk_payments_verified_by
     FOREIGN KEY (verified_by) REFERENCES users(id),
   CONSTRAINT fk_payments_bank_import
-    FOREIGN KEY (bank_import_id) REFERENCES bank_imports(id)
-);
+      FOREIGN KEY (bank_import_id) REFERENCES bank_imports(id),
+    CONSTRAINT fk_payments_bank
+      FOREIGN KEY (bank_code) REFERENCES banks(code)
+  );
 
 CREATE INDEX idx_payments_status ON payments (status);
 CREATE INDEX idx_payments_year ON payments (fee_year);
+
+CREATE TABLE banks (
+  code       VARCHAR(20) PRIMARY KEY,
+  name_lo    VARCHAR(120) NOT NULL,
+  name_en    VARCHAR(120) NOT NULL,
+  logo_path  VARCHAR(255),
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE bank_transactions (
   id SERIAL PRIMARY KEY,
