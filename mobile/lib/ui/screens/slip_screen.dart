@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/api_client.dart';
 import '../../core/money.dart';
 import '../../core/strings.dart';
 import '../../core/theme.dart';
+import '../../models/bank.dart';
 import '../../models/payment.dart';
 import '../../state/payments_controller.dart';
 import '../widgets/common.dart';
@@ -12,17 +14,42 @@ import '../widgets/gov_header.dart';
 import 'receipt_screen.dart';
 
 /// The payment slip: the reference the citizen quotes at the bank.
-///
-/// The bank QR is a placeholder for now: the receiving account and the bank's
-/// own QR format are not known yet, so the reference is what the citizen
-/// types into their banking app. It is shown large, and can be copied.
-class SlipScreen extends StatelessWidget {
+class SlipScreen extends StatefulWidget {
   const SlipScreen({super.key, required this.slip});
 
   final IssuedSlip slip;
 
+  @override
+  State<SlipScreen> createState() => _SlipScreenState();
+}
+
+class _SlipScreenState extends State<SlipScreen> {
+  List<Bank> _banks = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBanks();
+  }
+
+  Future<void> _loadBanks() async {
+    try {
+      final api = context.read<ApiClient>();
+      final data = await api.getData('banks.php');
+      final raw = data['banks'];
+      if (raw is List) {
+        setState(() {
+          _banks = raw
+              .whereType<Map<String, dynamic>>()
+              .map(Bank.fromJson)
+              .toList();
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _copyReference(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: slip.referenceNo));
+    await Clipboard.setData(ClipboardData(text: widget.slip.referenceNo));
     if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -31,6 +58,7 @@ class SlipScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final slip = widget.slip;
     return Scaffold(
       body: Column(
         children: [
@@ -103,6 +131,26 @@ class SlipScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (_banks.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SectionCard(
+                    title: 'ທະນາຄານທີ່ສາມາດຊຳລະໄດ້',
+                    icon: Icons.account_balance,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final b in _banks)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 18),
                 FilledButton.icon(
                   onPressed: () => Navigator.of(context).push(
