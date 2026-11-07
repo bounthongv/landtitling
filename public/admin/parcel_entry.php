@@ -76,6 +76,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image']) && $_FILES[
 // --- POST: confirm/edit → create or update parcel (+ owners) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel']) && $scanId > 0) {
     $owners = [];
+    // If an "Issued To" name is supplied at the top of the form (manual-style),
+    // turn it into the first owner unless owners[] already carries one.
+    $topOwnerName = trim((string)($_POST['owner_name'] ?? ''));
+    if ($topOwnerName !== '' && empty($_POST['owners'])) {
+        $owners[] = [
+            'id'         => null,
+            'full_name'  => $topOwnerName,
+            'id_number'  => $_POST['owner_id_number'] ?? '',
+            'phone'      => trim((string)($_POST['owner_phone'] ?? '')),
+            'address'    => $_POST['owner_address'] ?? '',
+            'role'       => 'owner',
+        ];
+    }
     foreach (($_POST['owners'] ?? []) as $o) {
         if (trim($o['full_name'] ?? '') === '') continue;
         $owners[] = [
@@ -721,6 +734,14 @@ if ($editId > 0) {
                   </div>
                 </div>
                 <div class="cert-row req-row">
+                  <label><?= te('Issued To') ?></label>
+                  <div class="val req-field"><input type="text" name="owner_name" value="<?= e($scanOwners[0]['full_name'] ?? '') ?>"></div>
+                </div>
+                <div class="cert-row">
+                  <label><?= te('Phone') ?></label>
+                  <div class="val"><input type="text" name="owner_phone" value="<?= e($scanOwners[0]['phone'] ?? '') ?>" placeholder="020 5555 1234"></div>
+                </div>
+                <div class="cert-row req-row">
                   <label><?= te('Map sheet') ?></label>
                   <div class="val req-field"><input type="text" name="map_ref_no" value="<?= e($val('map_ref_no')) ?>" placeholder="e.g. A250-038" required></div>
                 </div>
@@ -732,7 +753,7 @@ if ($editId > 0) {
                   <label><?= te('Land Area') ?></label>
                   <div class="val req-field"><input type="number" step="0.01" min="0" name="area_sqm" value="<?= e($val('area_sqm')) ?>" required></div>
                 </div>
-                <details class="opt-block" id="opt-block">
+                <details class="opt-block" id="opt-block" open>
                   <summary><?= te('Optional details') ?></summary>
                   <div class="cert-row">
                     <label><?= te('Book') ?></label>
