@@ -79,16 +79,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel']) &&
     // If an "Issued To" name is supplied at the top of the form (manual-style),
     // turn it into the first owner unless owners[] already carries one.
     $topOwnerName = trim((string)($_POST['owner_name'] ?? ''));
-    if ($topOwnerName !== '' && empty($_POST['owners'])) {
-        $owners[] = [
-            'id'         => null,
-            'full_name'  => $topOwnerName,
-            'id_number'  => $_POST['owner_id_number'] ?? '',
-            'phone'      => trim((string)($_POST['owner_phone'] ?? '')),
-            'address'    => $_POST['owner_address'] ?? '',
-            'role'       => 'owner',
-        ];
-    }
+        if ($topOwnerName !== '' && empty($_POST['owners'])) {
+            $owners[] = [
+                'id'                => null,
+                'full_name'         => $topOwnerName,
+                'id_number'         => $_POST['owner_id_number'] ?? '',
+                'phone'             => trim((string)($_POST['owner_phone'] ?? '')),
+                'address'           => $_POST['owner_address'] ?? '',
+                'date_of_birth'     => $_POST['dob'] ?? '',
+                'nationality'       => $_POST['nationality'] ?? '',
+                'occupation'        => $_POST['occupation'] ?? '',
+                'address_province'  => $_POST['addr_province'] ?? '',
+                'address_district'  => $_POST['addr_district'] ?? '',
+                'address_village'   => $_POST['addr_village'] ?? '',
+                'address_unit'      => $_POST['addr_unit'] ?? '',
+                'role'              => 'owner',
+            ];
+            $spouseName = trim((string)($_POST['spouse_name'] ?? ''));
+            if ($spouseName !== '') {
+                $owners[] = [
+                    'id'            => null,
+                    'full_name'     => $spouseName,
+                    'owner_type'    => 'spouse',
+                    'date_of_birth' => $_POST['spouse_dob'] ?? '',
+                    'nationality'   => $_POST['spouse_nat'] ?? '',
+                    'occupation'    => $_POST['spouse_occ'] ?? '',
+                    'role'          => 'co_owner',
+                ];
+            }
+        }
     foreach (($_POST['owners'] ?? []) as $o) {
         if (trim($o['full_name'] ?? '') === '') continue;
         $owners[] = [
@@ -116,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['confirm_parcel']) &&
             'page_no'        => $_POST['page_no'] ?? '',
             'land_use_class' => $_POST['land_use_class'] ?? '',
             'issued_date'    => $_POST['issued_date'] ?? '',
+            'ownership_status' => $_POST['ownership_status'] ?? '',
         ],
         'owners' => $owners,
     ];
@@ -756,20 +776,78 @@ if ($editId > 0) {
                 <details class="opt-block" id="opt-block" open>
                   <summary><?= te('Optional details') ?></summary>
                   <div class="cert-row">
-                    <label><?= te('Book') ?></label>
-                    <div class="val"><input type="text" name="book_no" value="<?= e($val('book_no')) ?>"></div>
+                    <label><?= te('Issue Batch') ?></label>
+                    <div class="val"><input type="text" name="issue_batch" value="<?= e($val('issue_batch')) ?>"></div>
                   </div>
                   <div class="cert-row">
-                    <label><?= te('Volume') ?></label>
-                    <div class="val"><input type="text" name="volume_no" value="<?= e($val('volume_no')) ?>"></div>
+                    <label><?= te('Parcel Location') ?></label>
+                    <div class="val"><input type="text" name="location" value="<?= e($val('location')) ?>" placeholder="10.002.0027"></div>
                   </div>
                   <div class="cert-row">
-                    <label><?= te('Page') ?></label>
-                    <div class="val"><input type="text" name="page_no" value="<?= e($val('page_no')) ?>"></div>
+                    <label><?= te('Unit') ?></label>
+                    <div class="val"><input type="text" name="unit" value="<?= e($val('unit')) ?>"></div>
                   </div>
                   <div class="cert-row">
-                    <label><?= te('Land use') ?></label>
-                    <div class="val"><select name="land_use_class"><option value=""><?= te('-- select --') ?></option><?php foreach ($landUseClasses as $v => $lbl): ?><option value="<?= $v ?>" <?= $val('land_use_class') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option><?php endforeach; ?></select></div>
+                    <label><?= te('Owner identity') ?></label>
+                    <div class="inline">
+                      <span class="ci"><label><?= te('Date of Birth') ?></label><input type="date" name="dob" value="<?= e($val('dob')) ?>"></span>
+                      <span class="ci"><label><?= te('Nationality') ?></label><input type="text" name="nationality" value="<?= e($val('nationality')) ?>"></span>
+                      <span class="ci"><label><?= te('Occupation') ?></label><input type="text" name="occupation" value="<?= e($val('occupation')) ?>"></span>
+                    </div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Current address') ?></label>
+                    <div class="inline">
+                      <span class="ci"><label><?= te('Province') ?></label><input type="text" name="addr_province" value="<?= e($val('addr_province')) ?>"></span>
+                      <span class="ci"><label><?= te('District') ?></label><input type="text" name="addr_district" value="<?= e($val('addr_district')) ?>"></span>
+                      <span class="ci"><label><?= te('Village') ?></label><input type="text" name="addr_village" value="<?= e($val('addr_village')) ?>"></span>
+                      <span class="ci"><label><?= te('Unit') ?></label><input type="text" name="addr_unit" value="<?= e($val('addr_unit')) ?>"></span>
+                    </div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Spouse') ?></label>
+                    <div class="inline">
+                      <span class="ci" style="flex:1; min-width:220px;"><label><?= te('Spouse Name') ?></label><input type="text" name="spouse_name" value="<?= e($val('spouse_name')) ?>"></span>
+                      <span class="ci"><label><?= te('Date of Birth') ?></label><input type="date" name="spouse_dob" value="<?= e($val('spouse_dob')) ?>"></span>
+                      <span class="ci"><label><?= te('Nationality') ?></label><input type="text" name="spouse_nat" value="<?= e($val('spouse_nat')) ?>"></span>
+                      <span class="ci"><label><?= te('Occupation') ?></label><input type="text" name="spouse_occ" value="<?= e($val('spouse_occ')) ?>"></span>
+                    </div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Land Right Acquired') ?></label>
+                    <div class="val"><input type="text" name="acquired" value="<?= e($val('acquired')) ?>"></div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Land Right Owner Status') ?></label>
+                    <div class="val"><input type="text" name="ownership_status" value="<?= e($val('ownership_status')) ?>"></div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Land type / Zone') ?></label>
+                    <div class="inline">
+                      <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Land Type') ?></label><select name="land_use_class"><option value=""><?= te('-- select --') ?></option><?php foreach ($landUseClasses as $v => $lbl): ?><option value="<?= $v ?>" <?= $val('land_use_class') === $v ? 'selected' : '' ?>><?= e($lbl) ?></option><?php endforeach; ?></select></span>
+                      <span class="ci" style="flex:1; min-width:200px;"><label><?= te('Zone') ?></label><input type="text" name="zone_text" value="<?= e($val('zone_text')) ?>" placeholder="e.g. ດິນປຽງ — ຕາມເຂດບ້ານ"></span>
+                    </div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Registration') ?></label>
+                    <div class="inline">
+                      <span class="ci"><label><?= te('Registration Book') ?></label><input type="text" name="book_no" value="<?= e($val('book_no')) ?>"></span>
+                      <span class="ci"><label><?= te('Leaf No') ?></label><input type="text" name="page_no" value="<?= e($val('page_no')) ?>"></span>
+                      <span class="ci"><label><?= te('Volume') ?></label><input type="text" name="volume_no" value="<?= e($val('volume_no')) ?>"></span>
+                    </div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Scale') ?></label>
+                    <div class="val"><input type="text" name="scale" value="<?= e($val('scale')) ?>" placeholder="e.g. 1/8000"></div>
+                  </div>
+                  <div class="cert-row">
+                    <label><?= te('Issue location') ?></label>
+                    <div class="inline">
+                      <span class="ci"><label><?= te('Issued At') ?></label><input type="text" name="issued_at" value="<?= e($val('issued_at')) ?>"></span>
+                      <span class="ci"><label><?= te('Day') ?></label><input type="number" min="1" max="31" name="issue_day" value="<?= e($val('issue_day')) ?>"></span>
+                      <span class="ci"><label><?= te('Month') ?></label><input type="number" min="1" max="12" name="issue_month" value="<?= e($val('issue_month')) ?>"></span>
+                      <span class="ci"><label><?= te('Year') ?></label><input type="number" min="1900" max="2100" name="issue_year" value="<?= e($val('issue_year')) ?>"></span>
+                    </div>
                   </div>
                   <div class="cert-row">
                     <label><?= te('Issued date') ?></label>
@@ -791,11 +869,7 @@ if ($editId > 0) {
                   <div class="zone-warn" id="scan-zone-rate-warn"></div>
                 </div>
               </div>
-NEWBLOCK              </div>
-
-              <h3 style="margin-top:20px;"><?= te('Owner(s)') ?></h3>
-              <div id="owners"></div>
-              <button type="button" class="btn btn-blue btn-sm" onclick="addOwner()"><?= te('+ Add owner') ?></button>
+</div>
 
               <div class="modal-actions" style="justify-content:flex-start;">
                 <button type="submit" class="btn btn-green"><?= te('Confirm & Create Parcel') ?></button>

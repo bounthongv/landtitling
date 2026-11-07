@@ -113,12 +113,14 @@ if (($d = trim((string)($parcel['issued_date'] ?? ''))) !== '') {
     $dt = DateTime::createFromFormat('Y-m-d', $d);
     if ($dt && $dt->format('Y-m-d') === $d) $issuedDate = $d;
 }
+$ownershipStatus = trim((string)($parcel['ownership_status'] ?? '')) ?: null;
 
 $cols = [
     ':pn'  => $parcelNo, ':prov' => $province, ':mr' => $mapRefNo, ':vid' => $villageId,
     ':did' => $districtId, ':a' => (float)$area, ':zc' => $zone, ':rc' => $road, ':tn' => $titleNo,
     ':tt'  => $titleType, ':bn' => $bookNo, ':von' => $volumeNo, ':pg' => $pageNo,
     ':lu'  => $landUse, ':idate' => $issuedDate, ':st' => $status,
+    ':ost' => $ownershipStatus,
 ];
 if ($hasSubPar) $cols[':spn'] = $subPar;
 $insertCols = $cols + [':spn' => $subPar];
@@ -130,6 +132,7 @@ try {
         $sql = "UPDATE parcels SET parcel_no=:pn$subSet, province=:prov, map_ref_no=:mr, village_id=:vid,
                 district_id=:did, area_sqm=:a, zone_code=:zc, road_category=:rc, title_no=:tn, title_type=:tt,
                 book_no=:bn, volume_no=:von, page_no=:pg, land_use_class=:lu, issued_date=:idate,
+                ownership_status=:ost,
                 status=:st, scanned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP, ocr_confidence=0
                 WHERE id=:id";
         $pdo->prepare($sql)->execute($cols);
@@ -137,9 +140,9 @@ try {
     } else {
         $sql = "INSERT INTO parcels (parcel_no, sub_parcel_no, province, map_ref_no, village_id, district_id, area_sqm,
                 zone_code, road_category, title_no, title_type, book_no, volume_no, page_no, land_use_class, issued_date,
-                status, scanned_at, ocr_confidence)
+                ownership_status, status, scanned_at, ocr_confidence)
                 VALUES (:pn, :spn, :prov, :mr, :vid, :did, :a, :zc, :rc, :tn, :tt, :bn, :von, :pg, :lu, :idate,
-                :st, CURRENT_TIMESTAMP, 0) RETURNING id";
+                :ost, :st, CURRENT_TIMESTAMP, 0) RETURNING id";
         $st = $pdo->prepare($sql);
         $st->execute($insertCols);
         $parcelId = (int)$st->fetch()['id'];
@@ -163,28 +166,44 @@ foreach ($owners as $o) {
     $address  = trim((string)($o['address'] ?? '')) ?: null;
     $oVillage = !empty($o['village_id']) ? (int)$o['village_id'] : $villageId;
     $oDistrict = !empty($o['district_id']) ? (int)$o['district_id'] : $districtId;
-    $ownerType = in_array($o['owner_type'] ?? '', ['individual', 'organization', 'joint'], true)
+    $ownerType = in_array($o['owner_type'] ?? '', ['individual', 'organization', 'joint', 'spouse'], true)
         ? $o['owner_type'] : 'individual';
     $role = in_array($o['role'] ?? '', ['owner', 'co_owner', 'representative'], true)
         ? $o['role'] : 'owner';
     $share = (isset($o['share_pct']) && $o['share_pct'] !== '') ? (float)$o['share_pct'] : null;
+    $dob = trim((string)($o['date_of_birth'] ?? '')) ?: null;
+    $nat = trim((string)($o['nationality'] ?? '')) ?: null;
+    $occ = trim((string)($o['occupation'] ?? '')) ?: null;
+    $addrProv = trim((string)($o['address_province'] ?? '')) ?: null;
+    $addrDist = trim((string)($o['address_district'] ?? '')) ?: null;
+    $addrVill = trim((string)($o['address_village'] ?? '')) ?: null;
+    $addrUnit = trim((string)($o['address_unit'] ?? '')) ?: null;
 
     $existingId = !empty($o['id']) ? (int)$o['id'] : 0;
     if ($existingId) {
         $pdo->prepare("UPDATE owners SET full_name=:fn, id_number=:idn, id_type=:idt, phone=:ph,
-            address=:ad, village_id=:vid, district_id=:did, owner_type=:ot, updated_at=CURRENT_TIMESTAMP
+            address=:ad, village_id=:vid, district_id=:did, owner_type=:ot,
+            date_of_birth=:dob, nationality=:nat, occupation=:occ,
+            address_province=:ap, address_district=:adx, address_village=:av, address_unit=:au,
+            updated_at=CURRENT_TIMESTAMP
             WHERE id=:id")->execute([
             ':fn' => $fullName, ':idn' => $idNumber, ':idt' => $idType, ':ph' => $phone,
             ':ad' => $address, ':vid' => $oVillage, ':did' => $oDistrict, ':ot' => $ownerType,
+            ':dob' => $dob, ':nat' => $nat, ':occ' => $occ,
+            ':ap' => $addrProv, ':adx' => $addrDist, ':av' => $addrVill, ':au' => $addrUnit,
             ':id' => $existingId,
         ]);
         $ownerId = $existingId;
     } else {
-        $st = $pdo->prepare("INSERT INTO owners (full_name, id_number, id_type, phone, address, village_id, district_id, owner_type)
-            VALUES (:fn, :idn, :idt, :ph, :ad, :vid, :did, :ot) RETURNING id");
+        $st = $pdo->prepare("INSERT INTO owners (full_name, id_number, id_type, phone, address, village_id, district_id, owner_type,
+            date_of_birth, nationality, occupation, address_province, address_district, address_village, address_unit)
+            VALUES (:fn, :idn, :idt, :ph, :ad, :vid, :did, :ot,
+            :dob, :nat, :occ, :ap, :adx, :av, :au) RETURNING id");
         $st->execute([
             ':fn' => $fullName, ':idn' => $idNumber, ':idt' => $idType, ':ph' => $phone,
             ':ad' => $address, ':vid' => $oVillage, ':did' => $oDistrict, ':ot' => $ownerType,
+            ':dob' => $dob, ':nat' => $nat, ':occ' => $occ,
+            ':ap' => $addrProv, ':adx' => $addrDist, ':av' => $addrVill, ':au' => $addrUnit,
         ]);
         $ownerId = (int)$st->fetch()['id'];
     }
