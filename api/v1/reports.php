@@ -548,6 +548,18 @@ case 'mof': {
             'columns' => ['Fee year', 'Province', 'District', 'Village', 'Road', 'Parcel(s)', 'Parcels',
                           'Assessed (kip)', 'Collected (kip)', 'Outstanding (kip)'],
             'rows'    => $rows,
+            // The ministry template is not confirmed yet, so this is our own
+            // layout: grouped like the other reports, one footer per fee year /
+            // province / district / village. The rows themselves and the CSV are
+            // unchanged, so switching to the official template later only means
+            // dropping this block.
+            'group_by' => [
+                ['key' => 'fee_year', 'label' => 'Fee year'],
+                ['key' => 'province', 'label' => 'Province'],
+                ['key' => 'district', 'label' => 'District'],
+                ['key' => 'village',  'label' => 'Village'],
+            ],
+            'subtotal' => ['parcels', 'assessed_kip', 'collected_kip', 'outstanding_kip'],
             'summary' => ['rows' => count($rows)],
         ];
         break;
