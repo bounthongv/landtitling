@@ -6,23 +6,50 @@ import '../../core/theme.dart';
 
 /// Banks that ship a logo in `mobile/assets/banks/<code>.png`.
 ///
-/// The file name is the bank code from `sql/migrations/017_banks.sql`, lower
-/// cased. Adding a logo is dropping the file in and adding its code here; a
-/// bank with no file falls back to its initials so the list stays tidy while
-/// the rest are collected.
+/// The file name is the bank code from `sql/migrations/017_banks.sql` and
+/// `018_bank_hsbc.sql`, lower cased. Every seeded bank has a logo for now; the
+/// set is kept so a bank added to the list later still renders its initials
+/// until artwork arrives (a missing file must never be an error).
 const Set<String> _banksWithLogo = {
   'acleda',
+  'anz',
   'apb',
+  'bbl',
   'bcel',
+  'bdl',
+  'bic',
   'boc',
+  'byb',
+  'cimb',
+  'cndb',
+  'cubc',
+  'fcb',
   'hsbc',
+  'icb',
+  'icbc',
   'jdb',
   'kbank',
   'krungsri',
+  'ktb',
+  'lcb',
+  'lcnb',
   'ldb',
-  'mjb',
+  'lvb',
   'maybank',
+  'mb',
+  'mjb',
+  'nbb',
+  'pb',
+  'psvb',
+  'rhb',
+  'sac',
   'scb',
+  'shb',
+  'stb',
+  'tcb',
+  'ttb',
+  'vcb',
+  'vtb',
 };
 
 /// The paying bank's logo, or a monogram tile when none is on file.
@@ -50,6 +77,8 @@ class BankLogo extends StatelessWidget {
               'assets/banks/$key.png',
               fit: BoxFit.contain,
               filterQuality: FilterQuality.medium,
+              cacheWidth: (size * MediaQuery.of(context).devicePixelRatio)
+                  .round(),
             )
           : _Monogram(code: code, size: size),
     );
