@@ -1,6 +1,7 @@
 <?php
 // public/admin/reports.php — report picker + generic renderer + CSV export
 require __DIR__ . '/common.php';
+require_once __DIR__ . '/report_groups.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
@@ -403,24 +404,50 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
         <?php else: ?>
         <table>
           <thead><tr><?php foreach ($data['columns'] as $c): ?><th><?= e(t($c)) ?></th><?php endforeach; ?></tr></thead>
+          <?php
+            // Same grouping as the printed document (see report_groups.php).
+            $items    = report_items($data);
+            $colPos   = $data['rows'] ? array_flip(array_keys($data['rows'][0])) : [];
+            $groupIdx = [];
+            foreach (($data['group_by'] ?? []) as $g) {
+                if (isset($colPos[$g['key']])) { $groupIdx[(int)$colPos[$g['key']]] = true; }
+            }
+            $ncol = count($data['columns']);
+          ?>
           <tbody>
-            <?php foreach ($data['rows'] as $row): ?>
-            <tr>
-              <?php foreach (array_values($row) as $i => $cell): ?>
-                <?php
-                  // Readability: group digits on money/count columns, but never on
-                  // identifiers, years, dates or short codes.
-                  $label = $data['columns'][$i] ?? '';
-                  $plain = is_array($cell) ? json_encode($cell) : (string)$cell;
-                  $isNum = !is_array($cell) && is_numeric($plain);
-                  $skip  = preg_match('/year|^id|no\.|date|status|conf/i', $label);
-                  if ($isNum && !$skip && (float)$plain >= 10000) {
-                      $plain = number_format((float)$plain, (strpos($plain, '.') !== false ? 2 : 0));
-                  }
-                ?>
-                <td><?= e($plain) ?></td>
-              <?php endforeach; ?>
-            </tr>
+            <?php foreach ($items as $it): ?>
+              <?php if ($it['kind'] === 'band'): ?>
+              <tr class="band band-lvl-<?= (int)$it['level'] ?>">
+                <td colspan="<?= $ncol ?>"><span class="band-tag"><?= e(t($it['label'])) ?></span><?= e($it['value']) ?></td>
+              </tr>
+              <?php elseif ($it['kind'] === 'subtotal'): ?>
+              <?php
+                $sumPos = array_values($it['pos']);
+                $first  = $sumPos ? min($sumPos) : $ncol;
+                $last   = $sumPos ? max($sumPos) : $ncol - 1;
+                $byPos  = array_flip($it['pos']);
+              ?>
+              <tr class="subtotal subtotal-lvl-<?= (int)$it['level'] ?>">
+                <td colspan="<?= max(1, $first) ?>">
+                  <span class="sub-tag"><?= te('Subtotal') ?></span><?= e(t($it['label'])) ?>: <?= e($it['value']) ?><span class="sub-count"><?= te('{n} row(s)', ['n' => $it['count']]) ?></span>
+                </td>
+                <?php for ($i = max($first, 1); $i <= $last; $i++): ?>
+                  <?php $alias = $byPos[$i] ?? null; ?>
+                  <?php if ($alias !== null && isset($it['sums'][$alias])): ?>
+                    <td class="num"><?= e(report_cell_text($it['sums'][$alias], $data['columns'][$i] ?? '')) ?></td>
+                  <?php else: ?>
+                    <td></td>
+                  <?php endif; ?>
+                <?php endfor; ?>
+                <?php if ($last < $ncol - 1): ?><td colspan="<?= $ncol - 1 - $last ?>"></td><?php endif; ?>
+              </tr>
+              <?php else: ?>
+              <tr>
+                <?php foreach (array_values($it['row']) as $i => $cell): ?>
+                  <td><?= isset($groupIdx[$i]) ? '' : e(report_cell_text($cell, $data['columns'][$i] ?? '')) ?></td>
+                <?php endforeach; ?>
+              </tr>
+              <?php endif; ?>
             <?php endforeach; ?>
           </tbody>
         </table>

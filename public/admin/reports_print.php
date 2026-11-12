@@ -5,6 +5,7 @@
 // render correctly. "Download PDF" opens this page with auto=1, which opens the
 // dialog so the officer can pick "Save as PDF" as the destination.
 require __DIR__ . '/common.php';
+require_once __DIR__ . '/report_groups.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 
 $allowed = ['report', 'province_id', 'district_id', 'village_id', 'fee_year', 'road_category', 'from', 'to', 'q', 'actor', 'action_filter'];
@@ -152,6 +153,16 @@ $hasSignature = count(array_filter($signLabels, fn($s) => $s !== '')) > 0;
   tbody tr:nth-child(even) { background: #f7f9f6; }
   .empty, .err { padding: 14px; border: 1px solid #cbd5c0; border-radius: 6px; background: #f7faf5; }
   .err { border-color: #c62828; background: #fdecea; color: #8e1b1b; }
+  /* Group bands: one per level, indented, so a province heading is not repeated
+     on every parcel row. The footer under each group sums the money columns. */
+  tr.band td { background: #e8f0ea; border-color: #cbd5c0; font-weight: 700; color: #144016; }
+  tr.band .band-tag { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: #5f6b5f; font-weight: 600; margin-right: 8px; }
+  tr.band-lvl-1 td { padding-left: 20px; background: #eef3ea; }
+  tr.band-lvl-2 td { padding-left: 38px; background: #f4f7f1; }
+  tr.subtotal td { background: #f7faf5; font-weight: 700; border-top: 2px solid #9db39a; }
+  tr.subtotal .sub-tag { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: #5f6b5f; font-weight: 600; margin-right: 6px; }
+  tr.subtotal .sub-count { font-weight: 400; color: #5f6b5f; margin-left: 6px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .foot { margin-top: 16px; font-size: 11.5px; color: #5f6b5f; border-top: 1px solid #cbd5c0; padding-top: 8px; }
   .sigs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 36px; break-inside: avoid; }
   .sig { min-width: 0; text-align: center; font-size: 13px; color: #1a2e1a; border-top: 1px dotted #8a948a; padding-top: 6px; }
@@ -173,6 +184,10 @@ $hasSignature = count(array_filter($signLabels, fn($s) => $s !== '')) > 0;
     table { font-size: 10px; }
     thead { display: table-header-group; }
     tr { page-break-inside: avoid; }
+    /* A heading must never sit alone at the foot of a page, and a total must
+       stay with the rows it summarises. */
+    tr.band { page-break-after: avoid; break-after: avoid; }
+    tr.subtotal { page-break-before: avoid; break-before: avoid; }
   }
 </style>
 </head>
@@ -246,24 +261,52 @@ $hasSignature = count(array_filter($signLabels, fn($s) => $s !== '')) > 0;
     <?php else: ?>
     <table>
       <thead><tr><?php foreach ($data['columns'] as $c): ?><th><?= e(t($c)) ?></th><?php endforeach; ?></tr></thead>
+      <?php
+        // Group bands and subtotals come from the report's own declaration (see
+        // report_groups.php). A report that declares no grouping still renders
+        // as plain detail rows, exactly as before.
+        $items    = report_items($data);
+        $colPos   = $data['rows'] ? array_flip(array_keys($data['rows'][0])) : [];
+        $groupIdx = [];
+        foreach (($data['group_by'] ?? []) as $g) {
+            if (isset($colPos[$g['key']])) { $groupIdx[(int)$colPos[$g['key']]] = true; }
+        }
+        $ncol = count($data['columns']);
+      ?>
       <tbody>
-        <?php foreach ($data['rows'] as $row): ?>
-        <tr>
-          <?php foreach (array_values($row) as $i => $cell): ?>
-            <?php
-              // Same readability rule as the on-screen table: group digits on
-              // money/count columns, but never on identifiers, years or dates.
-              $label = $data['columns'][$i] ?? '';
-              $plain = is_array($cell) ? json_encode($cell) : (string)$cell;
-              $isNum = !is_array($cell) && is_numeric($plain);
-              $skip  = preg_match('/year|^id|no\.|date|status|conf/i', $label);
-              if ($isNum && !$skip && (float)$plain >= 10000) {
-                  $plain = number_format((float)$plain, (strpos($plain, '.') !== false ? 2 : 0));
-              }
-            ?>
-            <td><?= e($plain) ?></td>
-          <?php endforeach; ?>
-        </tr>
+        <?php foreach ($items as $it): ?>
+          <?php if ($it['kind'] === 'band'): ?>
+          <tr class="band band-lvl-<?= (int)$it['level'] ?>">
+            <td colspan="<?= $ncol ?>"><span class="band-tag"><?= e(t($it['label'])) ?></span><?= e($it['value']) ?></td>
+          </tr>
+          <?php elseif ($it['kind'] === 'subtotal'): ?>
+          <?php
+            $sumPos = array_values($it['pos']);
+            $first  = $sumPos ? min($sumPos) : $ncol;
+            $last   = $sumPos ? max($sumPos) : $ncol - 1;
+            $byPos  = array_flip($it['pos']);
+          ?>
+          <tr class="subtotal subtotal-lvl-<?= (int)$it['level'] ?>">
+            <td colspan="<?= max(1, $first) ?>">
+              <span class="sub-tag"><?= te('Subtotal') ?></span><?= e(t($it['label'])) ?>: <?= e($it['value']) ?><span class="sub-count"><?= te('{n} row(s)', ['n' => $it['count']]) ?></span>
+            </td>
+            <?php for ($i = max($first, 1); $i <= $last; $i++): ?>
+              <?php $alias = $byPos[$i] ?? null; ?>
+              <?php if ($alias !== null && isset($it['sums'][$alias])): ?>
+                <td class="num"><?= e(report_cell_text($it['sums'][$alias], $data['columns'][$i] ?? '')) ?></td>
+              <?php else: ?>
+                <td></td>
+              <?php endif; ?>
+            <?php endfor; ?>
+            <?php if ($last < $ncol - 1): ?><td colspan="<?= $ncol - 1 - $last ?>"></td><?php endif; ?>
+          </tr>
+          <?php else: ?>
+          <tr>
+            <?php foreach (array_values($it['row']) as $i => $cell): ?>
+              <td><?= isset($groupIdx[$i]) ? '' : e(report_cell_text($cell, $data['columns'][$i] ?? '')) ?></td>
+            <?php endforeach; ?>
+          </tr>
+          <?php endif; ?>
         <?php endforeach; ?>
       </tbody>
     </table>

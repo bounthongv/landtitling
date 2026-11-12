@@ -276,6 +276,17 @@
   .table-actions { white-space: nowrap; }
   .table-actions form { display: inline; }
 
+  /* Reports: one heading band per level so a province or village is not
+     repeated on every row, and a footer summing each group. */
+  tr.band td { background: #e8f0ea; font-weight: 700; color: var(--ink, #144016); }
+  tr.band .band-tag { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; margin-right: 8px; }
+  tr.band-lvl-1 td { padding-left: 28px; background: #eef3ea; }
+  tr.band-lvl-2 td { padding-left: 46px; background: #f4f7f1; }
+  tr.subtotal td { background: #f7faf5; font-weight: 700; border-top: 2px solid #c9d6c5; }
+  tr.subtotal .sub-tag { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; margin-right: 6px; }
+  tr.subtotal .sub-count { font-weight: 400; color: var(--muted); margin-left: 6px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
   .empty { color: var(--muted); text-align: center; padding: 40px 0; }
   .conf-badge { background: #e8f5e9; color: #2e7d32; border-radius: 999px; font-size: 11px; padding: 3px 10px; font-weight: 600; }
   /* Scan review: parsed-field table with a per-field OCR confidence badge. */

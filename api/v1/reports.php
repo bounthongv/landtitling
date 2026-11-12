@@ -116,6 +116,16 @@ case 'collection': {
         'columns' => ['Province', 'District', 'Village', 'Road', 'Fee year', 'Month', 'Payments',
                       'Tax (kip)', 'Surcharge (kip)', 'Collected (kip)'],
         'rows'    => $rows,
+        // The rows are sorted by month first, so the same village can collect in
+        // several months: a month change must start a new group even though the
+        // location is unchanged.
+        'group_by' => [
+            ['key' => 'province', 'label' => 'Province'],
+            ['key' => 'district', 'label' => 'District'],
+            ['key' => 'village',  'label' => 'Village'],
+        ],
+        'break_on' => ['month'],
+        'subtotal' => ['payments', 'tax_kip', 'surcharge_kip', 'collected_kip'],
         'summary' => [
             'payments'      => $payments,
             'collected_kip' => $collected,
@@ -142,6 +152,9 @@ case 'arrears': {
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $pen = fee_penalty_sql('o');
 
+    // Sorted by location first so the report can be grouped by
+    // province → district → village; within a village the oldest debt still
+    // comes first, so the aging question is answered where it matters.
     $stmt = $pdo->prepare("SELECT par.parcel_no, p.name_lo AS province, d.name_lo AS district, v.name_lo AS village,
             o.fee_year, o.due_date, o.amount_due, o.amount_paid, $pen AS penalty,
             (o.amount_due + $pen - o.amount_paid) AS outstanding,
@@ -156,7 +169,7 @@ case 'arrears': {
         JOIN villages  v ON v.id = par.village_id
         JOIN provinces p ON p.id = d.province_id
         $w
-        ORDER BY days_overdue DESC, p.name_lo, d.name_lo, par.parcel_no");
+        ORDER BY p.name_lo, d.name_lo, v.name_lo, days_overdue DESC, par.parcel_no");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
@@ -169,6 +182,12 @@ case 'arrears': {
         'columns' => ['Parcel', 'Province', 'District', 'Village', 'Year', 'Due date', 'Amount due', 'Paid',
                       'Penalty', 'Outstanding', 'Days overdue', 'Bucket', 'Years behind'],
         'rows'    => $rows,
+        'group_by' => [
+            ['key' => 'province', 'label' => 'Province'],
+            ['key' => 'district', 'label' => 'District'],
+            ['key' => 'village',  'label' => 'Village'],
+        ],
+        'subtotal' => ['amount_due', 'amount_paid', 'penalty', 'outstanding'],
         'summary' => [
             'parcels'          => (int)($tot['parcels'] ?? 0),
             'obligations'      => (int)($tot['obligations'] ?? 0),
@@ -245,6 +264,12 @@ case 'registration': {
     $result = [
         'columns' => ['Province', 'District', 'Parcels', 'Total area (m²)', 'Confirmed', 'Draft', 'Road categories'],
         'rows'    => $rows,
+        'group_by' => [
+            ['key' => 'province', 'label' => 'Province'],
+            ['key' => 'district', 'label' => 'District'],
+        ],
+        // Road categories is a distinct count per district, so it is not summed.
+        'subtotal' => ['parcels', 'total_area_sqm', 'confirmed', 'draft'],
         'summary' => [
             'parcels'          => $sParcels,
             'total_area_sqm'   => (float)($rows ? array_sum(array_column($rows, 'total_area_sqm')) : 0),
@@ -302,6 +327,12 @@ case 'register': {
         'columns' => ['Parcel', 'Sub', 'Title no', 'Map sheet', 'Title type', 'Book', 'Volume', 'Page', 'Land use',
                       'Issued', 'Area (m²)', 'Road', 'Province', 'District', 'Village', 'Status', 'No. of owners', 'Owners'],
         'rows'    => $rows,
+        'group_by' => [
+            ['key' => 'province', 'label' => 'Province'],
+            ['key' => 'district', 'label' => 'District'],
+            ['key' => 'village',  'label' => 'Village'],
+        ],
+        'subtotal' => ['area_sqm'],
         'summary' => ['parcels' => count($rows)],
     ];
     break;
