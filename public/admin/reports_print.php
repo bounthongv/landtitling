@@ -46,34 +46,37 @@ $typedTitle = isset($_GET['rtitle']) ? trim((string)$_GET['rtitle']) : '';
 $heading = t('Report: {name}', ['name' => $title]);
 if ($typedTitle !== '') { $heading = (string)$_GET['rtitle']; }
 
-// Resolve the chosen province/district for the filter line. District staff have
-// no filter in the query, so show their own scope from the session instead.
+// The header's geo line reflects only what the officer selected: a province
+// pick, a district pick, and/or a village pick. No scope fallback — a report
+// filtered to one province shows just that province, even for staff whose
+// session is pinned to a district.
 // Names are Lao only, dropping the English that the registry stores alongside.
 $provinces = api_call('GET', 'refdata.php?table=provinces', null, $_SESSION['admin_token'])['data'] ?? [];
 $districts = api_call('GET', 'districts.php', null, $_SESSION['admin_token'])['data'] ?? [];
 $provinceName = '';
-foreach ($provinces as $pv) {
-    if ((int)$pv['id'] === (int)($params['province_id'] ?? 0)) {
-        $provinceName = (string)$pv['name_lo'];
-        break;
+if (isset($params['province_id']) && (int)$params['province_id'] > 0) {
+    foreach ($provinces as $pv) {
+        if ((int)$pv['id'] === (int)$params['province_id']) {
+            $provinceName = (string)$pv['name_lo'];
+            break;
+        }
     }
 }
 $districtName = '';
-$scopeDistrictId = (int)($params['district_id'] ?? 0);
-if (!$scopeDistrictId && ($user['level'] ?? '') === 'district') {
-    $scopeDistrictId = (int)($user['district_id'] ?? 0);
-}
-foreach ($districts as $di) {
-    if ((int)$di['id'] === $scopeDistrictId) {
-        $districtName = (string)$di['name_lo'];
-        break;
+$selDistrictId = (int)($params['district_id'] ?? 0);
+if ($selDistrictId > 0) {
+    foreach ($districts as $di) {
+        if ((int)$di['id'] === $selDistrictId) {
+            $districtName = (string)$di['name_lo'];
+            break;
+        }
     }
 }
 
 $villageName = '';
 $villageId = (int)($params['village_id'] ?? 0);
-if ($villageId) {
-    $villages = api_call('GET', 'villages.php?district_id=' . $scopeDistrictId, null, $_SESSION['admin_token'])['data'] ?? [];
+if ($villageId > 0) {
+    $villages = api_call('GET', 'villages.php?district_id=' . $selDistrictId, null, $_SESSION['admin_token'])['data'] ?? [];
     foreach ($villages as $vi) {
         if ((int)$vi['id'] === $villageId) { $villageName = (string)$vi['name_lo']; break; }
     }
@@ -82,8 +85,6 @@ if ($villageId) {
 $filters = [];
 if ($provinceName !== '') {
     $filters[t('Province')] = $provinceName;
-} elseif (($user['level'] ?? '') === 'province' && !empty($user['province_name'])) {
-    $filters[t('Province')] = !empty($user['province_name_lo']) ? $user['province_name_lo'] : $user['province_name'];
 }
 if ($districtName !== '') {
     $filters[t('District')] = $districtName;
