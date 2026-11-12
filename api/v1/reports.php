@@ -484,33 +484,34 @@ case 'mof': {
     // for. The rows themselves are untouched: a year with no cash in the period
     // still shows its assessment.
     if ($from !== '' || $to !== '') {
-        $cCond = ["pay.status = 'PAID'"];
-        $cParams = [];
-        rep_date_range($cCond, $cParams, 'pay.paid_at', $from, $to);
-        if ($year) { $cCond[] = 'o.fee_year = :fy'; $cParams[':fy'] = $year; }
-        rep_parcel_filters($cCond, $cParams, $district, $road, $province, $village);
-        $cw = 'WHERE ' . implode(' AND ', $cCond);
-        $cStmt = $pdo->prepare("SELECT o.fee_year, d.name_lo AS district, v.name_lo AS village,
-                o.road_category, COALESCE(SUM(pay.amount),0) AS collected_kip
-            FROM payments pay
-            JOIN fee_obligations o ON o.id = pay.obligation_id
-            JOIN parcels par ON par.id = o.parcel_id
-            JOIN districts d ON d.id = par.district_id
-            JOIN villages  v ON v.id = par.village_id
-            $cw
-            GROUP BY o.fee_year, d.name_lo, v.name_lo, o.road_category");
-        $cStmt->execute($cParams);
-        $arrived = [];
-        foreach ($cStmt->fetchAll() as $c) {
-            $arrived[$c['fee_year'] . '|' . $c['district'] . '|' . $c['village'] . '|' . $c['road_category']]
-                = (float)$c['collected_kip'];
+            $cCond = ["pay.status = 'PAID'"];
+            $cParams = [];
+            rep_date_range($cCond, $cParams, 'pay.paid_at', $from, $to);
+            if ($year) { $cCond[] = 'o.fee_year = :fy'; $cParams[':fy'] = $year; }
+            rep_parcel_filters($cCond, $cParams, $district, $road, $province, $village);
+            $cw = 'WHERE ' . implode(' AND ', $cCond);
+            $cStmt = $pdo->prepare("SELECT o.fee_year, pr.name_lo AS province, d.name_lo AS district, v.name_lo AS village,
+                    o.road_category, COALESCE(SUM(pay.amount),0) AS collected_kip
+                FROM payments pay
+                JOIN fee_obligations o ON o.id = pay.obligation_id
+                JOIN parcels par ON par.id = o.parcel_id
+                JOIN districts d ON d.id = par.district_id
+                JOIN villages  v ON v.id = par.village_id
+                JOIN provinces pr ON pr.id = d.province_id
+                $cw
+                GROUP BY o.fee_year, pr.name_lo, d.name_lo, v.name_lo, o.road_category");
+            $cStmt->execute($cParams);
+            $arrived = [];
+            foreach ($cStmt->fetchAll() as $c) {
+                $arrived[$c['fee_year'] . '|' . $c['province'] . '|' . $c['district'] . '|' . $c['village'] . '|' . $c['road_category']]
+                    = (float)$c['collected_kip'];
+            }
+            foreach ($rows as &$r) {
+                $key = $r['fee_year'] . '|' . $r['province'] . '|' . $r['district'] . '|' . $r['village'] . '|' . $r['road_category'];
+                $r['collected_kip'] = $arrived[$key] ?? 0;
+            }
+            unset($r);
         }
-        foreach ($rows as &$r) {
-            $key = $r['fee_year'] . '|' . $r['district'] . '|' . $r['village'] . '|' . $r['road_category'];
-            $r['collected_kip'] = $arrived[$key] ?? 0;
-        }
-        unset($r);
-    }
     $result = [
         'columns' => ['Fee year', 'Province', 'District', 'Village', 'Road', 'Parcels',
                       'Assessed (kip)', 'Collected (kip)', 'Outstanding (kip)'],
