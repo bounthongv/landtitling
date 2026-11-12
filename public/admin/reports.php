@@ -184,7 +184,14 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
   </aside>
   <main class="main">
     <h1><?= te('Reports') ?></h1>
-    <p class="sub"><?= te('All figures are derived from payments and fee_obligations.') ?></p>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+      <p class="sub" style="margin:0"><?= te('All figures are derived from payments and fee_obligations.') ?></p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a class="btn btn-gold" id="rep-print-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>" target="_blank" rel="noopener"><?= te('Preview &amp; Print') ?></a>
+        <a class="btn btn-green" id="rep-pdf-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
+        <a class="btn btn-blue" id="rep-csv-link" href="<?= e($base) ?>/reports_export.php?<?= e($qsLive) ?>"><?= te('Download CSV') ?></a>
+      </div>
+    </div>
 
     <div class="form-box">
       <form method="get">
@@ -357,11 +364,6 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
           <h2 style="margin:0"><?= e($reportLabels[$report] ?? $report) ?>
             <span class="sub" style="margin-left:8px"><?= te('{n} row(s)', ['n' => count($data['rows'])]) ?></span>
           </h2>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <a class="btn btn-gold" id="rep-print-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>" target="_blank" rel="noopener"><?= te('Preview & Print') ?></a>
-            <a class="btn btn-green" id="rep-pdf-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
-            <a class="btn btn-blue" id="rep-csv-link" href="<?= e($base) ?>/reports_export.php?<?= e($qsLive) ?>"><?= te('Download CSV') ?></a>
-          </div>
         </div>
 
         <?php if (!empty($data['summary'])): ?>
