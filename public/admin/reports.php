@@ -401,47 +401,10 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
         <?php if (!$data['rows']): ?>
           <p class="empty"><?= te('No data for this report.') ?></p>
         <?php else: ?>
-        <?php
-          // Compute rowspans for grouping columns (Province, District, Village, Fee year, Road)
-          $groupCols = [];
-          foreach ($data['columns'] as $idx => $col) {
-            $cl = strtolower($col);
-            if (in_array($cl, ['province', 'district', 'village', 'fee year', 'road'])) {
-              $groupCols[] = $idx;
-            }
-          }
-          $rowspans = [];
-          $nrows = count($data['rows']);
-          for ($i = 0; $i < $nrows; $i++) {
-            foreach ($groupCols as $gc) {
-              $val = $data['rows'][$i][$gc] ?? '';
-              if ($i === 0) {
-                $cnt = 1;
-                for ($j = $i + 1; $j < $nrows; $j++) {
-                  if (($data['rows'][$j][$gc] ?? '') === $val) $cnt++;
-                  else break;
-                }
-                $rowspans[$i][$gc] = $cnt;
-              } else {
-                $prevVal = $data['rows'][$i - 1][$gc] ?? '';
-                if ($val === $prevVal) {
-                  $rowspans[$i][$gc] = 0;
-                } else {
-                  $cnt = 1;
-                  for ($j = $i + 1; $j < $nrows; $j++) {
-                    if (($data['rows'][$j][$gc] ?? '') === $val) $cnt++;
-                    else break;
-                  }
-                  $rowspans[$i][$gc] = $cnt;
-                }
-              }
-            }
-          }
-        ?>
         <table>
           <thead><tr><?php foreach ($data['columns'] as $c): ?><th><?= e(t($c)) ?></th><?php endforeach; ?></tr></thead>
           <tbody>
-            <?php foreach ($data['rows'] as $ri => $row): ?>
+            <?php foreach ($data['rows'] as $row): ?>
             <tr>
               <?php foreach (array_values($row) as $i => $cell): ?>
                 <?php
@@ -454,13 +417,8 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
                   if ($isNum && !$skip && (float)$plain >= 10000) {
                       $plain = number_format((float)$plain, (strpos($plain, '.') !== false ? 2 : 0));
                   }
-                  $rs = $rowspans[$ri][$i] ?? 1;
                 ?>
-                <?php if ($rs > 0): ?>
-                  <td<?= $rs > 1 ? ' rowspan=' . (int)$rs : '' ?>><?= e($plain) ?></td>
-                <?php else: ?>
-                  <td style="display:none"></td>
-                <?php endif; ?>
+                <td><?= e($plain) ?></td>
               <?php endforeach; ?>
             </tr>
             <?php endforeach; ?>
