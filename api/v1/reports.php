@@ -85,7 +85,7 @@ case 'collection': {
     $stmt = $pdo->prepare("WITH paid AS (
             SELECT pay.id, pay.amount, pay.paid_at, o.amount_due,
                    COALESCE(o.penalty, 0) AS penalty, o.fee_year,
-                   d.name_lo AS district, v.name_lo AS village, par.road_category,
+                   p.name_lo AS province, d.name_lo AS district, v.name_lo AS village, par.road_category,
                    SUM(pay.amount) OVER (PARTITION BY pay.obligation_id
                        ORDER BY pay.paid_at, pay.id) AS running_paid,
                    COALESCE(SUM(pay.amount) OVER (PARTITION BY pay.obligation_id
@@ -96,6 +96,7 @@ case 'collection': {
               JOIN parcels par ON par.id = pay.parcel_id
               JOIN districts d ON d.id = par.district_id
               JOIN villages  v ON v.id = par.village_id
+              JOIN provinces p ON p.id = d.province_id
              WHERE pay.status = 'PAID' $w
         ), split AS (
             SELECT paid.*,
@@ -104,7 +105,7 @@ case 'collection': {
                           - LEAST(GREATEST(prev_paid - amount_due, 0), penalty), 0) AS pen_part
               FROM paid
         )
-        SELECT district, village, road_category, fee_year,
+        SELECT province, district, village, road_category, fee_year,
                DATE_TRUNC('month', paid_at)::date AS month,
                COUNT(*) AS payments,
                COALESCE(SUM(tax_part), 0) AS tax_kip,
@@ -112,8 +113,8 @@ case 'collection': {
                COALESCE(SUM(amount), 0) AS collected_kip
           FROM split p
           $dw
-         GROUP BY district, village, road_category, fee_year, DATE_TRUNC('month', paid_at)
-         ORDER BY month DESC, district, village");
+         GROUP BY province, district, village, road_category, fee_year, DATE_TRUNC('month', paid_at)
+         ORDER BY month DESC, province, district, village");
     $stmt->execute($dateParams);
     $rows = $stmt->fetchAll();
 
@@ -126,7 +127,7 @@ case 'collection': {
         $surcharge += (float)$r['surcharge_kip'];
     }
     $result = [
-        'columns' => ['District', 'Village', 'Road', 'Fee year', 'Month', 'Payments',
+        'columns' => ['Province', 'District', 'Village', 'Road', 'Fee year', 'Month', 'Payments',
                       'Tax (kip)', 'Surcharge (kip)', 'Collected (kip)'],
         'rows'    => $rows,
         'summary' => [
@@ -155,7 +156,7 @@ case 'arrears': {
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $pen = fee_penalty_sql('o');
 
-    $stmt = $pdo->prepare("SELECT par.parcel_no, d.name_lo AS district, v.name_lo AS village,
+    $stmt = $pdo->prepare("SELECT par.parcel_no, p.name_lo AS province, d.name_lo AS district, v.name_lo AS village,
             o.fee_year, o.due_date, o.amount_due, o.amount_paid, $pen AS penalty,
             (o.amount_due + $pen - o.amount_paid) AS outstanding,
             (CURRENT_DATE - o.due_date) AS days_overdue,
@@ -167,8 +168,9 @@ case 'arrears': {
         JOIN parcels par ON par.id = o.parcel_id
         JOIN districts d ON d.id = par.district_id
         JOIN villages  v ON v.id = par.village_id
+        JOIN provinces p ON p.id = d.province_id
         $w
-        ORDER BY days_overdue DESC, d.name_lo, par.parcel_no");
+        ORDER BY days_overdue DESC, p.name_lo, d.name_lo, par.parcel_no");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
@@ -178,7 +180,7 @@ case 'arrears': {
     $stmt->execute($params);
     $tot = $stmt->fetch();
     $result = [
-        'columns' => ['Parcel', 'District', 'Village', 'Year', 'Due date', 'Amount due', 'Paid',
+        'columns' => ['Parcel', 'Province', 'District', 'Village', 'Year', 'Due date', 'Amount due', 'Paid',
                       'Penalty', 'Outstanding', 'Days overdue', 'Bucket', 'Years behind'],
         'rows'    => $rows,
         'summary' => [
@@ -201,14 +203,15 @@ case 'registration': {
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     // NOTE: parcels are aliased `par` here — rep_parcel_filters() emits `par.*` clauses.
-    $stmt = $pdo->prepare("SELECT d.name_lo AS district,
+    $stmt = $pdo->prepare("SELECT p.name_lo AS province, d.name_lo AS district,
             COUNT(*) AS parcels,
             COALESCE(SUM(par.area_sqm),0) AS total_area_sqm,
             COUNT(*) FILTER (WHERE par.status = 'confirmed') AS confirmed,
             COUNT(*) FILTER (WHERE par.status = 'draft')     AS draft,
             COUNT(DISTINCT par.road_category) AS road_categories
         FROM parcels par JOIN districts d ON d.id = par.district_id
-        $w GROUP BY d.name_lo ORDER BY d.name_lo");
+        JOIN provinces p ON p.id = d.province_id
+        $w GROUP BY p.name_lo, d.name_lo ORDER BY p.name_lo, d.name_lo");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
@@ -254,7 +257,7 @@ case 'registration': {
     $confRows = $confStmt->fetchAll();
 
     $result = [
-        'columns' => ['District', 'Parcels', 'Total area (m²)', 'Confirmed', 'Draft', 'Road categories'],
+        'columns' => ['Province', 'District', 'Parcels', 'Total area (m²)', 'Confirmed', 'Draft', 'Road categories'],
         'rows'    => $rows,
         'summary' => [
             'parcels'          => $sParcels,
@@ -301,7 +304,7 @@ case 'register': {
 
     $stmt = $pdo->prepare("SELECT p.parcel_no, p.sub_parcel_no, p.title_no, p.map_ref_no, p.title_type,
             p.book_no, p.volume_no, p.page_no, p.land_use_class, p.issued_date,
-            p.area_sqm, p.road_category, d.name_lo AS district, v.name_lo AS village, p.status,
+            p.area_sqm, p.road_category, pr.name_lo AS province, d.name_lo AS district, v.name_lo AS village, p.status,
             (SELECT COUNT(*) FROM parcel_owners po WHERE po.parcel_id = p.id) AS owner_count,
             (SELECT string_agg(ow.full_name || COALESCE(' (' || ow.id_number || ')', ''), '; ')
                FROM parcel_owners po JOIN owners ow ON ow.id = po.owner_id
@@ -309,13 +312,14 @@ case 'register': {
         FROM parcels p
         JOIN districts d ON d.id = p.district_id
         JOIN villages  v ON v.id = p.village_id
-        $w ORDER BY d.name_lo, v.name_lo, p.parcel_no");
+        JOIN provinces pr ON pr.id = d.province_id
+        $w ORDER BY pr.name_lo, d.name_lo, v.name_lo, p.parcel_no");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
     $result = [
         'columns' => ['Parcel', 'Sub', 'Title no', 'Map sheet', 'Title type', 'Book', 'Volume', 'Page', 'Land use',
-                      'Issued', 'Area (m²)', 'Road', 'District', 'Village', 'Status', 'No. of owners', 'Owners'],
+                      'Issued', 'Area (m²)', 'Road', 'Province', 'District', 'Village', 'Status', 'No. of owners', 'Owners'],
         'rows'    => $rows,
         'summary' => ['parcels' => count($rows)],
     ];
@@ -477,7 +481,7 @@ case 'mof': {
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $pen = fee_penalty_sql('o');
 
-    $stmt = $pdo->prepare("SELECT o.fee_year, d.name_lo AS district, v.name_lo AS village,
+    $stmt = $pdo->prepare("SELECT o.fee_year, pr.name_lo AS province, d.name_lo AS district, v.name_lo AS village,
             o.road_category,
             COUNT(*) AS parcels,
             COALESCE(SUM(o.amount_due),0)          AS assessed_kip,
@@ -488,9 +492,10 @@ case 'mof': {
         JOIN parcels par ON par.id = o.parcel_id
         JOIN districts d ON d.id = par.district_id
         JOIN villages  v ON v.id = par.village_id
+        JOIN provinces pr ON pr.id = d.province_id
         $w
-        GROUP BY o.fee_year, d.name_lo, v.name_lo, o.road_category
-        ORDER BY o.fee_year DESC, district, village, o.road_category");
+        GROUP BY o.fee_year, pr.name_lo, d.name_lo, v.name_lo, o.road_category
+        ORDER BY o.fee_year DESC, province, district, village, o.road_category");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
@@ -530,7 +535,7 @@ case 'mof': {
         unset($r);
     }
     $result = [
-        'columns' => ['Fee year', 'District', 'Village', 'Road', 'Parcels',
+        'columns' => ['Fee year', 'Province', 'District', 'Village', 'Road', 'Parcels',
                       'Assessed (kip)', 'Collected (kip)', 'Outstanding (kip)'],
         'rows'    => $rows,
         'summary' => ['rows' => count($rows)],
