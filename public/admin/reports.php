@@ -477,6 +477,7 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
   if (!villageSel) return;
   var districtSel = document.getElementById('f-district');
   var seedDistrict = <?= json_encode((string)($canFilterDist ? $district : $myDistrict)) ?>;
+  var currentVillage = <?= json_encode((string)$village) ?>;
   var apiBase = <?= json_encode($api_base ?? '') ?>;
 
   function clearVillages(keep) {
@@ -484,7 +485,7 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
     if (keep) villageSel.value = keep;
   }
 
-  function loadVillages(did) {
+  function loadVillages(did, selected) {
     if (!did) { clearVillages(''); return; }
     clearVillages('');
     var url = apiBase + '/villages.php?district_id=' + encodeURIComponent(did);
@@ -493,23 +494,37 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
       .then(function (j) {
         if (!j.ok) return;
         var rows = j.data || [];
-        var cur = villageSel.value;
         var html = '<option value=""><?= e(te('-- all --')) ?></option>';
         for (var i = 0; i < rows.length; i++) {
           var v = rows[i];
-          var label = v.name_lo + (v.name_en ? ' — ' + v.name_en : '');
-          html += '<option value="' + v.id + '">' + label + '</option>';
+          html += '<option value="' + v.id + '">' + v.name_lo + '</option>';
         }
         villageSel.innerHTML = html;
-        if (cur) villageSel.value = cur;
+        // Restore the chosen village across page loads (the option only exists
+        // once the AJAX list has arrived).
+        if (selected) villageSel.value = selected;
       })
       .catch(function () {});
   }
 
-  // Initial: seed from the district already on the page.
-  loadVillages(districtSel ? districtSel.value : seedDistrict);
+  // Initial: seed from the district already on the page, keeping the village
+  // carried in the URL from the last Run.
+  loadVillages(districtSel ? districtSel.value : seedDistrict, currentVillage);
   if (districtSel) {
-    districtSel.addEventListener('change', function () { loadVillages(this.value); });
+    districtSel.addEventListener('change', function () {
+      currentVillage = '';
+      loadVillages(this.value, '');
+    });
+  }
+  // Changing the province rebuilds the district list, which orphans the
+  // village choice — clear it so the filter stays consistent.
+  var provinceSel = document.getElementById('f-province');
+  if (provinceSel) {
+    provinceSel.addEventListener('change', function () {
+      currentVillage = '';
+      clearVillages('');
+      if (districtSel) loadVillages(districtSel.value, '');
+    });
   }
 })();
 </script>
