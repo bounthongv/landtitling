@@ -205,6 +205,11 @@ function report_period(array $get)
         $from = $isoDate($get['from'] ?? '');
         $to   = $isoDate($get['to'] ?? '');
         if ($from !== '' && $to !== '' && $from > $to) { [$from, $to] = [$to, $from]; }
+        // Default: current month (first to last day) so the picker never opens blank.
+        if ($from === '' && $to === '') {
+            $from = date('Y-m-01');
+            $to   = date('Y-m-t');
+        }
         $dmy = static function ($d) { return date('d/m/Y', strtotime($d)); };
         if ($from !== '' && $to !== '') {
             $words = t('For {from} - {to}', ['from' => $dmy($from), 'to' => $dmy($to)]);
