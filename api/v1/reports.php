@@ -208,15 +208,16 @@ case 'registration': {
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     // NOTE: parcels are aliased `par` here — rep_parcel_filters() emits `par.*` clauses.
-    $stmt = $pdo->prepare("SELECT p.name_lo AS province, d.name_lo AS district,
+    $stmt = $pdo->prepare("SELECT p.name_lo AS province, d.name_lo AS district, v.name_lo AS village,
             COUNT(*) AS parcels,
             COALESCE(SUM(par.area_sqm),0) AS total_area_sqm,
             COUNT(*) FILTER (WHERE par.status = 'confirmed') AS confirmed,
             COUNT(*) FILTER (WHERE par.status = 'draft')     AS draft,
             COUNT(DISTINCT par.road_category) AS road_categories
         FROM parcels par JOIN districts d ON d.id = par.district_id
+        JOIN villages v ON v.id = par.village_id
         JOIN provinces p ON p.id = d.province_id
-        $w GROUP BY p.name_lo, d.name_lo ORDER BY p.name_lo, d.name_lo");
+        $w GROUP BY p.name_lo, d.name_lo, v.name_lo ORDER BY p.name_lo, d.name_lo, v.name_lo");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
@@ -262,13 +263,14 @@ case 'registration': {
     $confRows = $confStmt->fetchAll();
 
     $result = [
-        'columns' => ['Province', 'District', 'Parcels', 'Total area (m²)', 'Confirmed', 'Draft', 'Road categories'],
+        'columns' => ['Province', 'District', 'Village', 'Parcels', 'Total area (m²)', 'Confirmed', 'Draft', 'Road categories'],
         'rows'    => $rows,
         'group_by' => [
             ['key' => 'province', 'label' => 'Province'],
             ['key' => 'district', 'label' => 'District'],
+            ['key' => 'village',  'label' => 'Village'],
         ],
-        // Road categories is a distinct count per district, so it is not summed.
+        // Road categories is a distinct count per village, so it is not summed.
         'subtotal' => ['parcels', 'total_area_sqm', 'confirmed', 'draft'],
         'summary' => [
             'parcels'          => $sParcels,
