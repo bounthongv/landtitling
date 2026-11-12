@@ -52,6 +52,7 @@ class PaymentsController extends ChangeNotifier {
     required int feeYear,
     required String method,
     double? amount,
+    String? bankCode,
   }) async {
     issuing = true;
     error = null;
@@ -63,6 +64,7 @@ class PaymentsController extends ChangeNotifier {
         'method': method,
       };
       if (amount != null) body['amount'] = amount;
+      if (bankCode != null) body['bank_code'] = bankCode;
       final data = await _api.postData('citizen_payments.php', body);
       final slip = IssuedSlip.fromJson(data);
       lastIssuedSlip = slip;

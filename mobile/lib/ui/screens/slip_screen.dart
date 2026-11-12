@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../models/bank.dart';
 import '../../models/payment.dart';
 import '../../state/payments_controller.dart';
+import '../widgets/bank_logo.dart';
 import '../widgets/common.dart';
 import '../widgets/gov_header.dart';
 import 'receipt_screen.dart';
@@ -142,9 +143,17 @@ class _SlipScreenState extends State<SlipScreen> {
                         for (final b in _banks)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Text(
-                              '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
-                              style: const TextStyle(fontSize: 13),
+                            child: Row(
+                              children: [
+                                BankLogo(code: b.code, size: 30),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                       ],

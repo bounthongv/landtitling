@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../models/bank.dart';
 import '../../models/quote.dart';
 import '../../state/payments_controller.dart';
+import '../widgets/bank_logo.dart';
 import '../widgets/common.dart';
 import '../widgets/gov_header.dart';
 import 'slip_screen.dart';
@@ -86,7 +87,9 @@ class _QuoteScreenState extends State<QuoteScreen> {
         feeYear: widget.quote.feeYear,
         method: _method,
         amount: _payInFull ? null : _amount,
-        bankCode: (_method == 'bank_transfer' || _method == 'mobile') ? _bankCode : null,
+        bankCode: (_method == 'bank_transfer' || _method == 'mobile')
+            ? _bankCode
+            : null,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -199,17 +202,29 @@ class _QuoteScreenState extends State<QuoteScreen> {
                     icon: Icons.account_balance,
                     child: DropdownButtonFormField<String>(
                       initialValue: _bankCode,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         labelText: 'ເລືອກທະນາຄານ',
                       ),
                       items: _banks
-                          .map((b) => DropdownMenuItem<String>(
-                                value: b.code,
-                                child: Text(
-                                  '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
-                                ),
-                              ))
+                          .map(
+                            (b) => DropdownMenuItem<String>(
+                              value: b.code,
+                              child: Row(
+                                children: [
+                                  BankLogo(code: b.code),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
                           .toList(),
                       onChanged: (v) => setState(() => _bankCode = v),
                     ),
@@ -264,9 +279,10 @@ class _QuoteScreenState extends State<QuoteScreen> {
                 FilledButton(
                   onPressed:
                       payments.issuing ||
-                      (_payInFull ? false : _amount <= 0) ||
-                      ((_method == 'bank_transfer' || _method == 'mobile') &&
-                          _bankCode == null)
+                          (_payInFull ? false : _amount <= 0) ||
+                          ((_method == 'bank_transfer' ||
+                                  _method == 'mobile') &&
+                              _bankCode == null)
                       ? null
                       : _issue,
                   child: payments.issuing

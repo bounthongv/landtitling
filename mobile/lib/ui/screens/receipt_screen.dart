@@ -9,6 +9,7 @@ import '../../core/strings.dart';
 import '../../core/theme.dart';
 import '../../models/bank.dart';
 import '../../state/payments_controller.dart';
+import '../widgets/bank_logo.dart';
 import '../widgets/common.dart';
 import '../widgets/gov_header.dart';
 
@@ -171,17 +172,29 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         const SizedBox(height: 14),
                         DropdownButtonFormField<String>(
                           initialValue: _bankCode,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Bank (optional)',
                             border: OutlineInputBorder(),
                           ),
                           items: _banks
-                              .map((b) => DropdownMenuItem<String>(
-                                    value: b.code,
-                                    child: Text(
-                                      '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
-                                    ),
-                                  ))
+                              .map(
+                                (b) => DropdownMenuItem<String>(
+                                  value: b.code,
+                                  child: Row(
+                                    children: [
+                                      BankLogo(code: b.code),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
                               .toList(),
                           onChanged: (v) => setState(() => _bankCode = v),
                         ),
