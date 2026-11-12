@@ -459,20 +459,21 @@ case 'mof': {
     $pen = fee_penalty_sql('o');
 
     $stmt = $pdo->prepare("SELECT o.fee_year, pr.name_lo AS province, d.name_lo AS district, v.name_lo AS village,
-            o.road_category,
-            COUNT(*) AS parcels,
-            COALESCE(SUM(o.amount_due),0)          AS assessed_kip,
-            COALESCE(SUM(o.amount_paid),0)         AS collected_kip,
-            COALESCE(SUM(CASE WHEN o.status IN ('UNPAID','PARTIAL')
-                              THEN o.amount_due + $pen - o.amount_paid ELSE 0 END),0) AS outstanding_kip
-        FROM fee_obligations o
-        JOIN parcels par ON par.id = o.parcel_id
-        JOIN districts d ON d.id = par.district_id
-        JOIN villages  v ON v.id = par.village_id
-        JOIN provinces pr ON pr.id = d.province_id
-        $w
-        GROUP BY o.fee_year, pr.name_lo, d.name_lo, v.name_lo, o.road_category
-        ORDER BY o.fee_year DESC, province, district, village, o.road_category");
+                o.road_category,
+                string_agg(par.parcel_no, ', ') AS parcel_nos,
+                COUNT(*) AS parcels,
+                COALESCE(SUM(o.amount_due),0)          AS assessed_kip,
+                COALESCE(SUM(o.amount_paid),0)         AS collected_kip,
+                COALESCE(SUM(CASE WHEN o.status IN ('UNPAID','PARTIAL')
+                                  THEN o.amount_due + $pen - o.amount_paid ELSE 0 END),0) AS outstanding_kip
+            FROM fee_obligations o
+            JOIN parcels par ON par.id = o.parcel_id
+            JOIN districts d ON d.id = par.district_id
+            JOIN villages  v ON v.id = par.village_id
+            JOIN provinces pr ON pr.id = d.province_id
+            $w
+            GROUP BY o.fee_year, pr.name_lo, d.name_lo, v.name_lo, o.road_category
+            ORDER BY o.fee_year DESC, province, district, village, o.road_category");
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
@@ -513,13 +514,13 @@ case 'mof': {
             unset($r);
         }
     $result = [
-        'columns' => ['Fee year', 'Province', 'District', 'Village', 'Road', 'Parcels',
-                      'Assessed (kip)', 'Collected (kip)', 'Outstanding (kip)'],
-        'rows'    => $rows,
-        'summary' => ['rows' => count($rows)],
-    ];
-    break;
-}
+            'columns' => ['Fee year', 'Province', 'District', 'Village', 'Road', 'Parcel(s)', 'Parcels',
+                          'Assessed (kip)', 'Collected (kip)', 'Outstanding (kip)'],
+            'rows'    => $rows,
+            'summary' => ['rows' => count($rows)],
+        ];
+        break;
+    }
 
 default:
     json_error('Unknown report: ' . $report, 400, 'unknown_report');
