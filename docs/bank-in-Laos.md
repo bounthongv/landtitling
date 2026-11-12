@@ -35,4 +35,5 @@
 | FCB | First Commercial Bank |
 | MAYBANK | Maybank |
 | ANZ | Australia and New Zealand Banking Group |
+| HSBC | HSBC |
 | TCB | Taiwan Cooperative Bank |
