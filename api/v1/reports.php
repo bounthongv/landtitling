@@ -15,6 +15,7 @@ $report  = $_GET['report'] ?? 'collection';
 $format  = $_GET['format'] ?? 'json';
 $province = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
 $district = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
+$village  = isset($_GET['village_id'])  ? (int)$_GET['village_id']  : 0;
 $year     = isset($_GET['fee_year'])    ? (int)$_GET['fee_year']    : 0;
 $road     = trim((string)($_GET['road_category'] ?? ''));
 $from     = trim((string)($_GET['from'] ?? ''));
@@ -31,7 +32,7 @@ if ($scopeProvince || empty($me['is_super'])) {
 }
 
 /** Shared parcel-side filters (parcel join alias `par`). */
-function rep_parcel_filters(&$where, &$params, $district, $road, $scopeDistrict = null, $province = 0) {
+function rep_parcel_filters(&$where, &$params, $district, $road, $scopeDistrict = null, $province = 0, $village = 0) {
     // Province filter via subquery: the summary queries join `par` but not `districts`,
     // so an alias-based filter would break them.
     if ($province) {
@@ -39,6 +40,7 @@ function rep_parcel_filters(&$where, &$params, $district, $road, $scopeDistrict 
         $params[':prov'] = $province;
     }
     if ($district) { $where[] = 'par.district_id = :did';   $params[':did'] = $district; }
+    if ($village) { $where[] = 'par.village_id = :vid';     $params[':vid'] = $village; }
     // District staff are scoped to their own district regardless of the filter.
     if ($scopeDistrict !== null) {
         $where[] = 'par.district_id = :scope_did';
@@ -69,7 +71,7 @@ case 'collection': {
     // excess over both is an overpayment and shows only in collected_kip.
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province, $village);
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
     $w = $where ? ' AND ' . implode(' AND ', $where) : '';
 
@@ -142,7 +144,7 @@ case 'collection': {
 case 'arrears': {
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province, $village);
     $where[] = "o.status IN ('UNPAID','PARTIAL')";
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
     // A period here means "obligations that fell due in it". The outstanding,
@@ -192,7 +194,7 @@ case 'arrears': {
 case 'registration': {
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province, $village);
     // The period counts work the office did in it: parcels registered and, below,
     // title pages scanned.
     rep_date_range($where, $params, 'par.created_at', $from, $to);
@@ -281,6 +283,7 @@ case 'register': {
         $params[':scope_did'] = $scope['district_id'];
     }
     if ($district && $scope['district_id'] === null) { $where[] = 'p.district_id = :did'; $params[':did'] = $district; }
+    if ($village) { $where[] = 'p.village_id = :vid'; $params[':vid'] = $village; }
     if ($road !== '') { $where[] = 'p.road_category = :rc'; $params[':rc'] = $road; }
     if (($s = trim((string)($_GET['status'] ?? ''))) !== '') {
         $where[] = 'p.status = :st'; $params[':st'] = $s;
@@ -469,7 +472,7 @@ case 'audit': {
 case 'mof': {
     $where = [];
     $params = [];
-    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province);
+    rep_parcel_filters($where, $params, $district, $road, $scope['district_id'], $province, $village);
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $pen = fee_penalty_sql('o');
@@ -503,7 +506,7 @@ case 'mof': {
         $cParams = [];
         rep_date_range($cCond, $cParams, 'pay.paid_at', $from, $to);
         if ($year) { $cCond[] = 'o.fee_year = :fy'; $cParams[':fy'] = $year; }
-        rep_parcel_filters($cCond, $cParams, $district, $road, $scope['district_id'], $province);
+        rep_parcel_filters($cCond, $cParams, $district, $road, $scope['district_id'], $province, $village);
         $cw = 'WHERE ' . implode(' AND ', $cCond);
         $cStmt = $pdo->prepare("SELECT o.fee_year, d.name_lo AS district, v.name_lo AS village,
                 o.road_category, COALESCE(SUM(pay.amount),0) AS collected_kip

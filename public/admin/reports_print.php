@@ -7,7 +7,7 @@
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 
-$allowed = ['report', 'province_id', 'district_id', 'fee_year', 'road_category', 'from', 'to', 'q', 'actor', 'action_filter'];
+$allowed = ['report', 'province_id', 'district_id', 'village_id', 'fee_year', 'road_category', 'from', 'to', 'q', 'actor', 'action_filter'];
 $params = [];
 foreach ($allowed as $k) {
     if (isset($_GET[$k]) && $_GET[$k] !== '') $params[$k] = (string)$_GET[$k];
@@ -70,6 +70,15 @@ foreach ($districts as $di) {
     }
 }
 
+$villageName = '';
+$villageId = (int)($params['village_id'] ?? 0);
+if ($villageId) {
+    $villages = api_call('GET', 'villages.php?district_id=' . $scopeDistrictId, null, $_SESSION['admin_token'])['data'] ?? [];
+    foreach ($villages as $vi) {
+        if ((int)$vi['id'] === $villageId) { $villageName = (string)$vi['name_lo']; break; }
+    }
+}
+
 $filters = [];
 if ($provinceName !== '') {
     $filters[t('Province')] = $provinceName;
@@ -78,6 +87,9 @@ if ($provinceName !== '') {
 }
 if ($districtName !== '') {
     $filters[t('District')] = $districtName;
+}
+if ($villageName !== '') {
+    $filters[t('Village')] = $villageName;
 }
 if (!empty($params['fee_year']))       $filters[t('Fee year')] = $params['fee_year'];
 if (!empty($params['road_category']))  $filters[t('Road')] = t(ucfirst($params['road_category']));

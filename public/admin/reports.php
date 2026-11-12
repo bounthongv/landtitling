@@ -8,6 +8,7 @@ $token = $_SESSION['admin_token'];
 $report   = $_GET['report'] ?? 'collection';
 $province = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
 $district = isset($_GET['district_id']) ? (int)$_GET['district_id'] : 0;
+$village  = isset($_GET['village_id'])  ? (int)$_GET['village_id']  : 0;
 $fee_year = isset($_GET['fee_year']) ? (int)$_GET['fee_year'] : 0;
 $road     = $_GET['road_category'] ?? '';
 // The period picker collapses to the two dates the report API understands.
@@ -66,6 +67,7 @@ $params = ['report=' . urlencode($report)];
 $dates  = [];
 if ($effProvince && in_array($report, $parcelFilters, true)) { $params[] = 'province_id=' . $effProvince; }
 if ($district && in_array($report, $parcelFilters, true)) { $params[] = 'district_id=' . $district; }
+if ($village && in_array($report, $parcelFilters, true)) { $params[] = 'village_id=' . $village; }
 if ($fee_year && in_array($report, $yearReports, true)) { $params[] = 'fee_year=' . $fee_year; }
 if ($road !== '') { $params[] = 'road_category=' . urlencode($road); }
 if ($from && $usePeriod) { $dates[] = 'from=' . $from; }
@@ -225,6 +227,11 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
           <input type="text" value="<?= e($_SESSION['admin_user']['district_name'] ?? '') ?>" disabled>
         </div>
         <?php endif; ?>
+        <div class="form-group"><label><?= te('Village') ?></label>
+          <select name="village_id" id="f-village">
+            <option value=""><?= te('-- all --') ?></option>
+          </select>
+        </div>
         <?php endif; ?>
         <?php if (in_array($report, $yearReports, true)): ?>
         <div class="form-group"><label><?= te('Fee year') ?></label>
@@ -461,6 +468,51 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
 })();
 </script>
 <?php endif; ?>
+<script>
+// The village dropdown follows the chosen district: the villages API caps its
+// list, so we AJAX-load the selected district's villages rather than embed all
+// of them. Scoped users (no district filter) seed from their own district.
+(function () {
+  var villageSel = document.getElementById('f-village');
+  if (!villageSel) return;
+  var districtSel = document.getElementById('f-district');
+  var seedDistrict = <?= json_encode((string)($canFilterDist ? $district : $myDistrict)) ?>;
+  var apiBase = <?= json_encode($api_base ?? '') ?>;
+
+  function clearVillages(keep) {
+    villageSel.innerHTML = '<option value=""><?= e(te('-- all --')) ?></option>';
+    if (keep) villageSel.value = keep;
+  }
+
+  function loadVillages(did) {
+    if (!did) { clearVillages(''); return; }
+    clearVillages('');
+    var url = apiBase + '/villages.php?district_id=' + encodeURIComponent(did);
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) return;
+        var rows = j.data || [];
+        var cur = villageSel.value;
+        var html = '<option value=""><?= e(te('-- all --')) ?></option>';
+        for (var i = 0; i < rows.length; i++) {
+          var v = rows[i];
+          var label = v.name_lo + (v.name_en ? ' — ' + v.name_en : '');
+          html += '<option value="' + v.id + '">' + label + '</option>';
+        }
+        villageSel.innerHTML = html;
+        if (cur) villageSel.value = cur;
+      })
+      .catch(function () {});
+  }
+
+  // Initial: seed from the district already on the page.
+  loadVillages(districtSel ? districtSel.value : seedDistrict);
+  if (districtSel) {
+    districtSel.addEventListener('change', function () { loadVillages(this.value); });
+  }
+})();
+</script>
 <script>
 // Choosing a report did not apply until Run was pressed, because the filters are
 // a GET form. Meanwhile the print, PDF and CSV links were built when the page
