@@ -732,5 +732,6 @@
   "Showing the top {n} by outstanding.": "ສະແດງ {n} ອັນດັບຕົ້ນ ຕາມຍອດຄ້າງຊຳລະ.",
   "No payments yet.": "ຍັງບໍ່ມີການຊຳລະ.",
   "Managers have read-only access.": "ຜູ້ຈັດການມີສິດເຂົ້າເບິ່ງແບບອ່ານເທົ່ານັ້ນ.",
-  "Could not load the dashboard data — check the API.": "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນພາບລວມໄດ້ — ກວດສອບ API."
+  "Could not load the dashboard data — check the API.": "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນພາບລວມໄດ້ — ກວດສອບ API.",
+  "Preview & Print": "ເບິ່ງຫນ້າພິມ & ພິມ"
 }
