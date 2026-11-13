@@ -554,6 +554,31 @@ if ('serviceWorker' in navigator) {
   addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 }
 
+// Installed app (the Tax Manager TWA, or a home-screen PWA): target="_blank"
+// links (report preview/print, payment slips) open in a separate Custom Tab —
+// i.e. a second browser window, which looks like the app restarted. Inside the
+// installed app keep same-origin links in the app itself; the print pages carry
+// their own "Back to reports" link, so nothing is lost. Normal browser tabs keep
+// the new-tab behaviour.
+(function () {
+  var modes = ['standalone', 'minimal-ui', 'fullscreen'];
+  var installed = modes.some(function (m) {
+    return window.matchMedia && window.matchMedia('(display-mode: ' + m + ')').matches;
+  }) || window.navigator.standalone === true;
+  if (!installed) return;
+  function run() {
+    var links = document.querySelectorAll('a[target="_blank"]');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      try {
+        if (new URL(a.href, location.href).origin === location.origin) a.removeAttribute('target');
+      } catch (e) {}
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})();
+
 // Localize every file picker: the native caption follows the OS/browser
 // locale, so the input sits invisibly over a translated button + file name.
 (function () {
