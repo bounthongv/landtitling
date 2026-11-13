@@ -22,18 +22,20 @@ $action   = $_GET['action_filter'] ?? '';
 
 // ---- Scope ----------------------------------------------------------------
 // super admin  : every province; may filter by province and/or district
+// national mgr : every province (read-only); may filter by province and/or district
 // province user: own province only (Savannakhet for now); may filter by district
 // district user: own district only — the scope filters are hidden entirely
-$is_super   = !empty($user['is_super']);
-$level      = $user['level'] ?? 'district';
-$myDistrict = isset($user['district_id']) ? (int)$user['district_id'] : 0;
+$is_super    = !empty($user['is_super']);
+$level       = $user['level'] ?? 'district';
+$myDistrict  = isset($user['district_id']) ? (int)$user['district_id'] : 0;
 // Province-level staff are pinned to Savannakhet (id=1) until multi-province rollout.
 $myProvince     = $level === 'province' ? 1 : 0;
-$canFilterProv  = $is_super;
-$canFilterDist  = $is_super || $level === 'province';
+$canFilterProv  = $is_super || $level === 'national';
+$canFilterDist  = $is_super || $level === 'national' || $level === 'province';
 
-// Effective province for the query: super admin may pick one, province staff are pinned.
-$effProvince = $is_super ? $province : $myProvince;
+// Effective province for the query: the filters that may pick one use the pick;
+// province staff are pinned to their own.
+$effProvince = $canFilterProv ? $province : $myProvince;
 // A district pick is only meaningful for staff allowed to filter by district.
 if (!$canFilterDist) { $district = 0; }
 
