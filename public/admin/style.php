@@ -475,8 +475,6 @@
     }
     .side-nav::-webkit-scrollbar { display: none; }
     .side-nav li { margin: 0; flex: 0 0 auto; }
-    /* Manager detail screens that only make sense on a desktop sidebar. */
-    .side-nav li.nav-desktop-only { display: none; }
     .side-nav a { padding: 8px 10px; font-size: 13px; border-radius: 8px; white-space: nowrap; gap: 6px; }
     .side-nav a:hover { transform: none; }
     .side-nav .nav-icon { width: 18px; height: 18px; }
@@ -532,6 +530,14 @@
     /* iOS zooms the whole page when a focused control is under 16px. */
     input, select, textarea { font-size: 16px; }
   }
+/* Managers: Payments and Obligations are detail screens that duplicate the
+   overview and the reports. They are for the desktop sidebar only — hide them
+   on any touch device and on narrow windows (a phone in landscape is ~800-930px,
+   which is why the 720px phone block alone was not enough). A real computer
+   (wide screen, mouse) still shows them. */
+@media (max-width: 1024px), (pointer: coarse) {
+  .side-nav li.nav-desktop-only { display: none; }
+}
 </style>
 <?php
 // Managers install a second, read-only app: its own name, icon and start page,
