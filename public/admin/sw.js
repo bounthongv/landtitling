@@ -6,7 +6,7 @@
 // ever stored on the device. Everything else goes straight to the network —
 // there is no offline data entry (OCR, fee lookup and verification all need
 // the server).
-const CACHE = 'landfee-admin-v2';
+const CACHE = 'landfee-admin-v3';
 const SHELL = [
   './manifest.webmanifest',
   './manifest-manager.webmanifest',
