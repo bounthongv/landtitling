@@ -139,10 +139,14 @@ function require_staff_write(array $payload) {
  * Province staff currently serve Savannakhet only. Its numeric id differs
  * between the legacy single-province install (id 1) and the national geography
  * seed (id 13), so resolve the official province code — never a raw id.
- * District staff are already district-scoped and super admins see everything.
+ * District staff are already district-scoped; super admins and 'national'
+ * (ministry) staff see every province.
  */
 function staff_province_id(array $payload, PDO $pdo): int
 {
+    if (($payload['level'] ?? '') === 'national') {
+        return 0;
+    }
     $scope = staff_scope($payload);
     if (!empty($payload['is_super']) || $scope['district_id'] !== null) {
         return 0;

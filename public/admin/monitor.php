@@ -51,6 +51,10 @@ if (!empty($data['scope']['filtered_district']['name'])) {
     $scopeLabel = (string)$data['scope']['district_name'];
 } elseif (!empty($data['scope']['province_name'])) {
     $scopeLabel = (string)$data['scope']['province_name'];
+} else {
+    // Ministry-level managers have neither a district nor a province: the
+    // figures cover every province, so name the scope instead of leaving it blank.
+    $scopeLabel = t('Whole country');
 }
 
 $rate = (float)($k['collection_rate'] ?? 0);
@@ -123,7 +127,7 @@ addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); windo
     <?php if (!empty($data['scope']['filtered_district'])): ?>
     <p class="monitor-filter-chip">
       <span class="pill pill-confirmed"><?= te('District: {name}', ['name' => e($data['scope']['filtered_district']['name'])]) ?></span>
-      <a href="<?= e($base) ?>/monitor.php?fee_year=<?= $selectedYear ?>"><?= te('Province overview') ?></a>
+      <a href="<?= e($base) ?>/monitor.php?fee_year=<?= $selectedYear ?>"><?= te(empty($data['scope']['province_name']) ? 'Whole country' : 'Province overview') ?></a>
     </p>
     <?php endif; ?>
 

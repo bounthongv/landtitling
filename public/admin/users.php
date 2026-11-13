@@ -224,6 +224,7 @@ if ($linkingUser > 0) {
         <option value="admin"><?= te('Admin') ?></option>
       </select></div>
       <div class="form-group"><label><?= te("Level") ?></label><select name="level" autocomplete="off">
+        <option value="national"><?= te('National') ?></option>
         <option value="province"><?= te('Province') ?></option>
         <option value="district"><?= te('District') ?></option>
       </select></div>

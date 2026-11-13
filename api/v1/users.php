@@ -115,14 +115,14 @@ if ($method === 'POST' && $action === 'create') {
         json_error('Staff role must be admin, officer or manager', 400, 'invalid_role');
     }
     $level = trim((string)($body['level'] ?? 'district'));
-    if (!in_array($level, ['district', 'province'], true)) {
-        json_error('Level must be district or province', 400, 'invalid_level');
+    if (!in_array($level, ['district', 'province', 'national'], true)) {
+        json_error('Level must be district, province or national', 400, 'invalid_level');
     }
     // District-level staff may only create users in their own district.
     // Province-level staff (district_id null) may specify any district in the province.
     $districtId = null;
-    if ($level === 'province') {
-        $districtId = null; // province-level users have no district
+    if ($level === 'province' || $level === 'national') {
+        $districtId = null; // province- and national-level users have no district
     } elseif ($scope['district_id'] !== null) {
         $districtId = $scope['district_id'];
     } elseif (isset($body['district_id']) && (int)$body['district_id'] > 0) {
@@ -196,7 +196,7 @@ if ($method === 'POST' && $action === 'update') {
         $sets[] = 'district_id = :district_id';
         $params[':district_id'] = (int)$body['district_id'] > 0 ? (int)$body['district_id'] : null;
     }
-    if (array_key_exists('level', $body) && in_array($body['level'], ['district', 'province'], true)) {
+    if (array_key_exists('level', $body) && in_array($body['level'], ['district', 'province', 'national'], true)) {
         $sets[] = 'level = :level';
         $params[':level'] = $body['level'];
     }
