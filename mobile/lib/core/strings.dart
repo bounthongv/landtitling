@@ -69,7 +69,8 @@ class Strings {
     'uploadSlipHint': 'ຖ່າຍຮູບສະລິບເງິນທີ່ທ່ານໄດ້ຊຳລະໃນທະນາຄານ',
     'takePhoto': 'ຖ່າຍຮູບ',
     'chooseGallery': 'ເລືອກຈາກຄັງຮູບ',
-    'photoPermission': 'ບໍ່ສາມາດເປີດກ້ອງ ຫຼື ຮູບພາບໄດ້. ກະລຸນາອະນຸຍາດໃຫ້ແອັບເຂົ້າເຖິງກ້ອງ ແລ້ວລອງໃໝ່.',
+    'photoPermission':
+        'ບໍ່ສາມາດເປີດກ້ອງ ຫຼື ຮູບພາບໄດ້. ກະລຸນາອະນຸຍາດໃຫ້ແອັບເຂົ້າເຖິງກ້ອງ ແລ້ວລອງໃໝ່.',
     'submit': 'ສົ່ງ',
     'cancel': 'ຍົກເລີກ',
     'method': 'ວິທີຊຳລະ',
@@ -85,6 +86,8 @@ class Strings {
     'noPayments': 'ຍັງບໍ່ມີການຊຳລະ',
     'loading': 'ກຳລັງໂຫຼດ...',
     'retry': 'ລອງໃໝ່',
+    'banksError':
+        'ໂຫຼດລາຍຊື່ທະນາຄານບໍ່ໄດ້ — ກະລຸນາກວດເບິ່ງການເຊື່ອມຕໍ່ ແລ້ວລອງຄືນ',
     'refresh': 'ປັບໃໝ່',
     'statusUnpaid': 'ຍັງບໍ່ໄດ້ຊຳລະ',
     'statusPartial': 'ຊຳລະບາງສ່ວນ',
@@ -95,8 +98,7 @@ class Strings {
     'statusSubmitted': 'ສົ່ງຫຼັກຖານແລ້ວ',
     'statusRejected': 'ຖືກປະຕິເສດ',
     'sendToDistrict': 'ສົ່ງໃຫ້ເມືອງ',
-    'submittedToDistrict':
-        'ສົ່ງສະລິບໄປຍັງເມືອງແລ້ວ — ລໍຖ້າພະນັກງານກວດສອບ',
+    'submittedToDistrict': 'ສົ່ງສະລິບໄປຍັງເມືອງແລ້ວ — ລໍຖ້າພະນັກງານກວດສອບ',
     'statusPending': 'ກຳລັງກວດສອບ',
     'confirmUpload': 'ຍືນຢັນການອັບໂຫລດ',
     'openInBrowser': 'ເປີດໃນ browser',
@@ -174,6 +176,8 @@ class Strings {
     'noPayments': 'No payments yet',
     'loading': 'Loading...',
     'retry': 'Retry',
+    'banksError':
+        'Could not load the bank list. Check your connection and try again.',
     'refresh': 'Refresh',
     'statusUnpaid': 'Unpaid',
     'statusPartial': 'Partly paid',

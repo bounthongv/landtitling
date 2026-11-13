@@ -31,6 +31,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   bool _uploading = false;
   List<Bank> _banks = const [];
   String? _bankCode;
+  bool _banksLoading = true;
+  String? _banksError;
 
   @override
   void initState() {
@@ -39,21 +41,101 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   Future<void> _loadBanks() async {
+    final api = context.read<ApiClient>();
     try {
-      final api = context.read<ApiClient>();
       final data = await api.getData('banks.php');
       final raw = data['banks'];
-      if (raw is List) {
-        _banks = raw
-            .whereType<Map<String, dynamic>>()
-            .map(Bank.fromJson)
-            .toList();
-      }
+      final banks = raw is List
+          ? raw.whereType<Map<String, dynamic>>().map(Bank.fromJson).toList()
+          : <Bank>[];
+      if (!mounted) return;
+      setState(() {
+        _banks = banks;
+        _banksLoading = false;
+        // Non-fatal — the bank is optional — but an empty menu would look like
+        // a broken field, so say so and offer a retry.
+        _banksError = banks.isEmpty ? Strings.t('banksError') : null;
+      });
     } catch (_) {
-      // Non-fatal: the citizen can still upload without a bank.
-    } finally {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {
+        _banks = const [];
+        _banksLoading = false;
+        _banksError = Strings.t('banksError');
+      });
     }
+  }
+
+  void _retryBanks() {
+    setState(() {
+      _banksLoading = true;
+      _banksError = null;
+    });
+    _loadBanks();
+  }
+
+  Widget _bankPicker() {
+    if (_banksLoading) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Text(Strings.t('loading'), style: const TextStyle(fontSize: 13)),
+        ],
+      );
+    }
+    if (_banksError != null) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF6E8),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFF0C48A)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off, size: 20, color: GovColors.danger),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(_banksError!, style: const TextStyle(fontSize: 12.5)),
+            ),
+            TextButton(onPressed: _retryBanks, child: Text(Strings.t('retry'))),
+          ],
+        ),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      initialValue: _bankCode,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Bank (optional)',
+        border: OutlineInputBorder(),
+      ),
+      items: _banks
+          .map(
+            (b) => DropdownMenuItem<String>(
+              value: b.code,
+              child: Row(
+                children: [
+                  BankLogo(code: b.code),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: (v) => setState(() => _bankCode = v),
+    );
   }
 
   Future<void> _pick(ImageSource source) async {
@@ -170,34 +252,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        DropdownButtonFormField<String>(
-                          initialValue: _bankCode,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Bank (optional)',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: _banks
-                              .map(
-                                (b) => DropdownMenuItem<String>(
-                                  value: b.code,
-                                  child: Row(
-                                    children: [
-                                      BankLogo(code: b.code),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => _bankCode = v),
-                        ),
+                        _bankPicker(),
                         const SizedBox(height: 14),
                         Row(
                           children: [

@@ -40,6 +40,8 @@ class _QuoteScreenState extends State<QuoteScreen> {
   late final TextEditingController _amountController;
   List<Bank> _banks = const [];
   String? _bankCode;
+  bool _banksLoading = true;
+  String? _banksError;
 
   @override
   void initState() {
@@ -51,19 +53,101 @@ class _QuoteScreenState extends State<QuoteScreen> {
   }
 
   Future<void> _loadBanks() async {
+    final api = context.read<ApiClient>();
     try {
-      final api = context.read<ApiClient>();
       final data = await api.getData('banks.php');
       final raw = data['banks'];
-      if (raw is List) {
-        setState(() {
-          _banks = raw
-              .whereType<Map<String, dynamic>>()
-              .map(Bank.fromJson)
-              .toList();
-        });
-      }
-    } catch (_) {}
+      final banks = raw is List
+          ? raw.whereType<Map<String, dynamic>>().map(Bank.fromJson).toList()
+          : <Bank>[];
+      if (!mounted) return;
+      setState(() {
+        _banks = banks;
+        _banksLoading = false;
+        // An empty list is as unusable as a failed call: a menu with no items
+        // opens nothing, which reads as a dead field.
+        _banksError = banks.isEmpty ? Strings.t('banksError') : null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _banks = const [];
+        _banksLoading = false;
+        _banksError = Strings.t('banksError');
+      });
+    }
+  }
+
+  void _retryBanks() {
+    setState(() {
+      _banksLoading = true;
+      _banksError = null;
+    });
+    _loadBanks();
+  }
+
+  Widget _bankField() {
+    if (_banksLoading) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Text(Strings.t('loading'), style: const TextStyle(fontSize: 13)),
+        ],
+      );
+    }
+    if (_banksError != null) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF6E8),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFF0C48A)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off, size: 20, color: GovColors.danger),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(_banksError!, style: const TextStyle(fontSize: 12.5)),
+            ),
+            TextButton(onPressed: _retryBanks, child: Text(Strings.t('retry'))),
+          ],
+        ),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      initialValue: _bankCode,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        border: OutlineInputBorder(),
+        labelText: 'ເລືອກທະນາຄານ',
+      ),
+      items: _banks
+          .map(
+            (b) => DropdownMenuItem<String>(
+              value: b.code,
+              child: Row(
+                children: [
+                  BankLogo(code: b.code),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: (v) => setState(() => _bankCode = v),
+    );
   }
 
   @override
@@ -200,34 +284,7 @@ class _QuoteScreenState extends State<QuoteScreen> {
                   SectionCard(
                     title: 'ທະນາຄານ',
                     icon: Icons.account_balance,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _bankCode,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: 'ເລືອກທະນາຄານ',
-                      ),
-                      items: _banks
-                          .map(
-                            (b) => DropdownMenuItem<String>(
-                              value: b.code,
-                              child: Row(
-                                children: [
-                                  BankLogo(code: b.code),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      '${b.code} — ${Strings.isLao ? b.nameLo : b.nameEn}',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _bankCode = v),
-                    ),
+                    child: _bankField(),
                   ),
                   const SizedBox(height: 12),
                 ],
