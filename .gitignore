@@ -28,3 +28,23 @@ public/uploads
 # scratch / local test files
 tmp/
 sample land/
+
+# --- TWA (Trusted Web Activity) build artifacts ---
+# The generated Android project is rebuilt by "bubblewrap update" from
+# twa-manifest.json; only the manifest, README and the published APK are tracked.
+twa/manager/app/
+twa/manager/build/
+twa/manager/.gradle/
+twa/manager/gradle/
+twa/manager/gradlew
+twa/manager/gradlew.bat
+twa/manager/build.gradle
+twa/manager/settings.gradle
+twa/manager/gradle.properties
+twa/manager/local.properties
+twa/manager/store_icon.png
+twa/manager/manifest-checksum.txt
+twa/manager/*.apk
+twa/manager/*.aab
+twa/manager/*.keystore
+twa/manager/*.idsig

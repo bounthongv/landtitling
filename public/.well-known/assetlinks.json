@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "la.apis.landtax.manager",
+      "sha256_cert_fingerprints": [
+        "65:6B:DB:E1:E4:B9:29:15:B1:89:34:13:77:4B:01:25:46:E3:4E:95:A9:F3:25:2D:BF:F4:8F:EB:AD:AB:87:55"
+      ]
+    }
+  }
+]
