@@ -31,6 +31,18 @@ $is_manager = ($role === 'manager');
 function e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
 /**
+ * Format a numeric value with thousands separators (###,###,###).
+ * Whole numbers stay integer-formatted; values carrying a fractional part keep
+ * two decimals. Non-numeric values pass through as strings. Used for summary
+ * figures so the big totals read the same as the table cells.
+ */
+function fmt_num($v): string {
+    if (!is_numeric($v)) { return (string)$v; }
+    $f = (float)$v;
+    return fmod($f, 1.0) === 0.0 ? number_format($f, 0) : number_format($f, 2);
+}
+
+/**
  * Sidebar navigation. Basic Data is a parent with a submenu, and the current page is
  * highlighted. Only one zone-rate editor is linked: "Zone Rates" and Basic Data -> Zone
  * edit the same table, so they were pointing at different screens.

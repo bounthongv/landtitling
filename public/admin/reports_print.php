@@ -230,7 +230,7 @@ $hasSignature = count(array_filter($signLabels, fn($s) => $s !== '')) > 0;
         <?php if (is_array($v)) { continue; } ?>
         <div class="sum-item">
           <div class="sum-label"><?= e(t(ucfirst(str_replace('_', ' ', $k)))) ?></div>
-          <div class="sum-value"><?= e(is_float($v) ? number_format($v, 0) : (string)$v) ?></div>
+          <div class="sum-value"><?= e(fmt_num($v)) ?></div>
         </div>
       <?php endforeach; ?>
     </div>

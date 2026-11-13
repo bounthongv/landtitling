@@ -379,7 +379,7 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
           <?php foreach ($data['summary'] as $k => $v): ?>
             <?php if (is_array($v)) { continue; } ?>
             <div class="card"><h3><?= e(t(ucfirst(str_replace('_', ' ', $k)))) ?></h3>
-              <p class="num"><?= e(is_float($v) ? number_format($v, 0) : (string)$v) ?></p></div>
+              <p class="num"><?= e(fmt_num($v)) ?></p></div>
           <?php endforeach; ?>
         </div>
         <?php if ($report === 'registration' && !empty($data['summary']['confidence_distribution'])): ?>
