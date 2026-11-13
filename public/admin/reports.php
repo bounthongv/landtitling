@@ -269,7 +269,11 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
         <div class="form-group"><label><?= te('Actor') ?></label><input name="actor" value="<?= e($actor) ?>" placeholder="<?= te('username or id') ?>"></div>
         <div class="form-group"><label><?= te('Action') ?></label><input name="action_filter" value="<?= e($action) ?>" placeholder="<?= te('e.g. auto_match') ?>"></div>
         <?php endif; ?>
+        <?php // Every picker applies on change, so Run only exists for the two
+              // reports whose filters are typed (free text cannot self-submit). ?>
+        <?php if (in_array($report, ['register', 'audit'], true)): ?>
         <div class="form-group"><label>&nbsp;</label><button class="btn btn-green" type="submit"><?= te('Run') ?></button></div>
+        <?php endif; ?>
         </div>
 
         <div class="<?= $usePeriod ? 'per-split' : '' ?>" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
@@ -561,28 +565,31 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
 })();
 </script>
 <script>
-// Choosing a report did not apply until Run was pressed, because the filters are
-// a GET form. Meanwhile the print, PDF and CSV links were built when the page
-// loaded, so an officer who picked a report and clicked straight through got the
-// report that was open at the time — normally Collection. Applying the choice on
-// change keeps the heading, the table and every link in step with the dropdown,
-// and leaves the server deciding which filters apply to which report.
+// Every picker in the filter box applies at once: report, province, district,
+// village, fee year, road, period mode and the date boxes. The filters are a GET
+// form, so applying a choice means submitting it; leaving it unapplied made the
+// table, the heading and the print/CSV links disagree with the dropdowns until
+// Run was pressed. Only typed filters (the register search and the audit actor)
+// keep a Run button now. A reload lands at the top of the page, so the scroll
+// position is saved and restored around the submit.
 (function () {
-  var reportSel = document.querySelector('select[name="report"]');
-  if (reportSel) {
-    reportSel.addEventListener('change', function () { reportSel.form.submit(); });
+  var form = document.querySelector('.form-box form');
+  if (!form) return;
+  var KEY = 'repScrollY';
+  var saved = sessionStorage.getItem(KEY);
+  if (saved !== null) {
+    sessionStorage.removeItem(KEY);
+    window.addEventListener('load', function () { window.scrollTo(0, parseInt(saved, 10) || 0); });
   }
-})();
-
-// The same reasoning covers the period picker: a quarter or a year is a choice,
-// not text being typed, so picking one applies it at once and the table on
-// screen cannot disagree with the document being printed. The two date boxes
-// still wait for Run to redraw the table, but the links read them as typed.
-(function () {
-  var col = document.querySelector('.per-col');
-  if (!col) return;
-  col.querySelectorAll('input[type="radio"], select').forEach(function (el) {
-    el.addEventListener('change', function () { el.form.submit(); });
+  var submitted = false;
+  function run() {
+    if (submitted) return;
+    submitted = true;
+    sessionStorage.setItem(KEY, String(window.scrollY));
+    form.submit();
+  }
+  form.querySelectorAll('select, input[type="radio"], input[type="date"]').forEach(function (el) {
+    el.addEventListener('change', run);
   });
 })();
 
