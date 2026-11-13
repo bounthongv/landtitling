@@ -68,6 +68,12 @@ foreach ($aging as $a) { $maxAging = max($maxAging, (float)$a['outstanding_kip']
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= te('Overview') ?> — Land Fee MVP</title>
 <?php require __DIR__ . '/style.php'; ?>
+<script>
+// Chrome can fire this before the body script that wires the button, so the
+// event is parked here and picked up below.
+window.__installPrompt = null;
+addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__installPrompt = e; });
+</script>
 </head>
 <body>
 <div class="app">
@@ -97,6 +103,18 @@ foreach ($aging as $a) { $maxAging = max($maxAging, (float)$a['outstanding_kip']
       </form>
       <?php endif; ?>
     </div>
+
+    <section class="install-banner" id="install-banner" hidden>
+      <div class="install-text">
+        <b><?= te('Install app') ?></b>
+        <p><?= te('Open Tax Manager with one tap, like any other app on this phone.') ?></p>
+        <p id="install-hint" hidden><?= te('Tap Share, then Add to Home Screen.') ?></p>
+      </div>
+      <div class="install-actions">
+        <button class="btn btn-gold" type="button" id="install-btn" hidden><?= te('Install') ?></button>
+        <button class="btn btn-outline" type="button" id="install-close"><?= te('Not now') ?></button>
+      </div>
+    </section>
 
     <?php if ($error): ?>
       <p class="flash err"><?= e($error) ?></p>
@@ -240,5 +258,57 @@ foreach ($aging as $a) { $maxAging = max($maxAging, (float)$a['outstanding_kip']
     <?php endif; ?>
   </main>
 </div>
+<script>
+// "Install app" prompt for managers. Android/desktop Chrome fires
+// beforeinstallprompt, and the button opens that native prompt; iPhone Safari
+// has no such event, so it gets the Share > Add to Home Screen line instead.
+// Nothing shows when the app is already running from the home screen, and
+// "Not now" keeps the banner away for a month.
+(function () {
+  var banner = document.getElementById('install-banner');
+  var btn = document.getElementById('install-btn');
+  var hint = document.getElementById('install-hint');
+  var close = document.getElementById('install-close');
+  if (!banner || !btn || !hint || !close) return;
+
+  var KEY = 'landtax.install.dismissed';
+  var month = 30 * 24 * 60 * 60 * 1000;
+  try {
+    var seen = Number(localStorage.getItem(KEY) || 0);
+    if (seen && Date.now() - seen < month) return;
+  } catch (err) {}
+  if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) return;
+
+  var deferred = window.__installPrompt;
+  if (deferred) { btn.hidden = false; banner.hidden = false; }
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferred = e;
+    btn.hidden = false;
+    banner.hidden = false;
+  });
+
+  var iOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (iOS) { hint.hidden = false; banner.hidden = false; }
+
+  btn.addEventListener('click', function () {
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function (r) {
+      deferred = null;
+      btn.hidden = true;
+      if (r && r.outcome === 'accepted') banner.hidden = true;
+    });
+  });
+
+  close.addEventListener('click', function () {
+    banner.hidden = true;
+    try { localStorage.setItem(KEY, String(Date.now())); } catch (err) {}
+  });
+
+  window.addEventListener('appinstalled', function () { banner.hidden = true; });
+})();
+</script>
 </body>
 </html>

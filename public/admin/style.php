@@ -208,6 +208,11 @@
   .btn-blue:hover { background: #0d47a1; }
   .btn-red { background: #c62828; }
   .btn-red:hover { background: #9f1239; }
+  .btn-outline { background: #fff; color: var(--green); border: 1px solid var(--border); }
+  .btn-outline:hover { background: #f3f8f1; }
+  /* A class that sets display would otherwise beat the UA rule and un-hide
+     elements the page marks [hidden] until their script decides to show them. */
+  [hidden] { display: none !important; }
 
   .pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 16px; font-weight: 600; letter-spacing: 0.3px; }
   .pill-issued { background: #fff8e1; color: #f57f17; }
@@ -380,6 +385,18 @@
   }
   .monitor-section h2 { margin: 0 0 12px; font-size: 15px; font-weight: 700; }
 
+  /* "Install app" prompt on the manager overview. Hidden until the browser
+     offers an install (Android/desktop) or the phone is an iPhone, where the
+     only way is Share > Add to Home Screen. */
+  .install-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    background: #fffaf0; border: 1px solid #f0d9a0; border-left: 4px solid var(--gold);
+    border-radius: 12px; padding: 12px 16px; margin-bottom: 16px;
+  }
+  .install-banner b { color: var(--green-dark); font-size: 15px; }
+  .install-banner p { margin: 2px 0 0; font-size: 13.5px; color: var(--muted); }
+  .install-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
   .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
   .pc {
     display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
@@ -490,6 +507,8 @@
     /* Monitoring overview: two KPI columns, full-width year picker, tighter cards. */
     .monitor-year { width: 100%; justify-content: space-between; }
     .monitor-year select { flex: 1 1 auto; }
+    .install-banner { flex-direction: column; align-items: stretch; }
+    .install-actions .btn { flex: 1 1 auto; }
     .monitor-hero { padding: 18px; border-radius: 14px; }
     .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .kpi { padding: 12px; }
@@ -512,13 +531,20 @@
     input, select, textarea { font-size: 16px; }
   }
 </style>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<?php
+// Managers install a second, read-only app: its own name, icon and start page,
+// so a manager's phone shows "Tax Manager" beside the officer app instead of
+// replacing it. The manifest id keeps the two installs apart on the same origin;
+// both share this service worker (sw.js), which caches only icons and manifests.
+$managerPwa = (isset($role) && $role === 'manager');
+?>
+<link rel="manifest" href="<?= $managerPwa ? 'manifest-manager.webmanifest' : 'manifest.webmanifest' ?>">
+<link rel="icon" href="<?= $managerPwa ? 'icon-manager-192.png' : 'icon-192.png' ?>" sizes="192x192">
+<link rel="apple-touch-icon" href="<?= $managerPwa ? 'apple-touch-icon-manager.png' : 'apple-touch-icon.png' ?>">
 <meta name="theme-color" content="#1b5e20">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Land Tax">
+<meta name="apple-mobile-web-app-title" content="<?= $managerPwa ? 'Tax Manager' : 'Land Tax' ?>">
 <script>
 // Installable back-office. The worker caches only the manifest and icons; the
 // officer's authenticated pages are never stored on a shared phone (see sw.js).

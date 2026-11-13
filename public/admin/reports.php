@@ -191,6 +191,7 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
         <a class="btn btn-gold" id="rep-print-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>" target="_blank" rel="noopener"><?= te('Preview & Print') ?></a>
         <a class="btn btn-green" id="rep-pdf-link" href="<?= e($base) ?>/reports_print.php?<?= e($qsDoc) ?>&amp;auto=1" target="_blank" rel="noopener"><?= te('Download PDF') ?></a>
         <a class="btn btn-blue" id="rep-csv-link" href="<?= e($base) ?>/reports_export.php?<?= e($qsLive) ?>"><?= te('Download CSV') ?></a>
+        <button class="btn" id="rep-share-btn" type="button" hidden><?= te('Share CSV') ?></button>
       </div>
     </div>
 
@@ -637,6 +638,39 @@ $qsDoc  = $qsLive . '&' . implode('&', $sigPairs) . '&rtitle=' . urlencode($rtit
   form.addEventListener('input', refresh);
   form.addEventListener('change', refresh);
   refresh();
+})();
+
+// Phones hand the exported CSV to the native share sheet (Viber, WhatsApp,
+// email) instead of dumping it in Downloads. The fetch carries the session
+// cookie, so the file is always the report the manager is looking at. A desktop
+// browser, an unsupported share target or a failed fetch keeps the plain
+// download as the fallback — the button is only shown when sharing exists.
+(function () {
+  var btn = document.getElementById('rep-share-btn');
+  var csv = document.getElementById('rep-csv-link');
+  if (!btn || !csv || !navigator.share || typeof File === 'undefined') return;
+  var report = <?= json_encode(preg_replace('/[^a-z0-9_-]/', '', $report)) ?> || 'report';
+  var title = <?= json_encode(t('Reports')) ?>;
+  btn.hidden = false;
+  btn.addEventListener('click', async function () {
+    var href = csv.href;
+    var name = 'landtax-' + report + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+    btn.disabled = true;
+    try {
+      var res = await fetch(href, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(String(res.status));
+      var file = new File([await res.blob()], name, { type: 'text/csv' });
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        window.location.href = href;
+      } else {
+        await navigator.share({ files: [file], title: title });
+      }
+    } catch (e) {
+      if (!e || e.name !== 'AbortError') window.location.href = href;
+    } finally {
+      btn.disabled = false;
+    }
+  });
 })();
 </script>
 </body>
