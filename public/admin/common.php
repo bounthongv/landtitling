@@ -64,6 +64,9 @@ function admin_nav($role) {
     ];
 
     // Managers get a read-only monitoring home: no data-entry screens.
+    // Payments and Obligations are detail views that are redundant on a phone
+    // (the overview and reports carry the same figures), so the phone layout
+    // hides them and the desktop sidebar keeps them.
     if ($role === 'manager') {
         $items = [
             'monitor.php'     => 'Overview',
@@ -77,8 +80,12 @@ function admin_nav($role) {
             $href = $base . '/' . $file;
             if ($file === 'payments.php') { $href .= '?tab=all'; }
             $active = ($page === $file) || ($file === 'monitor.php' && $page === 'index.php');
-            $cls = $active ? ' class="active"' : '';
-            $mgrLinks[] = '<li' . $cls . '><a' . $cls . ' href="' . $href . '">' . ($icons[$file] ?? '') . '<span>' . te($label) . '</span></a></li>';
+            $liClasses = [];
+            if ($active) { $liClasses[] = 'active'; }
+            if (in_array($file, ['payments.php', 'obligations.php'], true)) { $liClasses[] = 'nav-desktop-only'; }
+            $liCls = $liClasses ? ' class="' . implode(' ', $liClasses) . '"' : '';
+            $aCls = $active ? ' class="active"' : '';
+            $mgrLinks[] = '<li' . $liCls . '><a' . $aCls . ' href="' . $href . '">' . ($icons[$file] ?? '') . '<span>' . te($label) . '</span></a></li>';
         }
         $mgrLinks[] = '<li class="logout-li"><a href="' . $base . '/logout.php"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>' . te('Logout') . '</span></a></li>';
         return '<ul class="side-nav">' . implode('', $mgrLinks) . '</ul>';

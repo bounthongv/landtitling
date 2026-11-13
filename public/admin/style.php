@@ -475,6 +475,8 @@
     }
     .side-nav::-webkit-scrollbar { display: none; }
     .side-nav li { margin: 0; flex: 0 0 auto; }
+    /* Manager detail screens that only make sense on a desktop sidebar. */
+    .side-nav li.nav-desktop-only { display: none; }
     .side-nav a { padding: 8px 10px; font-size: 13px; border-radius: 8px; white-space: nowrap; gap: 6px; }
     .side-nav a:hover { transform: none; }
     .side-nav .nav-icon { width: 18px; height: 18px; }
