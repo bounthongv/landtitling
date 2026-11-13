@@ -144,10 +144,10 @@ case 'arrears': {
     rep_parcel_filters($where, $params, $district, $road, $province, $village);
     $where[] = "o.status IN ('UNPAID','PARTIAL')";
     if ($year) { $where[] = 'o.fee_year = :fy'; $params[':fy'] = $year; }
-    // A period here means "obligations that fell due in it". The outstanding,
-    // days-overdue, bucket and years-behind columns are still today's snapshot,
-    // because an arrears position is a question about now, not about March.
-    rep_date_range($where, $params, 'o.due_date', $from, $to);
+    // Arrears is a "who owes now" snapshot: every unpaid/partial obligation is
+    // listed regardless of when it fell due, so no date range is applied here.
+    // (A period used to filter on o.due_date, which hid real debts whose due
+    // date sat outside the picked window.)
     // No filter at all (e.g. super admin, nothing selected) must not emit a bare WHERE.
     $w = $where ? 'WHERE ' . implode(' AND ', $where) : '';
     $pen = fee_penalty_sql('o');

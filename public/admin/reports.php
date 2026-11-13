@@ -39,16 +39,17 @@ $effProvince = $canFilterProv ? $province : $myProvince;
 // A district pick is only meaningful for staff allowed to filter by district.
 if (!$canFilterDist) { $district = 0; }
 
-// Reports that ignore the date range / that only make sense for certain filters.
-// Only the rate schedule stays out: it is a table of legal values rather than
-// events, it holds one version per zone and road so there is no rate history to
-// look back at, and a schedule is read as at a date, not between two of them.
-$dateReports   = ['collection', 'arrears', 'registration', 'register', 'bank', 'audit', 'mof'];
+// Reports that read a date range. Arrears & aging is a "who owes now" snapshot
+// (no period applied — a due-date filter once hid real debts), so it stays out.
+// Only the rate schedule also stays out: it is a table of legal values rather
+// than events, it holds one version per zone and road so there is no rate
+// history to look back at, and a schedule is read as at a date, not between
+// two of them.
+$dateReports   = ['collection', 'registration', 'register', 'bank', 'audit', 'mof'];
 // What the picked period actually selects, because the same picker means
 // different things on different screens and a wrong reading costs a signature.
 $periodMeaning = [
     'collection'   => t('Payments received in the period'),
-    'arrears'      => t('Obligations falling due in the period; balances stay as of today'),
     'registration' => t('Parcels registered and title pages scanned in the period'),
     'register'     => t('Titles issued in the period; parcels with no issue date are not listed'),
     'bank'         => t('Statement rows and the payments they settle, in the period'),
