@@ -20,8 +20,15 @@ $agentVillageId  = (int)$agent['agent_village_id'];
 $agentDistrictId = (int)$agent['agent_district_id'];
 $agentRole       = $agent['agent_role'] ?? 'agent';
 
-if ($agentVillageId <= 0) {
-    json_error('Agent account has no village assigned', 409, 'agent_unscoped');
+// The village is the agent's home label (kept on the batch for reporting);
+// the working scope is the district. Older accounts derive it from the village.
+if ($agentDistrictId <= 0 && $agentVillageId > 0) {
+    $st2 = $pdo->prepare("SELECT district_id FROM villages WHERE id = :vid");
+    $st2->execute([':vid' => $agentVillageId]);
+    $agentDistrictId = (int)$st2->fetchColumn();
+}
+if ($agentVillageId <= 0 && $agentDistrictId <= 0) {
+    json_error('Agent account has no village or district assigned', 409, 'agent_unscoped');
 }
 
 /**
@@ -159,7 +166,7 @@ if ($method === 'POST') {
             RETURNING id");
         $st->execute([
             ':aid'  => $meId,
-            ':vid'  => $agentVillageId,
+            ':vid'  => $agentVillageId > 0 ? $agentVillageId : null,
             ':amt'  => $amountTotal,
             ':cnt'  => $paymentCount,
             ':bref' => $batchRef,

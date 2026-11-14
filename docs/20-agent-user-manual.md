@@ -18,7 +18,8 @@ appear on screen.
 - You get a **username + password**. Test account: `demo_agent` / `demo1234`
   (village ນ້ຳອ່າງ, district ທຸລະຄົມ, Vientiane).
 - The app must be online (MVP is online-only; no offline queue yet).
-- You can only collect for **your assigned village** — the server enforces it.
+- You can collect for **any parcel in your district** — the server enforces
+  the district boundary. Your assigned village is just your home label.
 
 ## 2. Sign in
 
@@ -30,13 +31,13 @@ appear on screen.
      `ບັນຊີນີ້ບໍ່ແມ່ນຜູ້ບໍລິການເກັບເງິນ` — ask your district admin.
 
 You land on the **collector dashboard** — `ໜ້າຜູ້ບໍລິການເກັບເງິນ`, with your
-village name under the title.
+home village name under the title.
 
 ## 3. Collect cash
 
-1. The dashboard lists every **unpaid land-fee obligation in your village**
-   (current year): parcel card with owner, phone, village/district, outstanding
-   amount, penalty (red, when overdue) and days overdue.
+1. The dashboard lists every **unpaid land-fee obligation in your district**
+   (current year, any village): parcel card with owner, phone, village/district,
+   outstanding amount, penalty (red, when overdue) and days overdue.
    - Empty list = `ບໍ່ມີຕອນດິນທີ່ຕ້ອງເກັບເງິນ` (pull to refresh).
 2. Tap **Collect cash** — `ເກັບເງິນສົດ` on the parcel card.
 3. On **Record a cash payment** (`ບັນທຶກການເກັບເງິນສົດ`) verify and fill:
@@ -99,7 +100,7 @@ same receipt. No action needed from them.
 
 | Situation | What it means |
 |---|---|
-| Parcel not in your list | Paid, waived, or not in your village |
+| Parcel not in your list | Paid, waived, or outside your district |
 | "Already collected" error | Another agent has an open collection for that parcel |
 | Amount smaller than expected | Officer waived/reduced the late surcharge — the app prices it in |
 | Batch `ຖືກປະຕິເສດ` | Cash disputed — the payments are back in your pending tab; re-hand them over with the officer's notes in mind |

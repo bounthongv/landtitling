@@ -1,5 +1,7 @@
 <?php
-// API v1: agent/obligations.php — list payable obligations in agent's village
+// API v1: agent/obligations.php — list payable obligations in the agent's district
+// (the agent's assigned village is their home/label only; collections may cover
+// any parcel in the district — docs/19 §"District scope").
 require_once __DIR__ . '/../../../lib/db.php';
 require_once __DIR__ . '/../../../lib/auth.php';
 require_once __DIR__ . '/../../../lib/fee.php';
@@ -20,8 +22,16 @@ $agentVillageId  = (int)$agent['agent_village_id'];
 $agentDistrictId = (int)$agent['agent_district_id'];
 $agentRole       = $agent['agent_role'] ?? 'agent';
 
-if ($agentVillageId <= 0) {
-    json_error('Agent account has no village assigned', 409, 'agent_unscoped');
+// The collection scope is the DISTRICT: any parcel in it, any village.
+// The village is the agent's home label only. When the account predates the
+// district field, derive it from the village.
+if ($agentDistrictId <= 0 && $agentVillageId > 0) {
+    $st = $pdo->prepare("SELECT district_id FROM villages WHERE id = :vid");
+    $st->execute([':vid' => $agentVillageId]);
+    $agentDistrictId = (int)$st->fetchColumn();
+}
+if ($agentDistrictId <= 0) {
+    json_error('Agent account has no district assigned', 409, 'agent_unscoped');
 }
 
 if ($method === 'GET') {
@@ -31,8 +41,9 @@ if ($method === 'GET') {
     $limit   = min(100, max(1, (int)($_GET['limit'] ?? 50)));
     $offset  = ($page - 1) * $limit;
 
-    $where  = ['o.fee_year = :fy', 'p.village_id = :vid'];
-    $params = [':fy' => $feeYear, ':vid' => $agentVillageId];
+    // District-wide: every payable obligation in the agent's district.
+    $where  = ['o.fee_year = :fy', 'p.district_id = :did'];
+    $params = [':fy' => $feeYear, ':did' => $agentDistrictId];
 
     // An explicit status wins; otherwise default to what can still be collected.
     $payable = ['UNPAID', 'PARTIAL', 'PAID', 'OVERPAID', 'WAIVED', 'REFUNDED', 'DISPUTED'];
@@ -41,13 +52,6 @@ if ($method === 'GET') {
         $params[':st'] = $status;
     } else {
         $where[] = "o.status IN ('UNPAID','PARTIAL')";
-    }
-
-    // Belt and braces: the village already pins the district, but the account
-    // scope is authoritative if the village is ever re-assigned.
-    if ($agentDistrictId > 0) {
-        $where[] = 'p.district_id = :did';
-        $params[':did'] = $agentDistrictId;
     }
 
     if (!empty($_GET['overdue'])) {

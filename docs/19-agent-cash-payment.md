@@ -24,8 +24,8 @@ Enable **community agents** (village heads, secretaries, trusted locals) to coll
 | Column | Type | Purpose |
 |--------|------|---------|
 | `is_agent` | boolean default false | Flag agent accounts |
-| `agent_village_id` | FK → `villages.id` | Scope agent to single village |
-| `agent_district_id` | FK → `districts.id` | District for handover routing |
+| `agent_village_id` | FK → `villages.id` | Agent's **home village** (label/reporting; collections are district-wide) |
+| `agent_district_id` | FK → `districts.id` | District scope: the agent may collect for **any parcel in this district** |
 | `agent_license_no` | varchar | Optional license/ID for agent |
 
 ### New table: `agent_handovers`
@@ -60,7 +60,7 @@ Enable **community agents** (village heads, secretaries, trusted locals) to coll
 2. Agent logs in, sees **"Agent Mode"** toggle in profile
 
 ### B. Citizen Payment via Agent (core flow)
-1. Agent opens app → **Agent Mode** dashboard (list of pending obligations in their village)
+1. Agent opens app → **Agent Mode** dashboard (list of pending obligations in their district)
 2. Tap parcel → shows citizen name, amount due
 3. **Collect Cash** screen:
    - Pre-filled: parcel, amount, citizen (from obligation)
@@ -142,7 +142,7 @@ Enable **community agents** (village heads, secretaries, trusted locals) to coll
 
 ## 4. Security & Audit
 
-- **Agent scope**: API enforces `agent_village_id` — agent only sees their village's parcels
+- **Agent scope**: API enforces the agent's **district** (`agent_district_id`) — the agent may collect for any parcel in that district (the assigned village is the home label, not a restriction)
 - **Idempotency**: `collect` uses parcel+year+agent unique constraint (prevents double-collect)
 - **Immutable receipt**: receipt HTML/PDF generated server-side, stored in `payment_receipts` table
 - **Cash trail**: every cash payment has `collected_at` (agent) + `handed_over_at` (officer) + `verified_at`
@@ -155,7 +155,7 @@ Enable **community agents** (village heads, secretaries, trusted locals) to coll
 
 ### Agent Dashboard (`lib/screens/agent/dashboard_screen.dart`)
 - Village name badge, stats cards (pending, collected this month, awaiting handover)
-- List of parcels with "Collect" button (filter: current year, unpaid, in agent's village)
+- List of parcels with "Collect" button (filter: current year, unpaid, in agent's district)
 
 ### Collect Cash Form (`lib/screens/agent/collect_cash_screen.dart`)
 - Pre-filled obligation card (parcel no, owner, amount, due date)
@@ -195,9 +195,9 @@ Enable **community agents** (village heads, secretaries, trusted locals) to coll
 
 | Phase | Scope |
 |-------|-------|
-| **1. MVP** | Agent collect → SUBMITTED → officer verify → PAID (online only, single village per agent) |
+| **1. MVP** | Agent collect → SUBMITTED → officer verify → PAID (online only, **one district per agent** — collects for any parcel in the district) |
 | **2. Offline Queue** | Local SQLite queue, background sync when connectivity returns |
-| **3. Multi-village Agents** | Agent can cover multiple villages (district-level agent) |
+| **3. Multi-district / Provincial Agents** | Agent covers more than one district |
 | **4. Commission/Incentive** | Track agent collection volume for performance |
 
 ---
@@ -232,7 +232,7 @@ Create `sql/migrations/020_agent_cash_payment.sql` with:
 Follows existing patterns in `docs/9-citizen-app-api-contract.md`:
 - Envelope responses: `{ ok: true, data: {...}, error: null }` (`json_ok` / `json_error`)
 - Auth: `Authorization: Bearer <jwt>` (agent uses officer JWT)
-- Error codes: `not_agent`, `agent_unscoped`, `obligation_not_in_village`, `obligation_not_in_district`, `already_collected`, `invalid_payment_selection`, `bad_state`
+- Error codes: `not_agent`, `agent_unscoped`, `obligation_not_in_district`, `already_collected`, `invalid_payment_selection`, `bad_state`
 
 **No URL router exists.** Apache serves the `.php` files directly, so path-style URLs such as `/api/v1/agent/receipt/123` return 404. Every endpoint uses a query string, like `payments.php?id=N&slip=1`:
 
@@ -273,7 +273,7 @@ Not done yet (phase 2): cash photo/ID photo upload, commission tracking, thermal
 ## 11. Testing Checklist (Manual)
 
 - [ ] District admin creates agent account → agent logs in, sees Agent Mode
-- [ ] Agent dashboard shows only their village's unpaid obligations
+- [ ] Agent dashboard shows their district's unpaid obligations (all villages)
 - [ ] Collect cash form pre-fills correctly, allows payer override
 - [ ] Submission creates payment with `payment_method=cash_agent`, status=SUBMITTED
 - [ ] Receipt generated, contains all required fields, shareable

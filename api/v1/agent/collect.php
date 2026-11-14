@@ -27,6 +27,18 @@ $agentDistrictId = (int)$agent['agent_district_id'];
 $agentRole = $agent['agent_role'] ?? 'agent';
 $agentLicenseNo = $agent['agent_license_no'] ?? '';
 
+// District scope: the agent may collect for any parcel in their district.
+// The assigned village is the home label only. Older accounts without the
+// district field derive it from the village.
+if ($agentDistrictId <= 0 && $agentVillageId > 0) {
+    $st2 = $pdo->prepare("SELECT district_id FROM villages WHERE id = :vid");
+    $st2->execute([':vid' => $agentVillageId]);
+    $agentDistrictId = (int)$st2->fetchColumn();
+}
+if ($agentDistrictId <= 0) {
+    json_error('Agent account has no district assigned', 409, 'agent_unscoped');
+}
+
 $body = read_json_body();
 
 // Required fields
@@ -92,11 +104,9 @@ if (!$ob) {
     json_error('Obligation not found', 404, 'obligation_not_found');
 }
 
-// Check agent scope
-if ((int)$ob['village_id'] !== $agentVillageId) {
-    json_error('Obligation not in your assigned village', 403, 'obligation_not_in_village');
-}
-if ($agentDistrictId && (int)$ob['district_id'] !== $agentDistrictId) {
+// Check agent scope — the collection covers the whole district, so only the
+// district must match; the agent's home village is not a restriction.
+if ((int)$ob['district_id'] !== $agentDistrictId) {
     json_error('Obligation not in your assigned district', 403, 'obligation_not_in_district');
 }
 
