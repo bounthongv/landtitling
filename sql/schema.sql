@@ -422,6 +422,17 @@ CREATE TABLE bank_imports (
     FOREIGN KEY (imported_by) REFERENCES users(id)
 );
 
+-- banks must exist before payments, whose FK references banks.code.
+CREATE TABLE banks (
+  code       VARCHAR(20) PRIMARY KEY,
+  name_lo    VARCHAR(120) NOT NULL,
+  name_en    VARCHAR(120) NOT NULL,
+  logo_path  VARCHAR(255),
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE payments (
   id SERIAL PRIMARY KEY,
   obligation_id INT,
@@ -461,16 +472,6 @@ CREATE TABLE payments (
 
 CREATE INDEX idx_payments_status ON payments (status);
 CREATE INDEX idx_payments_year ON payments (fee_year);
-
-CREATE TABLE banks (
-  code       VARCHAR(20) PRIMARY KEY,
-  name_lo    VARCHAR(120) NOT NULL,
-  name_en    VARCHAR(120) NOT NULL,
-  logo_path  VARCHAR(255),
-  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
-  sort_order INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE TABLE bank_transactions (
   id SERIAL PRIMARY KEY,
