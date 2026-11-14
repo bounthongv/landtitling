@@ -86,8 +86,11 @@ parcel registered today is billed tonight without anyone clicking anything. The
 | **super admin** | — | everything, every district | — |
 
 Managers and province staff who sign in land on a read-only **Overview**
-(*monitor.php*). Their sidebar has no data-entry screens at all, so a wrong role
-is obvious immediately rather than at the first refused save.
+(*monitor.php*). A manager's sidebar then shows **every** officer screen
+(Dashboard, Basic Data, Parcel Entry, Parcels, Obligations, Payment Verify,
+Bank Import, Reports, Users), all read-only: the write buttons are hidden, the
+page refuses a manager POST, and the API refuses manager writes. Province
+officers keep the write screens they are entitled to.
 
 ## 1.4 Signing in
 
@@ -542,7 +545,9 @@ decision by the officer. Unmapped villages are the usual reason a parcel quotes
 
 ## 2.15 Users (administration)
 
-Admin only. Officers cannot open this page.
+Every staff role can open the lists; **writes are admin-only**. A manager sees
+the staff and citizen lists read-only (no Add/Edit, and a manager POST is
+refused). Officers can view the lists and link a citizen to an owner.
 
 - **Create staff** — username, password, role, level (district or province),
   district.
@@ -567,8 +572,10 @@ collected, what is still owed, which receipts are waiting for an officer, and
 how much land the office covers. Every figure is scoped to the manager's
 district, or the whole province for a province manager.
 
-Managers are redirected away from data-entry screens, so there is no risk of a
-manager half-entering a parcel.
+A manager can open every officer screen from the sidebar to check how the
+office works, but the screens are read-only: no Save/Add/Edit/Verify/Delete
+control is shown, the entry form is disabled, and the server refuses a manager
+POST as a second layer. There is no risk of a manager half-entering a parcel.
 
 ---
 

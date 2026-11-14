@@ -25,6 +25,9 @@ They are the foundation everything else runs on.
 The admin maintains the province's reference data here. Deleting a row that is still referenced
 is refused with a message naming the counts (not a raw FK error).
 
+Managers (any level) can open every tab **read-only** — the write buttons are hidden, a manager
+POST returns 403, and the API write endpoints stay admin-only. Officers cannot open this page.
+
 | Lookup | What the admin can do |
 |--------|-----------------------|
 | **Province** | Add/edit the province name (currently single-province: Savannakhet) |
@@ -51,7 +54,9 @@ Maintained via `api/v1/refdata.php` (whitelisted table names — never interpola
 
 ## 3. User Management (`users.php`) — ✅ implemented, live
 
-Admin-only (role `admin`). An officer role cannot open this page (403).
+The list is visible to every staff role (admin, officer, manager); **writes are
+admin-only**. A manager sees the staff/citizen lists but no Add/Edit button, and a
+manager POST returns 403.
 
 | Action | Notes |
 |--------|-------|
@@ -67,7 +72,7 @@ Admin-only (role `admin`). An officer role cannot open this page (403).
 - Candidate-owner search matches owner name, ID number, phone **and parcel number** (officers usually know the parcel).
 
 ### Backing table: `users`
-Maintained via `api/v1/users.php` (admin-only).
+Maintained via `api/v1/users.php` (reads for all staff roles; writes admin-only).
 
 ---
 

@@ -567,7 +567,8 @@ and revises them through Basic Data; nothing here should be read as an approved 
   fee years. `api/v1/refdata.php` handles the lookup tables with an explicit whitelist (table names
   are never interpolated from the request). Deletes that are still referenced are refused with the
   usage counts rather than a raw FK error.
-- **G3 — User management.** `api/v1/users.php` + `public/admin/users.php` (admin-only): create/edit
+- **G3 — User management.** `api/v1/users.php` + `public/admin/users.php` (writes admin-only; every
+  staff role sees the lists, managers read-only): create/edit
   staff, reset passwords, activate/deactivate, and link a citizen login to an owner record
   (`owners.citizen_user_id`) — the link without which a citizen sees nothing. Guards: an admin cannot
   deactivate their own account, and the last active admin cannot be demoted or disabled.
@@ -576,8 +577,9 @@ and revises them through Basic Data; nothing here should be read as an approved 
 - **Verified:** fresh `schema.sql` + seed (15 districts / 1,029 villages / 60 rates, idempotent);
   the real server upgrade path v1 → 001 → 002 with existing districts, villages and a user preserved;
   email OTP login end-to-end; CRUD and in-use refusals for all four lookup tables, districts and
-  villages; staff create/reset/deactivate + last-admin and role guards; officer is refused (403) on
-  both admin pages; link citizen → owner → citizen sees their parcel.
+  villages; staff create/reset/deactivate + last-admin and role guards; an officer is refused (403)
+  on Basic Data and a manager POST is refused (403) on both pages; link citizen → owner → citizen
+  sees their parcel.
 - **Seed caveat:** the province insert is `DO NOTHING` so an admin rename survives re-seeding, but the
   seed still truncates and reloads districts/villages, which does overwrite edits to those names.
 

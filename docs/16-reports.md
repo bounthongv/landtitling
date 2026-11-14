@@ -23,6 +23,11 @@ the picker by what they are for:
 - **Report ids never change.** The picker label can be translated or renamed
   (e.g. `registration` is shown as "Data entry progress"); the id and filters
   stay the same, so links keep working.
+- **Screen and print are localized.** Column headers, group labels and summary
+  card titles are translated through `lang/lo.json` (Lao is the default; a
+  missing key falls back to the English text). Add a new report column's label
+  to `lang/lo.json` or it will show in English. The CSV export keeps the API's
+  English column names so spreadsheet scripts stay stable.
 - **Filters adapt to the report.** Province and district appear only for the
   parcel-based reports; road appears for all of those except the register;
   From/To appear for Collection and Audit trail; Actor/Action for Audit trail;

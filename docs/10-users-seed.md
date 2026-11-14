@@ -46,7 +46,7 @@ Level `province` (no district) — see all records in the province; only the adm
 
 ## Manager landing page
 
-Manager accounts sign in to the read-only **Overview** (`/admin/monitor.php`) — collection progress, receipt status, land area and arrears, scoped to the manager's district (or the whole province for province managers). Data entry stays with district admin/officer accounts, and manager sessions are redirected away from the data-entry screens.
+Manager accounts sign in to the read-only **Overview** (`/admin/monitor.php`) — collection progress, receipt status, land area and arrears, scoped to the manager's district (or the whole province for province managers). Below Overview they get the **full officer menu** (Dashboard, Basic Data, Parcel Entry, Parcels, Obligations, Payment Verify, Bank Import, Reports, Users) so they can inspect any screen, but every screen is read-only: write controls are hidden, the page handlers refuse manager POSTs, and `api/v1` refuses every manager write. Data entry stays with district admin/officer accounts.
 
 ## Permission summary
 

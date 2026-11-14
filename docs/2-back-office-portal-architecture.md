@@ -175,7 +175,8 @@ PUT    /api/v1/officer/requests/:id/assign   # Assign to officer
 
 - **Data residency:** All data in Laos/approved region
 - **Audit trail:** All actions logged (who, what, when)
-- **Access control:** Role-based (Citizen, Officer, Admin, Auditor)
+- **Access control:** Role-based (Citizen, Officer, Manager, Admin); managers are read-only at
+  every level (`district` / `province` / `national`) and see the same screens as officers
 - **PII protection:** National ID encrypted at rest; minimal storage
 - **OCR/ID verification:** Future: integrate with national ID system
 
