@@ -905,12 +905,40 @@ if ($editId > 0) {
   </main>
 </div>
 
+<?php
+// The JSON API answers in English (it is shared with the mobile app), so the
+// validation messages this form can surface are translated here before they reach
+// the red box. Keys ending in ': ' are prefixes with a value appended (zone code).
+$apiErrorKeys = [
+    'parcel no is required',
+    'district is required',
+    'village is required',
+    'area is required',
+    'area must be a positive number',
+    'area must be a non-negative number',
+    'valuation zone is required',
+    'road access is required',
+    'road access must be one of: main, branch, alley, none',
+    'district must be an integer',
+    'village must be an integer',
+    'Village does not belong to selected district',
+    'Valuation zone does not match the village mapping',
+    'Valuation zone does not belong to the selected district',
+    'Valuation zone not found or inactive: ',
+    'A parcel with this number already exists on this map sheet',
+    'You can only manage parcels in your own district',
+    'Failed to save parcel: ',
+];
+$apiErrorMap = [];
+foreach ($apiErrorKeys as $k) { $apiErrorMap[$k] = t($k); }
+?>
 <script>
 const TOKEN = '<?= e($token) ?>';
 const I18N = <?= json_encode([
   'select'        => t('-- select --'),
   'savedId'       => t('Parcel saved — ID {id}'),
   'saveFailed'    => t('Save failed'),
+  'errMap'        => $apiErrorMap,
   'importFailed'  => t('Import failed'),
   'chooseFile'    => t('Choose a file first.'),
   'taxEstimate'   => t('Estimated tax'),
@@ -931,6 +959,17 @@ const EDIT_MODE = !!EDIT_PARCEL;
 
 /* ---------- helpers ---------- */
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+// Translate an API validation message (English) for the current UI language.
+// Unknown messages fall through unchanged, and ': '-suffixed keys keep their value.
+function errText(m) {
+  m = String(m ?? '');
+  const map = I18N.errMap || {};
+  if (map[m]) return map[m];
+  for (const k in map) {
+    if (k.slice(-2) === ': ' && m.indexOf(k) === 0) return map[k] + m.slice(k.length);
+  }
+  return m;
+}
 function v(name) {
   const el = document.querySelector('[name="' + name + '"]');
   return el ? el.value.trim() : '';
@@ -1298,8 +1337,8 @@ document.getElementById('parcel-form').addEventListener('submit', async (e) => {
     box.className = 'preview-box err';
     box.style.display = 'block';
     const msg = result.error && result.error.fields
-          ? Object.values(result.error.fields).join('; ')
-          : ((result.error && result.error.message) || I18N.saveFailed);
+          ? Object.values(result.error.fields).map(errText).join('; ')
+          : errText((result.error && result.error.message) || I18N.saveFailed);
     box.textContent = msg;
   }
 });
@@ -1331,7 +1370,7 @@ document.getElementById('do-import').addEventListener('click', async () => {
   });
   const j = await res.json();
   box.style.display = 'block';
-  if (!j.ok) { box.className = 'preview-box err'; box.textContent = (j.error && j.error.message) || I18N.importFailed; return; }
+    if (!j.ok) { box.className = 'preview-box err'; box.textContent = errText((j.error && j.error.message) || I18N.importFailed); return; }
   const d = j.data;
   box.className = 'preview-box ok';
   let html = '<strong>' + d.created + ' created, ' + d.errors + ' error(s) of ' + d.total + ' row(s)</strong>';
