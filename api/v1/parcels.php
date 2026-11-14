@@ -293,25 +293,47 @@ if ($method === 'POST') {
     // Officers may only create as draft or confirmed; other lifecycle states
     // (active, archived, scanned) are set elsewhere, not on entry.
     if (!in_array($status, ['draft', 'confirmed'], true)) { $status = 'confirmed'; }
+    $isDraft = ($status === 'draft');
     
     // Validation
     $districtId = (int)$district;
     $villageId = (int)$village;
 
     // Valuation zone: an explicit zone wins, otherwise the parcel's village decides
-    // it (villages.zone_id). Never left empty — an empty zone would be billed
-    // against the fee layer's placeholder fallback zone.
+    // it (villages.zone_id). A confirmed parcel is never left empty — an empty zone
+    // would be billed against the fee layer's placeholder fallback zone. A draft may
+    // keep it empty: that is exactly the case where the village is not mapped to a
+    // zone yet and the officer still needs to save the half-entered parcel.
     $zone = parcel_zone_for($pdo, $villageId, $zone);
 
+    // Three columns are NOT NULL in the schema (parcel_no, district_id, village_id)
+    // and the registry list inner-joins district/village, so a saved row always needs
+    // that location. A draft requires only those; area, valuation zone, road access
+    // and the title/owner fields can be filled in later. A confirmed parcel still
+    // needs the full billable set.
     $errors = collect_errors([
         'parcel_no' => validate_required($parcelNo, 'parcel no'),
-        'area_sqm' => validate_required($area, 'area') ?: validate_positive($area, 'area'),
         'district_id' => validate_required($district, 'district') ?: validate_int($district, 'district'),
         'village_id' => validate_required($village, 'village') ?: validate_int($village, 'village'),
-        'zone_code' => validate_required($zone, 'valuation zone'),
-        'road_category' => validate_required($road, 'road access')
-            ?: validate_enum($road, ['main', 'branch', 'alley', 'none'], 'road access'),
     ]);
+    if ($isDraft) {
+        // Values that ARE supplied must still be sane, but nothing else is required.
+        if ($road !== null) {
+            $errors += collect_errors([
+                'road_category' => validate_enum($road, ['main', 'branch', 'alley', 'none'], 'road access'),
+            ]);
+        }
+        if (trim((string)$area) !== '' && (!is_numeric($area) || (float)$area < 0)) {
+            $errors['area_sqm'] = 'area must be a non-negative number';
+        }
+    } else {
+        $errors += collect_errors([
+            'area_sqm' => validate_required($area, 'area') ?: validate_positive($area, 'area'),
+            'zone_code' => validate_required($zone, 'valuation zone'),
+            'road_category' => validate_required($road, 'road access')
+                ?: validate_enum($road, ['main', 'branch', 'alley', 'none'], 'road access'),
+        ]);
+    }
     reject_on_errors($errors);
     
     // Check district staff scope
@@ -320,23 +342,27 @@ if ($method === 'POST') {
     }
     
     // Check village belongs to district, and that a mapped village is billed
-    // against its own valuation zone (villages.zone_id).
+    // against its own valuation zone (villages.zone_id). The zone/village agreement
+    // is only enforced on confirm: a draft is provisional and may be corrected later.
     $st = $pdo->prepare("SELECT zone_id FROM villages WHERE id = :id AND district_id = :did");
     $st->execute([':id' => $villageId, ':did' => $districtId]);
     $villageRow = $st->fetch();
     if (!$villageRow) { json_error('Village does not belong to selected district', 422, 'bad_village'); }
     $villageZone = strtoupper(trim((string)($villageRow['zone_id'] ?? '')));
-    if ($villageZone !== '' && $villageZone !== $zone) {
+    if (!$isDraft && $villageZone !== '' && $villageZone !== $zone) {
         json_error('Valuation zone does not match the village mapping', 422, 'zone_village_mismatch');
     }
 
-    // Check the valuation zone exists, is active, and belongs to this district.
-    $st = $pdo->prepare("SELECT district_id FROM zones WHERE code = :zc AND is_active = TRUE");
-    $st->execute([':zc' => $zone]);
-    $zoneRow = $st->fetch();
-    if (!$zoneRow) { json_error('Valuation zone not found or inactive: ' . $zone, 422, 'bad_zone'); }
-    if ($zoneRow['district_id'] !== null && (int)$zoneRow['district_id'] !== $districtId) {
-        json_error('Valuation zone does not belong to the selected district', 422, 'zone_district_mismatch');
+    // A supplied (or village-mapped) valuation zone must exist, be active, and
+    // belong to this district. Skipped entirely when a draft carries no zone yet.
+    if ($zone !== null) {
+        $st = $pdo->prepare("SELECT district_id FROM zones WHERE code = :zc AND is_active = TRUE");
+        $st->execute([':zc' => $zone]);
+        $zoneRow = $st->fetch();
+        if (!$zoneRow) { json_error('Valuation zone not found or inactive: ' . $zone, 422, 'bad_zone'); }
+        if ($zoneRow['district_id'] !== null && (int)$zoneRow['district_id'] !== $districtId) {
+            json_error('Valuation zone does not belong to the selected district', 422, 'zone_district_mismatch');
+        }
     }
     
     // Check if parcel exists (update mode)

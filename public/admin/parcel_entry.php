@@ -426,7 +426,8 @@ if ($editId > 0) {
   .zone-warn { display: none; margin-top: 6px; font-size: 14px; font-weight: 600; color: #b71c1c; }
   .zone-warn.show { display: block; }
 
-  .form-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  .form-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
+  .draft-hint { flex-basis: 100%; font-size: 13px; color: var(--muted); }
   .preview-box { padding: 10px 12px; margin-top: 14px; font-size: 16px; border-radius: 4px; background: #fafafa; border: 1px solid #ddd; }
   .preview-box.ok { background: #eaf4ea; border-color: #2e7d32; }
   .preview-box.err { background: #fdecea; border-color: #c62828; }
@@ -624,9 +625,13 @@ if ($editId > 0) {
           </div>
 
           <div class="form-actions">
-            <button type="submit" name="save_action" value="draft" class="btn btn-gold"><?= te('Save as Draft') ?></button>
+            <!-- formnovalidate: a draft may be saved half-finished (only district,
+                 village and parcel no. are needed); Confirm still enforces the
+                 browser's required fields and the API's full billable set. -->
+            <button type="submit" name="save_action" value="draft" class="btn btn-gold" formnovalidate><?= te('Save as Draft') ?></button>
             <button type="submit" name="save_action" value="confirm" class="btn btn-green"><?= te('Save and Confirm') ?></button>
             <button type="button" class="btn btn-red" id="clear-form"><?= te('Clear') ?></button>
+            <div class="draft-hint"><?= te('A draft needs only district, village and parcel no. — fill in the rest (including the valuation zone) later.') ?></div>
           </div>
         </form>
         <div id="save-result" class="preview-box" style="display:none;"></div>
