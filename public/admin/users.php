@@ -17,6 +17,15 @@ $msgType = 'ok';
 
 // Fetch districts for dropdowns
 $districts = api_call('GET', 'districts.php', null, $token)['data'] ?? [];
+// Villages for the cash-agent picker (agents collect for exactly one village).
+// The API caps a page at 500; there are ~1,029 villages nationwide, so page
+// through them instead of silently hiding half the country's villages.
+$villages = [];
+for ($off = 0; $off < 5000; $off += 500) {
+    $pageVillages = api_call('GET', "villages.php?limit=500&offset=$off", null, $token)['data'] ?? [];
+    $villages = array_merge($villages, $pageVillages);
+    if (count($pageVillages) < 500) { break; }
+}
 // Fetch provinces for the modal cascade (province -> district) and table display.
 $provinces = api_call('GET', 'refdata.php?table=provinces', null, $token)['data'] ?? [];
 
@@ -24,11 +33,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $do = $_POST['do_action'] ?? '';
     $r = ['ok' => false, 'error' => ['message' => t('Unknown action')]];
     if ($do === 'user_create') {
-        $r = api_call('POST', 'users.php', ['action' => 'create',
+        $body = ['action' => 'create',
             'username' => $_POST['username'] ?? '', 'password' => $_POST['password'] ?? '',
             'role' => $_POST['role'] ?? 'officer', 'level' => $_POST['level'] ?? 'district',
             'district_id' => (int)($_POST['district_id'] ?? 0),
-            'phone' => $_POST['phone'] ?? '', 'email' => $_POST['email'] ?? ''], $token);
+            'phone' => $_POST['phone'] ?? '', 'email' => $_POST['email'] ?? '',
+            'is_agent' => !empty($_POST['is_agent'])];
+        if (!empty($_POST['is_agent'])) {
+            $body['agent_village_id'] = (int)($_POST['agent_village_id'] ?? 0);
+            $body['agent_role'] = $_POST['agent_role'] ?? '';
+            $body['agent_license_no'] = $_POST['agent_license_no'] ?? '';
+        }
+        $r = api_call('POST', 'users.php', $body, $token);
         $msg = !empty($r['ok']) ? t('Account created.') : ($r['error']['message'] ?? t('Create failed'));
     } elseif ($do === 'user_update') {
         $body = ['action' => 'update', 'id' => (int)($_POST['id'] ?? 0)];
@@ -38,6 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['district_id'])) { $body['district_id'] = (int)$_POST['district_id']; }
         if (!empty($_POST['password'])) { $body['password'] = $_POST['password']; }
         if (isset($_POST['is_active'])) { $body['is_active'] = $_POST['is_active'] === '1'; }
+        $body['is_agent'] = !empty($_POST['is_agent']);
+        if ($body['is_agent']) {
+            $body['agent_village_id'] = (int)($_POST['agent_village_id'] ?? 0);
+            $body['agent_role'] = $_POST['agent_role'] ?? '';
+            $body['agent_license_no'] = $_POST['agent_license_no'] ?? '';
+        }
         $r = api_call('POST', 'users.php', $body, $token);
         $msg = !empty($r['ok']) ? t('Account updated.') : ($r['error']['message'] ?? t('Update failed'));
     } elseif ($do === 'citizen_link') {
@@ -112,13 +134,22 @@ if ($linkingUser > 0) {
         <?php endif; ?>
       </div>
       <table style="margin-bottom:16px;">
-        <thead><tr><th><?= te('Username') ?></th><th><?= te('Role') ?></th><th><?= te('Level') ?></th><th><?= te('District') ?></th><th><?= te('Province') ?></th><th><?= te('Email') ?></th><th><?= te('Phone') ?></th><th><?= te('Active') ?></th><th><?= te('Scans verified') ?></th><th></th></tr></thead>
+        <thead><tr><th><?= te('Username') ?></th><th><?= te('Role') ?></th><th><?= te('Level') ?></th><th><?= te('Agent village') ?></th><th><?= te('District') ?></th><th><?= te('Province') ?></th><th><?= te('Email') ?></th><th><?= te('Phone') ?></th><th><?= te('Active') ?></th><th><?= te('Scans verified') ?></th><th></th></tr></thead>
         <tbody>
         <?php foreach ($staff as $u): ?>
           <tr>
             <td><?= e($u['username']) ?></td>
             <td><?= e(t($u['role'])) ?></td>
             <td><?= e(t($u['level'] ?? 'district')) ?></td>
+            <td><?php
+                if (!empty($u['is_agent'])) {
+                    $aName = $u['agent_village_name'] ?? '—';
+                    if (i18n_current() === 'lo' && !empty($u['agent_village_name_lo'])) { $aName = $u['agent_village_name_lo']; }
+                    echo '<span class="pill pill-paid">' . te('Agent') . '</span> ' . e($aName);
+                } else {
+                    echo '—';
+                }
+            ?></td>
             <td><?php
                 $dName = $u['district_name'] ?? ($u['district_id'] ?? '—');
                 if (i18n_current() === 'lo' && !empty($u['district_name_lo'])) { $dName = $u['district_name_lo']; }
@@ -142,6 +173,10 @@ if ($linkingUser > 0) {
                 data-district-id="<?= (int)($u['district_id'] ?? 0) ?>"
                 data-email="<?= e($u['email'] ?? '') ?>"
                 data-phone="<?= e($u['phone']) ?>"
+                data-is-agent="<?= !empty($u['is_agent']) ? '1' : '0' ?>"
+                data-agent-village-id="<?= (int)($u['agent_village_id'] ?? 0) ?>"
+                data-agent-role="<?= e($u['agent_role'] ?? '') ?>"
+                data-agent-license-no="<?= e($u['agent_license_no'] ?? '') ?>"
                 data-is-active="<?= $u['is_active'] ? '1' : '0' ?>"><?= te('Edit') ?></button></td>
           </tr>
         <?php endforeach; ?>
@@ -244,6 +279,26 @@ if ($linkingUser > 0) {
       </select></div>
       <div class="form-group"><label><?= te("Email") ?></label><input name="email" type="email" autocomplete="off"></div>
       <div class="form-group"><label><?= te("Phone") ?></label><input name="phone" autocomplete="off"></div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label><?= te("Cash collection agent") ?></label>
+        <input type="hidden" name="is_agent" value="0">
+        <input type="checkbox" name="is_agent" value="1" autocomplete="off">
+        <span class="sub"><?= te('Agent accounts sign in to the citizen app and collect land-tax cash for one village.') ?></span>
+      </div>
+      <div class="form-group"><label><?= te("Agent village") ?></label><select name="agent_village_id" autocomplete="off">
+        <option value="0"><?= te("---") ?></option>
+        <?php foreach ($villages as $v): ?>
+          <option value="<?= (int)$v['id'] ?>"><?= e(($v['name_lo'] ?? '') . ' — ' . ($v['district_name'] ?? '')) ?></option>
+        <?php endforeach; ?>
+      </select></div>
+      <div class="form-group"><label><?= te("Agent role") ?></label><select name="agent_role" autocomplete="off">
+        <option value=""><?= te("---") ?></option>
+        <option value="village_head"><?= te('Village head') ?></option>
+        <option value="deputy"><?= te('Deputy') ?></option>
+        <option value="secretary"><?= te('Village secretary') ?></option>
+        <option value="other"><?= te('Other') ?></option>
+      </select></div>
+      <div class="form-group"><label><?= te("Agent licence no.") ?></label><input name="agent_license_no" autocomplete="off"></div>
       <div class="form-group"><label><?= te("Active") ?></label>
         <input type="checkbox" name="is_active" value="1" autocomplete="off"></div>
     </div>
@@ -256,6 +311,14 @@ if ($linkingUser > 0) {
 
   <script>
   (function(){
+    // The agent checkbox sits next to a hidden is_agent=0 so unchecking a
+    // current agent still submits the field. Keep the two in step.
+    document.addEventListener('change', function(e){
+      if(!e.target || !e.target.matches || !e.target.matches('input[name="is_agent"][type="checkbox"]')) return;
+      var group = e.target.closest('.form-group');
+      var hidden = group ? group.querySelector('input[name="is_agent"][type="hidden"]') : null;
+      if(hidden) hidden.value = e.target.checked ? '1' : '0';
+    });
     // Province/district cascade in the modal form.
     // Runs AFTER modal.php so window.openModal is already the real function.
     var origOpen = window.openModal;

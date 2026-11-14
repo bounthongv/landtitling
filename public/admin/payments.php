@@ -3,6 +3,14 @@
 // bank & mobile proofs (review), and the full ledger.
 require __DIR__ . '/common.php';
 require_once __DIR__ . '/../../lib/fee.php';   // payment_method_label()
+
+// A cash-agent collection stores method='cash' (the counter cash path) plus
+// payment_method='cash_agent'; show it as its own channel in the ledger.
+function payment_method_display(array $p): string
+{
+    $isAgent = (($p['payment_method'] ?? '') === 'cash_agent');
+    return payment_method_label($isAgent ? 'cash_agent' : (string)$p['method']);
+}
 if (!$is_logged_in) { header('Location: login.php'); exit; }
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
@@ -221,7 +229,7 @@ function render_payment_card(array $p, string $base): void
               <?= te('Area') ?> <?= number_format((float)$p['area_sqm'], 2) ?> m2
             </p>
             <p><b><?= te('Amount') ?>:</b> <?= number_format((float)$p['amount'], 0) ?> <?= te('kip') ?>
-               &nbsp;<b><?= te('Method') ?>:</b> <?= e(payment_method_label((string)$p['method'])) ?>
+               &nbsp;<b><?= te('Method') ?>:</b> <?= e(payment_method_display($p)) ?>
                <?php if ($p['payer_name']): ?> &nbsp;<b><?= te('Payer') ?>:</b> <?= e($p['payer_name']) ?><?php endif; ?>
             </p>
             <?php if ($p['obligation_status']): ?>
@@ -401,7 +409,7 @@ function render_payment_card(array $p, string $base): void
               <td><?= e($p['reference_no']) ?></td>
               <td><a href="<?= $base ?>/parcel.php?id=<?= (int)$p['parcel_id'] ?>"><?= e($p['parcel_no']) ?></a></td>
               <td><?= e($p['payer_name'] ?: '—') ?></td>
-              <td><?= e(payment_method_label((string)$p['method'])) ?><?= $p['bank_ref'] ? ' (' . e($p['bank_ref']) . ')' : '' ?></td>
+              <td><?= e(payment_method_display($p)) ?><?= $p['bank_ref'] ? ' (' . e($p['bank_ref']) . ')' : '' ?></td>
               <td><?= number_format((float)$p['amount'], 0) ?></td>
               <td><?= $p['paid_at'] ? e(date('d M Y H:i', strtotime((string)$p['paid_at']))) : '—' ?></td>
               <td><a href="<?= $base ?>/slip_print.php?id=<?= (int)$p['id'] ?>&receipt=1" target="_blank" class="btn btn-green btn-sm"><?= te('Receipt') ?></a></td>
@@ -472,7 +480,7 @@ function render_payment_card(array $p, string $base): void
               </p>
               <p style="margin:4px 0;">
                 <b><?= te('Amount') ?>:</b> <?= number_format((float)$p['amount'], 0) ?> <?= te('kip') ?>
-                &nbsp;<b><?= te('Method') ?>:</b> <?= e(payment_method_label((string)$p['method'])) ?>
+                &nbsp;<b><?= te('Method') ?>:</b> <?= e(payment_method_display($p)) ?>
                 <?php if ($p['payer_name']): ?> &nbsp;<b><?= te('Payer') ?>:</b> <?= e($p['payer_name']) ?><?php endif; ?>
                 <?php if (!empty($p['bank_ref'])): ?> &nbsp;<b><?= te('Bank ref') ?>:</b> <?= e($p['bank_ref']) ?><?php endif; ?>
               </p>
@@ -555,7 +563,7 @@ function render_payment_card(array $p, string $base): void
           <div class="form-group"><label><?= te('Method') ?></label>
             <select name="method">
               <option value=""><?= te('-- all --') ?></option>
-              <?php foreach (['cash','bank_transfer','mobile','cheque','counter'] as $m): ?>
+              <?php foreach (['cash','bank_transfer','mobile','cheque','counter','cash_agent'] as $m): ?>
               <option value="<?= $m ?>" <?= $methodF === $m ? 'selected' : '' ?>><?= e(payment_method_label($m)) ?></option>
               <?php endforeach; ?>
             </select>

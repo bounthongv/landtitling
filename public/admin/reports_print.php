@@ -36,6 +36,7 @@ $reportLabels = [
     'rates'        => t('Rate schedule'),
     'audit'        => t('Audit trail'),
     'mof'          => t('MOF export (assessed/collected/outstanding)'),
+    'agent'        => t('Agent cash collections'),
 ];
 $title = $reportLabels[$report] ?? ucfirst(str_replace('_', ' ', $report));
 

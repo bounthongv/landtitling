@@ -122,6 +122,43 @@ function staff_scope(array $payload) {
 }
 
 /**
+ * Refuse the call when the account is flagged as a cash-collection agent.
+ *
+ * Agents are officer accounts (is_agent = TRUE) so their JWT passes every
+ * officer check — without this guard an agent could verify their own
+ * handover batch (or a ledger payment) and mark cash as PAID that may
+ * never have reached the district office. The agent's own endpoints
+ * (agent/collect.php, agent/handovers.php) do not go through
+ * require_staff_write(), so the collection flow is unaffected.
+ *
+ * The JWT carries no is_agent claim (tokens predate the column), so the
+ * flag is read from the database. When migration 020 has not run the
+ * column is absent and no agent accounts can exist — fail open then.
+ */
+function require_not_agent(array $payload): void {
+    // The column probe runs once per request; the flag lookup runs every time.
+    static $agentColAvailable = null;
+    if ($agentColAvailable === null) {
+        try {
+            $pdo = db_connect();
+            $agentColAvailable = (bool)$pdo->query("SELECT 1 FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = 'users'
+                  AND column_name = 'is_agent'")->fetchColumn();
+        } catch (\Throwable $e) {
+            $agentColAvailable = false;
+        }
+    }
+    if (!$agentColAvailable) {
+        return;   // migration 020 not applied: no agent accounts can exist
+    }
+    $st = db_connect()->prepare("SELECT is_agent FROM users WHERE id = :id");
+    $st->execute([':id' => $payload['sub'] ?? 0]);
+    if (!empty($st->fetchColumn())) {
+        json_error('Cash-collection agents cannot perform this officer action', 403, 'agent_forbidden');
+    }
+}
+
+/**
  * Require that the caller is staff who may write records (district admin/officer).
  * Sends 403 otherwise. Returns the staff_scope() array.
  */
@@ -130,6 +167,9 @@ function require_staff_write(array $payload) {
     if (!$scope['can_write']) {
         json_error('You do not have permission to modify records', 403, 'read_only');
     }
+    // Agents collect cash on citizens' behalf; they are not district officers
+    // and must not reach the officer write paths (verify, parcel entry, users).
+    require_not_agent($payload);
     return $scope;
 }
 

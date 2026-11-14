@@ -15,6 +15,7 @@ if ($method === 'GET') {
     $province_id  = isset($_GET['province_id']) ? (int)$_GET['province_id'] : 0;
     $q = trim((string)($_GET['q'] ?? ''));
     $limit = min(500, max(1, (int)($_GET['limit'] ?? 500)));
+    $offset = max(0, (int)($_GET['offset'] ?? 0));
 
     $where = [];
     $params = [];
@@ -67,7 +68,7 @@ if ($method === 'GET') {
             (SELECT COUNT(*) FROM parcels p WHERE p.village_id = v.id) AS parcel_count
         FROM villages v JOIN districts d ON d.id = v.district_id
         LEFT JOIN provinces p ON p.id = d.province_id
-        $w ORDER BY $orderBy LIMIT $limit");
+        $w ORDER BY $orderBy LIMIT $limit OFFSET $offset");
     $st->execute($params);
     json_ok($st->fetchAll());
 }

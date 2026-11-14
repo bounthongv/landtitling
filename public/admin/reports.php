@@ -45,7 +45,7 @@ if (!$canFilterDist) { $district = 0; }
 // than events, it holds one version per zone and road so there is no rate
 // history to look back at, and a schedule is read as at a date, not between
 // two of them.
-$dateReports   = ['collection', 'registration', 'register', 'bank', 'audit', 'mof'];
+$dateReports   = ['collection', 'registration', 'register', 'bank', 'audit', 'mof', 'agent'];
 // What the picked period actually selects, because the same picker means
 // different things on different screens and a wrong reading costs a signature.
 $periodMeaning = [
@@ -55,9 +55,10 @@ $periodMeaning = [
     'bank'         => t('Statement rows and the payments they settle, in the period'),
     'audit'        => t('Log entries in the period'),
     'mof'          => t('Collected in the period; assessed and outstanding stay annual'),
+    'agent'        => t('Cash collections received by village agents in the period'),
 ];
-$yearReports   = ['collection', 'arrears', 'mof'];
-$parcelFilters = ['collection', 'arrears', 'registration', 'register', 'mof'];
+$yearReports   = ['collection', 'arrears', 'mof', 'agent'];
+$parcelFilters = ['collection', 'arrears', 'registration', 'register', 'mof', 'agent'];
 
 // Whether this report reads a period at all, and the picker fields that say
 // which interval was chosen. Only from= and to= reach the report API, so the
@@ -121,10 +122,11 @@ $reportLabels = [
     'rates'       => t('Rate schedule'),
     'audit'       => t('Audit trail'),
     'mof'         => t('MOF export (assessed/collected/outstanding)'),
+    'agent'       => t('Agent cash collections'),
 ];
 // Picker grouping only; the flat map drives the heading and the CSV link.
 $reportGroups = [
-    t('Money')    => ['collection', 'arrears', 'mof'],
+    t('Money')    => ['collection', 'arrears', 'mof', 'agent'],
     t('Registry') => ['registration', 'register'],
     t('Controls') => ['bank', 'rates', 'audit'],
 ];

@@ -361,6 +361,15 @@ if ($method === 'GET') {
 
     $where = [];
     $params = [];
+    // Migration 020 adds payment_method / payer_name; keep the ledger working
+    // before it is applied, and let the officer filter agent cash separately.
+    $hasCashAgent = false;
+    try {
+        $hasCashAgent = (bool)$pdo->query("SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'payments' AND column_name = 'payment_method'")->fetchColumn();
+    } catch (\Throwable $e) {
+        $hasCashAgent = false;
+    }
     if ($status !== null && $status !== '') {
         // A comma-separated list is accepted (e.g. ISSUED,SUBMITTED for every
         // payment still awaiting an officer). Values are whitelisted.
@@ -378,7 +387,15 @@ if ($method === 'GET') {
             $where[] = 'pay.status IN (' . implode(',', $ph) . ')';
         }
     }
-    if ($methodF !== '') { $where[] = 'pay.method = :m'; $params[':m'] = $methodF; }
+    if ($methodF !== '') {
+        if ($methodF === 'cash_agent' && $hasCashAgent) {
+            $where[] = "pay.payment_method = :pm";
+            $params[':pm'] = 'cash_agent';
+        } else {
+            $where[] = 'pay.method = :m';
+            $params[':m'] = $methodF;
+        }
+    }
     if ($feeYear)  { $where[] = 'pay.fee_year = :fy'; $params[':fy'] = $feeYear; }
     if ($paidAfter !== '') { $where[] = 'pay.paid_at >= :pa'; $params[':pa'] = $paidAfter; }
     if ($district) { $where[] = 'par.district_id = :did'; $params[':did'] = $district; }
@@ -405,8 +422,11 @@ if ($method === 'GET') {
     }
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
+    $payerExpr = $hasCashAgent
+        ? 'COALESCE(pay.payer_name, o.full_name) AS payer_name'
+        : 'o.full_name AS payer_name';
     $sql = "SELECT pay.*, par.parcel_no, par.area_sqm, d.name_lo AS district_name, v.name_lo AS village_name,
-            o.full_name AS payer_name, ob.status AS obligation_status, b.name_lo AS bank_name, b.name_en AS bank_name_en
+            {$payerExpr}, ob.status AS obligation_status, b.name_lo AS bank_name, b.name_en AS bank_name_en
         FROM payments pay
         JOIN parcels par ON par.id = pay.parcel_id
         JOIN districts d ON d.id = par.district_id

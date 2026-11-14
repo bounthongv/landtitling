@@ -5,6 +5,7 @@ Live on `https://landtax.apis.com.la` (database: `landfee`, schema `landfee`).
 - **Password for every account below: `demo1234`** — change each one after first real use.
 - Province for all accounts: **Savannakhet (ສະຫວັນນະເຂດ)**.
 - Seeded by `sql/migrations/003_seed_staff_accounts.sql` (district + province admins) and `sql/migrations/004_super_admin.sql` (super admin flag).
+- The **national (ministry) manager** (`min_manager`) is not part of the seed: the live DB has one, created after `sql/migrations/019_national_manager_level.sql` enabled `level = 'national'`. Create more from **Users** as an admin.
 
 ## Super admin
 
@@ -44,9 +45,20 @@ Level `province` (no district) — see all records in the province; only the adm
 | snnk_manager | demo1234 | manager | province | — | Read-only everything, no accounts |
 | snnk_officer | demo1234 | officer | province | — | Read-only everything, no accounts |
 
+## National (ministry) manager
+
+Level `national` (no province, no district) — read-only over **every province**, not just
+Savannakhet. The level is enabled by `sql/migrations/019_national_manager_level.sql` (apply it
+before creating the account) and the account must be created from **Users** as an admin. It is
+not seeded.
+
+| Username | Password | Role | Level | District | Note |
+|----------|----------|------|-------|----------|------|
+| min_manager | demo1234 | manager | national | — | Ministry-level: read-only, sees every province ("Whole country") |
+
 ## Manager landing page
 
-Manager accounts sign in to the read-only **Overview** (`/admin/monitor.php`) — collection progress, receipt status, land area and arrears, scoped to the manager's district (or the whole province for province managers). Below Overview they get the **full officer menu** (Dashboard, Basic Data, Parcel Entry, Parcels, Obligations, Payment Verify, Bank Import, Reports, Users) so they can inspect any screen, but every screen is read-only: write controls are hidden, the page handlers refuse manager POSTs, and `api/v1` refuses every manager write. Data entry stays with district admin/officer accounts.
+Manager accounts sign in to the read-only **Overview** (`/admin/monitor.php`) — collection progress, receipt status, land area and arrears, scoped to the manager's district (the whole province for province managers, or every province for a national/ministry manager). Below Overview they get the **full officer menu** (Dashboard, Basic Data, Parcel Entry, Parcels, Obligations, Payment Verify, Bank Import, Reports, Users) so they can inspect any screen, but every screen is read-only: write controls are hidden, the page handlers refuse manager POSTs, and `api/v1` refuses every manager write. Data entry stays with district admin/officer accounts.
 
 ## Permission summary
 
@@ -57,10 +69,12 @@ Manager accounts sign in to the read-only **Overview** (`/admin/monitor.php`) �
 | manager | district | read-only | — | own district |
 | admin | province | read-only | create/edit/deactivate any | whole province |
 | officer / manager | province | read-only | — | whole province |
+| manager | national | read-only | — | every province (whole country) |
 | super admin (sav_officer) | — | add/edit/delete | full | every district |
 
 ## Adding more staff
 
 - District admins: Admin → Users → New staff account (own district only).
 - Province admin: same page, can pick any district or province level.
+- National (ministry) manager: province admin → Users, level `national` — apply `sql/migrations/019_national_manager_level.sql` first. Read-only over every province.
 - Or re-run `sql/migrations/003_seed_staff_accounts.sql` on the server (idempotent — `ON CONFLICT DO NOTHING`).

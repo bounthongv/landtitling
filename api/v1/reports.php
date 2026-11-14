@@ -567,6 +567,85 @@ case 'mof': {
         break;
     }
 
+// ---- Agent cash collections: what each village agent collected and whether
+// the district has taken the cash (verified) or it is still pending handover.
+case 'agent': {
+    $columns = ['Province', 'District', 'Village', 'Agent', 'Role', 'Collections',
+                'Collected (kip)', 'Verified (kip)', 'Pending (kip)'];
+    $groupBy = [
+        ['key' => 'province', 'label' => 'Province'],
+        ['key' => 'district', 'label' => 'District'],
+        ['key' => 'village',  'label' => 'Village'],
+    ];
+    $subtotal = ['collections', 'collected_kip', 'verified_kip', 'pending_kip'];
+    $empty = [
+        'columns' => $columns, 'rows' => [], 'group_by' => $groupBy, 'subtotal' => $subtotal,
+        'summary' => ['collections' => 0, 'collected_kip' => 0, 'verified_kip' => 0, 'pending_kip' => 0],
+    ];
+
+    // Migration 020 may not be applied yet: fail closed with an empty report
+    // rather than a 500 on a column that does not exist.
+    $hasCashAgent = false;
+    try {
+        $hasCashAgent = (bool)$pdo->query("SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'payments'
+              AND column_name = 'payment_method'")->fetchColumn();
+    } catch (\Throwable $e) {
+        $hasCashAgent = false;
+    }
+    if (!$hasCashAgent) {
+        $result = $empty;
+        break;
+    }
+
+    $where  = ["pay.payment_method = 'cash_agent'"];
+    $params = [];
+    rep_parcel_filters($where, $params, $district, $road, $province, $village);
+    if ($year) { $where[] = 'pay.fee_year = :fy'; $params[':fy'] = $year; }
+    rep_date_range($where, $params, 'pay.collected_at', $from, $to);
+    $w = 'WHERE ' . implode(' AND ', $where);
+
+    $stmt = $pdo->prepare("SELECT pr.name_lo AS province, d.name_lo AS district, v.name_lo AS village,
+            u.username AS agent, u.agent_role AS role,
+            COUNT(*) AS collections,
+            COALESCE(SUM(pay.amount), 0) AS collected_kip,
+            COALESCE(SUM(pay.amount) FILTER (WHERE pay.status = 'PAID'), 0) AS verified_kip,
+            COALESCE(SUM(pay.amount) FILTER (WHERE pay.status IN ('ISSUED', 'SUBMITTED')), 0) AS pending_kip
+        FROM payments pay
+        JOIN parcels par ON par.id = pay.parcel_id
+        JOIN districts d ON d.id = par.district_id
+        JOIN villages  v ON v.id = par.village_id
+        JOIN provinces pr ON pr.id = d.province_id
+        JOIN users u ON u.id = pay.agent_id
+        $w
+        GROUP BY pr.name_lo, d.name_lo, v.name_lo, u.username, u.agent_role
+        ORDER BY pr.name_lo, d.name_lo, v.name_lo, u.username");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+
+    $collections = 0; $collected = $verified = $pending = 0.0;
+    foreach ($rows as $r) {
+        $collections += (int)$r['collections'];
+        $collected   += (float)$r['collected_kip'];
+        $verified    += (float)$r['verified_kip'];
+        $pending     += (float)$r['pending_kip'];
+    }
+
+    $result = [
+        'columns'  => $columns,
+        'rows'     => $rows,
+        'group_by' => $groupBy,
+        'subtotal' => $subtotal,
+        'summary'  => [
+            'collections'   => $collections,
+            'collected_kip' => $collected,
+            'verified_kip'  => $verified,
+            'pending_kip'   => $pending,
+        ],
+    ];
+    break;
+}
+
 default:
     json_error('Unknown report: ' . $report, 400, 'unknown_report');
 }

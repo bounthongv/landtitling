@@ -352,6 +352,7 @@ function payment_method_label(string $method): string
         'bank_transfer' => 'Bank transfer',
         'mobile'        => 'Mobile app',
         'cheque'        => 'Cheque',
+        'cash_agent'    => 'Cash (agent)',
     ];
     return t($labels[strtolower($method)] ?? ucfirst($method));
 }

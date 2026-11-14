@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import 'core/api_client.dart';
 import 'core/auth_store.dart';
 import 'core/theme.dart';
+import 'state/agent_controller.dart';
 import 'state/auth_controller.dart';
 import 'state/parcels_controller.dart';
 import 'state/payments_controller.dart';
+import 'ui/screens/agent_dashboard_screen.dart';
 import 'ui/screens/home_shell.dart';
 import 'ui/screens/login_screen.dart';
 
@@ -40,6 +42,9 @@ class LandFeeApp extends StatelessWidget {
         ChangeNotifierProvider<PaymentsController>(
           create: (_) => PaymentsController(api: api),
         ),
+        ChangeNotifierProvider<AgentController>(
+          create: (_) => AgentController(api: api),
+        ),
       ],
       child: MaterialApp(
         title: 'Land Tax Payment',
@@ -57,15 +62,15 @@ class _AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = context.watch<AuthController>().status;
+    final auth = context.watch<AuthController>();
 
-    switch (status) {
+    switch (auth.status) {
       case AuthStatus.unknown:
         return const Scaffold(
           body: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
         );
       case AuthStatus.authenticated:
-        return const HomeShell();
+        return auth.isAgent ? const AgentDashboardScreen() : const HomeShell();
       case AuthStatus.unauthenticated:
         return const LoginScreen();
     }

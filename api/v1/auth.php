@@ -105,7 +105,19 @@ if ($action === 'login') {
     reject_on_errors($err);
 
     $pdo = db_connect();
-    $stmt = $pdo->prepare("SELECT id, username, role, level, district_id, is_super, password_hash FROM users WHERE username = :username AND is_active = TRUE");
+    // Migration 020 adds the agent columns. Login must not break on a server
+    // where that migration has not been applied yet, so probe for the column
+    // and select it only when it exists (fail closed: is_agent = false).
+    $hasAgentCols = false;
+    try {
+        $hasAgentCols = (bool)$pdo->query("SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'is_agent'")->fetchColumn();
+    } catch (\Throwable $e) {
+        $hasAgentCols = false;
+    }
+    $agentSelect = $hasAgentCols ? ', is_agent, agent_village_id, agent_role' : '';
+    $stmt = $pdo->prepare("SELECT id, username, role, level, district_id, is_super, password_hash{$agentSelect}
+        FROM users WHERE username = :username AND is_active = TRUE");
     $stmt->execute([':username' => $username]);
     $user = $stmt->fetch();
     if (!$user || !password_verify($password, $user['password_hash'])) {
@@ -134,14 +146,90 @@ if ($action === 'login') {
         }
     }
     $user['level'] = $user['level'] ?? 'district';
+
+    // The agent's assigned village, for the app header (only when migration 020 ran).
+    $villageName = null;
+    $villageNameLo = null;
+    if (!empty($user['agent_village_id'])) {
+        $vst = $pdo->prepare("SELECT name_en, name_lo FROM villages WHERE id = :id");
+        $vst->execute([':id' => $user['agent_village_id']]);
+        if ($vn = $vst->fetch()) {
+            $villageName = $vn['name_en'];
+            $villageNameLo = $vn['name_lo'];
+        }
+    }
+
     $token = auth_issue_token($user);
     json_ok(['token' => $token, 'user' => [
         'id' => (int)$user['id'], 'role' => $user['role'], 'level' => $user['level'],
         'district_id' => isset($user['district_id']) ? (int)$user['district_id'] : null,
         'is_super' => !empty($user['is_super']),
+        'is_agent' => !empty($user['is_agent']),
+        'agent_village_id' => isset($user['agent_village_id']) ? (int)$user['agent_village_id'] : null,
+        'agent_role' => $user['agent_role'] ?? null,
+        'agent_village_name' => $villageName,
+        'agent_village_name_lo' => $villageNameLo,
         'username' => $user['username'],
         'district_name' => $names['district_name'], 'district_name_lo' => $names['district_name_lo'],
         'province_name' => $names['province_name'], 'province_name_lo' => $names['province_name_lo'],
+    ]]);
+}
+
+if ($action === 'me') {
+    // Return the current user fresh from the DB. The app uses this on start-up so
+    // an account promoted to agent (or deactivated) is picked up without a
+    // re-login. Fails closed when migration 020 has not been applied.
+    $payload = require_auth();
+    $pdo = db_connect();
+    $hasAgentCols = false;
+    try {
+        $hasAgentCols = (bool)$pdo->query("SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'is_agent'")->fetchColumn();
+    } catch (\Throwable $e) {
+        $hasAgentCols = false;
+    }
+    $agentSelect = $hasAgentCols ? ', is_agent, agent_village_id, agent_role' : '';
+    $stmt = $pdo->prepare("SELECT id, username, role, level, district_id, is_super{$agentSelect}
+        FROM users WHERE id = :id AND is_active = TRUE");
+    $stmt->execute([':id' => $payload['sub']]);
+    $user = $stmt->fetch();
+    if (!$user) {
+        json_error('Account not found or deactivated', 401, 'unauthorized');
+    }
+
+    $names = ['district_name' => null, 'district_name_lo' => null];
+    if (($user['level'] ?? 'district') === 'district' && !empty($user['district_id'])) {
+        $dst = $pdo->prepare("SELECT name_en, name_lo FROM districts WHERE id = :id");
+        $dst->execute([':id' => $user['district_id']]);
+        if ($dn = $dst->fetch()) {
+            $names['district_name'] = $dn['name_en'];
+            $names['district_name_lo'] = $dn['name_lo'];
+        }
+    }
+    $villageName = null;
+    $villageNameLo = null;
+    if (!empty($user['agent_village_id'])) {
+        $vst = $pdo->prepare("SELECT name_en, name_lo FROM villages WHERE id = :id");
+        $vst->execute([':id' => $user['agent_village_id']]);
+        if ($vn = $vst->fetch()) {
+            $villageName = $vn['name_en'];
+            $villageNameLo = $vn['name_lo'];
+        }
+    }
+
+    json_ok(['user' => [
+        'id' => (int)$user['id'], 'role' => $user['role'],
+        'level' => $user['level'] ?? 'district',
+        'district_id' => isset($user['district_id']) ? (int)$user['district_id'] : null,
+        'is_super' => !empty($user['is_super']),
+        'is_agent' => !empty($user['is_agent']),
+        'agent_village_id' => isset($user['agent_village_id']) ? (int)$user['agent_village_id'] : null,
+        'agent_role' => $user['agent_role'] ?? null,
+        'agent_village_name' => $villageName,
+        'agent_village_name_lo' => $villageNameLo,
+        'username' => $user['username'],
+        'district_name' => $names['district_name'],
+        'district_name_lo' => $names['district_name_lo'],
     ]]);
 }
 
