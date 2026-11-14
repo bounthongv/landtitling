@@ -332,6 +332,8 @@
   "Valuation zone not found or inactive: ": "ບໍ່ພົບເຂດປະເມີນພາສີ ຫຼື ຖືກປິດໃຊ້ງານ: ",
   "A parcel with this number already exists on this map sheet": "ມີເລກດິນນີ້ຢູ່ແລ້ວໃນແຜ່ນທີ່ດິນນີ້",
   "You can only manage parcels in your own district": "ທ່ານສາມາດຈັດການໄດ້ພຽງດິນໃນເມືອງຂອງທ່ານເທົ່ານັ້ນ",
+  "Parcel outside your district": "ຕອນດິນນີ້ຢູ່ນອກເມືອງຂອງທ່ານ",
+  "Parcel not found": "ບໍ່ພົບຕອນດິນ",
   "Failed to save parcel: ": "ບັນທຶກດິນລົ້ມເຫຼວ: ",
   "Save rate": "ບັນທຶກອັດຕາ",
   "Save year": "ບັນທຶກປີ",

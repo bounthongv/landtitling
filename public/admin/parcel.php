@@ -197,7 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
       </table>
       <?php endif; ?>
     </div>
-    <?php if (!$is_manager && in_array($parcel['status'] ?? '', ['draft', 'confirmed'], true)): ?>
+    <?php if (!$is_manager && ($parcel['status'] ?? '') !== 'archived'): ?>
     <div class="form-actions" style="margin-top:16px;">
       <a href="<?= $base ?>/parcel_entry.php?id=<?= (int)$parcel['id'] ?>" class="btn btn-gold"><?= te('Edit parcel') ?></a>
     </div>

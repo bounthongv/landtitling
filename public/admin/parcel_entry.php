@@ -927,6 +927,9 @@ $apiErrorKeys = [
     'Valuation zone not found or inactive: ',
     'A parcel with this number already exists on this map sheet',
     'You can only manage parcels in your own district',
+    'Parcel outside your district',
+    'Parcel not found',
+    'A fee slip has already been issued for this parcel, so it cannot be edited.',
     'Failed to save parcel: ',
 ];
 $apiErrorMap = [];

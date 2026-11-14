@@ -145,7 +145,8 @@ if ($method === 'GET') {
     // never mixes English/Lao spellings of the same province.
     $stmt = $pdo->prepare("SELECT p.*, d.name_lo AS district_name, v.name_lo AS village_name,
             pr.name_lo AS province,
-            (SELECT COUNT(*) FROM payments pm WHERE pm.parcel_id = p.id) AS payment_count,
+            (SELECT COUNT(*) FROM payments pm
+             WHERE pm.parcel_id = p.id AND pm.status IN ('ISSUED','SUBMITTED','PAID')) AS payment_count,
             (SELECT string_agg(o.full_name, ', ' ORDER BY CASE WHEN po.role = 'owner' THEN 0 ELSE 1 END, o.full_name)
              FROM parcel_owners po JOIN owners o ON o.id = po.owner_id
              WHERE po.parcel_id = p.id) AS owners_names
@@ -367,6 +368,27 @@ if ($method === 'POST') {
     
     // Check if parcel exists (update mode)
     $existingId = (int)($parcelData['id'] ?? 0);
+
+    // Editing is allowed for a draft, a confirmed or an active parcel — the order
+    // itself is not the lock. What freezes a record is a live fee slip: once a slip
+    // has been issued (and not rejected/refunded) the citizen may hold it, so the
+    // parcel must keep matching what was billed. This is enforced here, not only in
+    // the list's Edit button, because the API is reachable directly.
+    if ($existingId) {
+        $st = $pdo->prepare("SELECT district_id FROM parcels WHERE id = :id");
+        $st->execute([':id' => $existingId]);
+        $current = $st->fetch();
+        if (!$current) { json_error('Parcel not found', 404, 'not_found'); }
+        if ($scope['district_id'] !== null && (int)$current['district_id'] !== (int)$scope['district_id']) {
+            json_error('Parcel outside your district', 403, 'out_of_scope');
+        }
+        $st = $pdo->prepare("SELECT COUNT(*) FROM payments
+            WHERE parcel_id = :id AND status IN ('ISSUED','SUBMITTED','PAID')");
+        $st->execute([':id' => $existingId]);
+        if ((int)$st->fetchColumn() > 0) {
+            json_error('A fee slip has already been issued for this parcel, so it cannot be edited.', 409, 'parcel_issued');
+        }
+    }
     
     // Build columns
     $cols = [
@@ -419,6 +441,18 @@ if ($method === 'POST') {
             json_error('A parcel with this number already exists on this map sheet', 409, 'duplicate_parcel');
         }
         json_error('Failed to save parcel: ' . $e->getMessage(), 500, 'parcel_failed');
+    }
+
+    // A corrected parcel keeps its current-year bill in step while it is still
+    // unpaid. Only an existing row is touched (manual entry never creates an
+    // obligation) and fee_upsert_obligation itself refuses to rewrite a paid year.
+    if ($existingId && $status === 'confirmed') {
+        $st = $pdo->prepare("SELECT 1 FROM fee_obligations
+            WHERE parcel_id = :id AND fee_year = :fy AND amount_paid = 0");
+        $st->execute([':id' => $parcelId, ':fy' => (int)date('Y')]);
+        if ($st->fetchColumn()) {
+            fee_upsert_obligation($pdo, $parcelId, (int)date('Y'));
+        }
     }
     
     // Handle owners (replace existing owners with provided list)
