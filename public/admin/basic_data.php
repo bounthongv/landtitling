@@ -8,7 +8,9 @@
 // own data-* attributes, so one template serves both "add" and "edit".
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
-if ($role !== 'admin') { http_response_code(403); exit(t('Admins only.')); }
+if (!in_array($role, ['admin', 'manager'], true)) { http_response_code(403); exit(t('Admins only.')); }
+// Managers may open every tab read-only; never process a write from one.
+if ($is_manager && $_SERVER['REQUEST_METHOD'] === 'POST') { http_response_code(403); exit(t('Managers have read-only access.')); }
 $token = $_SESSION['admin_token'];
 
 $tabLabels = [

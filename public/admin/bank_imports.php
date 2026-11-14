@@ -2,9 +2,10 @@
 // public/admin/bank_imports.php — import bank statements, review match results, override
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
-if ($is_manager) { header('Location: monitor.php'); exit; }   // statement import is a data-entry screen
 $role = $user['role'];
 $token = $_SESSION['admin_token'];
+// Managers can review statement imports; importing/overriding is refused.
+if ($is_manager && $_SERVER['REQUEST_METHOD'] === 'POST') { http_response_code(403); exit(t('Managers have read-only access.')); }
 
 $import_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $msg = '';

@@ -763,5 +763,6 @@
   "Could not load the dashboard data — check the API.": "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນພາບລວມໄດ້ — ກວດສອບ API.",
   "Preview & Print": "ເບິ່ງຫນ້າພິມ & ພິມ",
   "National": "ລະດັບຊາດ",
-  "Whole country": "ທົ່ວປະເທດ"
+  "Whole country": "ທົ່ວປະເທດ",
+  "Read-only access: you can view every screen but cannot make changes.": "ການເຂົ້າເຖິງແບບອ່ານເທົ່ານັ້ນ: ທ່ານສາມາດເບິ່ງໄດ້ທຸກໜ້າ ແຕ່ບໍ່ສາມາດແກ້ໄຂໄດ້."
 }

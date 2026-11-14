@@ -3,9 +3,10 @@
 // and citizen accounts (read-only, plus linking a login to an owner record).
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
-if ($is_manager) { header('Location: monitor.php'); exit; }   // account management is not a manager screen
 $allowedRoles = ['admin', 'officer', 'manager'];
 if (!in_array($role, $allowedRoles, true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
+// Managers can review the account lists; writes are hidden and refused.
+if ($is_manager && $_SERVER['REQUEST_METHOD'] === 'POST') { http_response_code(403); exit(t('Managers have read-only access.')); }
 $token = $_SESSION['admin_token'];
 // Linking is a write; managers are read-only.
 $canLink = in_array($role, ['admin', 'officer'], true);

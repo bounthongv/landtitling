@@ -530,14 +530,19 @@
     /* iOS zooms the whole page when a focused control is under 16px. */
     input, select, textarea { font-size: 16px; }
   }
-/* Managers: Payments and Obligations are detail screens that duplicate the
-   overview and the reports. They are for the desktop sidebar only — hide them
-   on any touch device and on narrow windows (a phone in landscape is ~800-930px,
-   which is why the 720px phone block alone was not enough). A real computer
-   (wide screen, mouse) still shows them. */
-@media (max-width: 1024px), (pointer: coarse) {
-  .side-nav li.nav-desktop-only { display: none; }
-}
+<?php if (isset($role) && $role === 'manager'): ?>
+/* Managers are read-only: they can open every screen, but no control that
+   writes is shown. This is cosmetic — api/v1 refuses manager writes regardless
+   (require_staff_write / staff_scope()['can_write']). Reports' GET filters and
+   the print/download links are not touched: only POST submits, modal buttons
+   and file pickers disappear. */
+.js-modal,
+form[method="post"] button[type="submit"],
+form[method="post"] input[type="submit"],
+input[type="file"],
+#parcel-form .form-actions,
+#do-import { display: none !important; }
+<?php endif; ?>
 </style>
 <?php
 // Managers install a second, read-only app: its own name, icon and start page,

@@ -40,9 +40,8 @@
 
 require __DIR__ . '/common.php';
 if (!$is_logged_in) { header('Location: login.php'); exit; }
-if ($is_manager) { header('Location: monitor.php'); exit; }   // data entry is not a manager screen
 $role = $user['role'];
-if (!in_array($role, ['officer','admin'], true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
+if (!in_array($role, ['officer','admin','manager'], true)) { http_response_code(403); exit(t('Insufficient permissions.')); }
 $token = $_SESSION['admin_token'];
 
 // ---- Scan review (the single scan → parcel workflow) ----
@@ -448,6 +447,9 @@ if ($editId > 0) {
   </aside>
   <main class="main">
     <h1><?= te('Parcel Entry') ?></h1>
+    <?php if ($is_manager): ?>
+    <p class="sub" style="margin-bottom:12px;"><?= te('Read-only access: you can view every screen but cannot make changes.') ?></p>
+    <?php endif; ?>
 
     <div class="entry-page">
       <div class="entry-tabs">
@@ -1622,7 +1624,17 @@ if (scanZoneSelect && scanRoadSelect) {
 
   // Geo data first, then the edit prefill: the prefill walks the province →
   // district → village cascade, which only exists once the lists are loaded.
-  loadGeoData().then(() => prefillEditParcel());
+  loadGeoData().then(() => {
+    prefillEditParcel();
+<?php if ($is_manager): ?>
+    // Managers can inspect the entry screen but the form is not editable; the
+    // Save controls are hidden by the read-only styles in style.php.
+    var form = document.getElementById('parcel-form');
+    if (form) {
+      form.querySelectorAll('input, select, textarea, button').forEach(function (el) { el.disabled = true; });
+    }
+<?php endif; ?>
+  });
 </script>
 </body>
 </html>

@@ -75,40 +75,21 @@ function admin_nav($role) {
         'users.php'        => '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
     ];
 
-    // Managers get a read-only monitoring home: no data-entry screens.
-    // Payments and Obligations are detail views that are redundant on a phone
-    // (the overview and reports carry the same figures), so the phone layout
-    // hides them and the desktop sidebar keeps them.
+    $links = [];
+    // Managers are read-only but see every screen an officer sees: they start
+    // at the monitoring Overview and then follow the normal officer menu. All
+    // writes are refused by the API, so this only changes visibility.
     if ($role === 'manager') {
-        $items = [
-            'monitor.php'     => 'Overview',
-            'payments.php'    => 'Payments',
-            'parcels.php'     => 'Parcels',
-            'obligations.php' => 'Obligations',
-            'reports.php'     => 'Reports',
-        ];
-        $mgrLinks = [];
-        foreach ($items as $file => $label) {
-            $href = $base . '/' . $file;
-            if ($file === 'payments.php') { $href .= '?tab=all'; }
-            $active = ($page === $file) || ($file === 'monitor.php' && $page === 'index.php');
-            $liClasses = [];
-            if ($active) { $liClasses[] = 'active'; }
-            if (in_array($file, ['payments.php', 'obligations.php'], true)) { $liClasses[] = 'nav-desktop-only'; }
-            $liCls = $liClasses ? ' class="' . implode(' ', $liClasses) . '"' : '';
-            $aCls = $active ? ' class="active"' : '';
-            $mgrLinks[] = '<li' . $liCls . '><a' . $aCls . ' href="' . $href . '">' . ($icons[$file] ?? '') . '<span>' . te($label) . '</span></a></li>';
-        }
-        $mgrLinks[] = '<li class="logout-li"><a href="' . $base . '/logout.php"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>' . te('Logout') . '</span></a></li>';
-        return '<ul class="side-nav">' . implode('', $mgrLinks) . '</ul>';
+        $act = ($page === 'monitor.php') ? ' class="active"' : '';
+        $links[] = '<li' . $act . '><a' . $act . ' href="' . $base . '/monitor.php">' . ($icons['monitor.php'] ?? '') . '<span>' . te('Overview') . '</span></a></li>';
     }
 
-    $links = [];
     // Dashboard is visible to all staff roles (read-only stats).
     $act = ($page === 'index.php') ? ' class="active"' : '';
     $links[] = '<li' . $act . '><a' . $act . ' href="' . $base . '/index.php">' . ($icons['index.php'] ?? '') . '<span>' . te('Dashboard') . '</span></a></li>';
 
-    if ($role === 'admin') {
+    // Basic Data is read-only for managers; admins edit it.
+    if (in_array($role, ['admin', 'manager'], true)) {
         $onBasicData = ($page === 'basic_data.php');
 
         // Basic Data with submenu
