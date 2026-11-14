@@ -458,6 +458,7 @@ if ($editId > 0) {
 
       <!-- ========== MANUAL TAB ========== -->
       <div data-content="manual"<?= $initialTab === 'manual' ? '' : ' style="display:none;"' ?>>
+        <div id="save-result" class="preview-box" style="display:none;"></div>
         <form id="parcel-form">
           <div class="cert-grid">
             <!-- Certificate header -->
@@ -634,7 +635,6 @@ if ($editId > 0) {
             <div class="draft-hint"><?= te('A draft needs only district, village and parcel no. — fill in the rest (including the valuation zone) later.') ?></div>
           </div>
         </form>
-        <div id="save-result" class="preview-box" style="display:none;"></div>
       </div>
 
       <!-- ========== SCAN TAB ========== -->
